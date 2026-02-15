@@ -28,10 +28,6 @@ import {
   Moon,
   Layout
 } from 'lucide-react'
-import ReactMarkdown from 'react-markdown'
-import remarkGfm from 'remark-gfm'
-import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter'
-import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism'
 import { Toaster, toast } from 'sonner'
 import { useTheme } from './contexts/ThemeContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -41,6 +37,11 @@ import Select from './components/Select'
 import Toggle from './components/Toggle'
 import Text from './components/Text'
 import Header from './components/Header'
+import Card from './components/Card'
+import IconBox from './components/IconBox'
+import Badge from './components/Badge'
+import Modal from './components/Modal'
+import MarkdownRenderer from './components/MarkdownRenderer'
 import { TABLE, TH, TR, TD } from './components/Table'
 import {
   faPlus,
@@ -600,47 +601,40 @@ function App() {
         }}
       />
       {/* Modal Overlay */}
-      {viewingFile && (
-        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-200" onClick={() => setViewingFile(null)}>
-          <div className="bg-bg-card w-full max-w-4xl h-[80vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-200" onClick={e => e.stopPropagation()}>
-            <div className="p-6 border-b border-border-color flex justify-between items-center bg-bg-sidebar/50">
-              <div className="flex items-center gap-3">
-                <FileText size={20} className="text-accent-primary" />
-                <h2 className="text-xl font-semibold">{viewingFile.title}</h2>
-              </div>
-              <div className="flex gap-2">
-                {!viewingFile.isEditing ? (
-                  <button className="h-10 px-5 rounded-lg bg-transparent border border-white/10 hover:bg-white/5 hover:text-white flex items-center justify-center transition-all duration-200" onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>
-                    <Edit2 size={18} />
-                  </button>
-                ) : (
-                  <button className="h-10 px-5 rounded-lg bg-accent-primary text-white border border-accent-primary shadow-[0_0_15px_rgba(99,102,241,0.3)] flex items-center justify-center transition-all duration-200" onClick={saveAgentFile}>
-                    <Save size={18} />
-                  </button>
-                )}
-                <button className="h-10 px-3 rounded-lg hover:text-white transition-all duration-200" onClick={() => setViewingFile(null)}>
-                  <X size={24} />
-                </button>
-              </div>
-            </div>
-            <div className="flex-1 overflow-y-auto p-8">
-              {viewingFile.isEditing ? (
-                <textarea
-                  className="w-full h-full p-6 bg-bg-primary border border-border-color rounded-2xl outline-none focus:border-accent-primary transition-colors resize-none font-mono text-sm leading-relaxed text-neutral-600 dark:text-white"
-                  value={viewingFile.content}
-                  onChange={e => setViewingFile({ ...viewingFile, content: e.target.value })}
-                />
-              ) : (
-                <div className="prose prose-invert max-w-none">
-                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {viewingFile.content}
-                  </ReactMarkdown>
-                </div>
-              )}
-            </div>
-          </div>
+      {/* Modal Overlay */}
+      <Modal
+        isOpen={!!viewingFile}
+        onClose={() => setViewingFile(null)}
+        title={viewingFile && (
+          <>
+            <FileText size={20} className="text-accent-primary" />
+            <span>{viewingFile.title}</span>
+          </>
+        )}
+        headerActions={viewingFile && (
+          !viewingFile.isEditing ? (
+            <button className="h-10 px-5 rounded-lg bg-transparent border border-white/10 hover:bg-white/5 hover:text-white flex items-center justify-center transition-all duration-200" onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>
+              <Edit2 size={18} />
+            </button>
+          ) : (
+            <button className="h-10 px-5 rounded-lg bg-accent-primary text-white border border-accent-primary shadow-[0_0_15px_rgba(99,102,241,0.3)] flex items-center justify-center transition-all duration-200" onClick={saveAgentFile}>
+              <Save size={18} />
+            </button>
+          )
+        )}
+      >
+        <div className="flex-1 overflow-y-auto p-8 h-full">
+          {viewingFile && (viewingFile.isEditing ? (
+            <textarea
+              className="w-full h-[60vh] p-6 bg-bg-primary border border-border-color rounded-2xl outline-none focus:border-accent-primary transition-colors resize-none font-mono text-sm leading-relaxed text-neutral-600 dark:text-white"
+              value={viewingFile.content}
+              onChange={e => setViewingFile({ ...viewingFile, content: e.target.value })}
+            />
+          ) : (
+            <MarkdownRenderer content={viewingFile.content} />
+          ))}
         </div>
-      )}
+      </Modal>
 
       <Header isGatewayConnected={isGatewayConnected} onRefresh={() => initializeApp()} onMenuClick={() => setIsNavExpanded(!isNavExpanded)} />
       <div className="flex flex-1 overflow-hidden">
@@ -789,39 +783,11 @@ function App() {
                                 Thought Process
                               </div>
                             )}
-                            <div className={`${msg.role === 'user' ? 'prose-invert' : 'prose dark:prose-invert'} max-w-none leading-relaxed whitespace-pre-wrap select-text`}>
-                              <ReactMarkdown
-                                remarkPlugins={[remarkGfm]}
-                                components={{
-                                  code({ node, inline, className, children, ...props }: any) {
-                                    const match = /language-(\w+)/.exec(className || '')
-                                    return !inline ? (
-                                      <div className="my-5 rounded-xl border border-white-trans overflow-hidden shadow-lg">
-                                        {match && (
-                                          <div className="px-4 py-2 bg-white-trans border-b border-white-trans text-xs font-bold uppercase tracking-widest flex justify-between items-center">
-                                            <span>{match[1]}</span>
-                                            <span className="cursor-pointer hover:text-neutral-600 dark:text-white transition-colors" onClick={() => navigator.clipboard.writeText(String(children))}>Copy</span>
-                                          </div>
-                                        )}
-                                        <SyntaxHighlighter
-                                          {...props}
-                                          children={String(children).replace(/\n$/, '')}
-                                          style={vscDarkPlus}
-                                          language={match ? match[1] : ''}
-                                          PreTag="div"
-                                          customStyle={{ margin: 0, padding: '20px', fontSize: '13px', background: '#0a0a0a' }}
-                                        />
-                                      </div>
-                                    ) : (
-                                      <code {...props} className="bg-white-trans px-1.5 py-0.5 rounded font-mono text-sm">
-                                        {children}
-                                      </code>
-                                    )
-                                  }
-                                }}
-                              >
-                                {msg.content}
-                              </ReactMarkdown>
+                            <div className="w-full">
+                              <MarkdownRenderer
+                                content={msg.content}
+                                className={msg.role === 'user' ? 'prose-invert' : 'prose dark:prose-invert'}
+                              />
                             </div>
                           </div>
                         </div>
@@ -960,11 +926,9 @@ function App() {
                 <div className="max-w-5xl">
                   {activeSettingsSection === 'general' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                      <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-8">
+                      <Card className="space-y-8">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
-                            <Layout size={20} className="text-accent-primary" />
-                          </div>
+                          <IconBox icon={<Layout size={20} />} />
                           <Text bold={true} size="xl">General Settings</Text>
                         </div>
 
@@ -988,17 +952,15 @@ function App() {
                             ))}
                           </div>
                         </div>
-                      </section>
+                      </Card>
                     </div>
                   )}
 
                   {activeSettingsSection === 'provider' && (
                     <form onSubmit={saveConfig} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                      <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-6">
+                      <Card className="space-y-6">
                         <div className="flex items-center gap-3 mb-2">
-                          <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
-                            <Globe size={20} className="text-accent-primary" />
-                          </div>
+                          <IconBox icon={<Globe size={20} />} />
                           <Text bold={true} size="xl">Model & Provider Settings</Text>
                         </div>
 
@@ -1037,13 +999,13 @@ function App() {
                           />
                         </div>
                         <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Provider Configurations</Button>
-                      </section>
+                      </Card>
                     </form>
                   )}
 
                   {activeSettingsSection === 'agents' && (
                     <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                      <div className="lg:col-span-4 bg-bg-card border border-border-color rounded-3xl p-4 space-y-1 h-min max-h-[60vh] overflow-y-auto custom-scrollbar">
+                      <Card padding="p-4" className="lg:col-span-4 space-y-1 h-min max-h-[60vh] overflow-y-auto custom-scrollbar">
                         <div className="px-4 py-2 mb-2">
                           <h3 className="text-sm font-bold uppercase">Discovered Agents</h3>
                         </div>
@@ -1058,17 +1020,15 @@ function App() {
                             <span className="font-semibold text-sm">{a.name}</span>
                           </Button>
                         ))}
-                      </div>
+                      </Card>
 
                       <div className="lg:col-span-8 flex flex-col gap-6">
                         {activeAgentInSettings ? (
                           <>
-                            <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-6">
+                            <Card className="space-y-6">
                               <div className="flex items-center justify-between gap-3">
                                 <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
-                                    <BrainCircuit size={20} className="text-accent-primary" />
-                                  </div>
+                                  <IconBox icon={<BrainCircuit size={20} />} />
                                   <Text bold={true} size="xl">Personalization for {activeAgentInSettings.name}</Text>
                                 </div>
                                 <button
@@ -1114,11 +1074,12 @@ function App() {
                               >
                                 Update Agent Meta Profile
                               </Button>
-                            </section>
+                            </Card>
 
                             <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                              <div
-                                className="group p-5 bg-bg-card border border-border-color rounded-3xl flex justify-between items-center cursor-pointer hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
+                              <Card
+                                padding="p-5"
+                                className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
                                 onClick={() => setViewingFile({ title: 'IDENTITY.md', content: activeAgentInSettings.identity, isEditing: true })}
                               >
                                 <div className="flex items-center gap-4">
@@ -1130,10 +1091,11 @@ function App() {
                                     <div className="text-xs">Core instructions</div>
                                   </div>
                                 </div>
-                              </div>
+                              </Card>
 
-                              <div
-                                className="group p-5 bg-bg-card border border-border-color rounded-3xl flex justify-between items-center cursor-pointer hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
+                              <Card
+                                padding="p-5"
+                                className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
                                 onClick={() => setViewingFile({ title: 'SOUL.md', content: activeAgentInSettings.soul, isEditing: true })}
                               >
                                 <div className="flex items-center gap-4">
@@ -1145,10 +1107,11 @@ function App() {
                                     <div className="text-xs">Moral values</div>
                                   </div>
                                 </div>
-                              </div>
+                              </Card>
 
-                              <div
-                                className="group p-5 bg-bg-card border border-border-color rounded-3xl flex justify-between items-center cursor-pointer hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
+                              <Card
+                                padding="p-5"
+                                className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
                                 onClick={() => setViewingFile({ title: 'MEMORY.md', content: (activeAgentInSettings as any).memory || '', isEditing: true })}
                               >
                                 <div className="flex items-center gap-4">
@@ -1160,7 +1123,7 @@ function App() {
                                     <div className="text-xs">Stored facts</div>
                                   </div>
                                 </div>
-                              </div>
+                              </Card>
                             </div>
                           </>
                         ) : (
@@ -1175,11 +1138,9 @@ function App() {
 
                   {activeSettingsSection === 'gateway' && (
                     <form onSubmit={saveConfig} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                      <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-6">
+                      <Card className="space-y-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
-                            <Cpu size={20} className="text-accent-primary" />
-                          </div>
+                          <IconBox icon={<Cpu size={20} />} />
                           <h2 className="text-xl font-bold">Platform Gateway</h2>
                         </div>
 
@@ -1270,17 +1231,15 @@ function App() {
                             )}
                           </div>
                         </div>
-                      </section>
+                      </Card>
                     </form>
                   )}
 
                   {activeSettingsSection === 'tools' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                      <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-6">
+                      <Card className="space-y-6">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
-                            <Wrench size={20} className="text-accent-primary" />
-                          </div>
+                          <IconBox icon={<Wrench size={20} />} />
                           <h2 className="text-xl font-bold">Available Skills & Tools</h2>
                         </div>
 
@@ -1293,34 +1252,32 @@ function App() {
                             <div key={tool.name} className="p-6 bg-bg-primary border border-border-color rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all">
                               <div className="flex justify-between items-start">
                                 <h3 className="font-bold group-hover:text-accent-primary transition-colors">{tool.name}</h3>
-                                <div className="px-2 py-0.5 rounded-md bg-white/5 text-xs font-bold uppercase tracking-widest">Plugin</div>
+                                <Badge>Plugin</Badge>
                               </div>
                               <p className="text-sm leading-relaxed line-clamp-2">{tool.description}</p>
                               <div className="pt-2">
                                 <div className="text-xs font-bold uppercase tracking-tighter text-neutral-600 dark:text-white/40 mb-2">Parameters</div>
                                 <div className="flex flex-wrap gap-2">
                                   {Object.keys(tool.parameters.properties).map(prop => (
-                                    <span key={prop} className="px-2 py-1 rounded-lg bg-white/5 text-xs font-mono text-accent-primary">
+                                    <Badge key={prop} variant="accent" className="font-mono">
                                       {prop}
                                       {tool.parameters.required?.includes(prop) && <span className="text-rose-500 ml-0.5">*</span>}
-                                    </span>
+                                    </Badge>
                                   ))}
                                 </div>
                               </div>
                             </div>
                           ))}
                         </div>
-                      </section>
+                      </Card>
                     </div>
                   )}
 
                   {activeSettingsSection === 'chat' && (
                     <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                      <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-8">
+                      <Card className="space-y-8">
                         <div className="flex items-center gap-3">
-                          <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
-                            <MessageSquare size={20} className="text-accent-primary" />
-                          </div>
+                          <IconBox icon={<MessageSquare size={20} />} />
                           <Text bold={true} size="xl">Chat Settings</Text>
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -1346,13 +1303,14 @@ function App() {
                             />
                           </div>
                         </div>
-                      </section>
+                      </Card>
                     </div>
                   )}
                 </div>
               )}
             </div>
-          )}
+          )
+          }
         </main>
       </div>
     </div>
