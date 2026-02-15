@@ -1,11 +1,9 @@
 import React from 'react'
 import {
-    Moon,
-    Sun,
     Cpu,
     RefreshCw
 } from 'lucide-react'
-import { useTheme } from '../contexts/ThemeContext'
+import ThemeSelector from './ThemeSelector'
 
 interface HeaderProps {
     isGatewayConnected: boolean;
@@ -13,8 +11,6 @@ interface HeaderProps {
 }
 
 const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onRefresh }) => {
-    const { theme, setTheme } = useTheme();
-
     return (
         <header className="h-14 border-b border-border-color bg-bg-card flex items-center justify-between px-6 z-[60] shadow-sm">
             <div className="flex items-center gap-3">
@@ -35,7 +31,7 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onRefresh }) => {
 
                 <div className="h-6 w-px bg-border-color mx-2" />
 
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-4">
                     {onRefresh && (
                         <button
                             onClick={onRefresh}
@@ -46,13 +42,7 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onRefresh }) => {
                         </button>
                     )}
 
-                    <button
-                        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-                        className="p-2 rounded-lg text-neutral-500 hover:text-accent-primary hover:bg-white-trans transition-all"
-                        title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}
-                    >
-                        {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
-                    </button>
+                    <ThemeSelector />
                 </div>
             </div>
         </header>
