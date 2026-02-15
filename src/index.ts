@@ -5,10 +5,12 @@ import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, saveConfig, Config } from './config-manager.js';
-import { streamChatCompletion } from './lm-studio.js';
+import { streamChatCompletion, getChatCompletion } from './lm-studio.js';
 import { AgentManager } from './agent-manager.js';
 import { SessionManager, Session } from './session-manager.js';
 import { ToolManager } from './tool-manager.js';
+import { logger } from './logger.js';
+
 
 const config = loadConfig();
 const app = express();
@@ -130,14 +132,34 @@ app.get('/api/tools', (req, res) => {
 
 app.get('/api/models', async (req, res) => {
     try {
+        const queryUrl = req.query.baseUrl as string;
         const currentConfig = loadConfig();
-        const response = await fetch(`${currentConfig.lmStudio.baseUrl}/models`);
-        if (!response.ok) throw new Error('Failed to fetch models');
+        const rawBaseUrl = queryUrl || currentConfig.lmStudio.baseUrl;
+
+        if (!rawBaseUrl) {
+            return res.json({ data: [] });
+        }
+
+        const normalizedUrl = rawBaseUrl.replace(/\/$/, '');
+        const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+
+        const response = await fetch(`${baseUrl}/models`);
+        if (!response.ok) throw new Error(`Failed to fetch models: ${response.statusText}`);
         const data = await response.json();
         res.json(data);
     } catch (error) {
+        console.error('[Models] Fetch error:', error);
         res.status(500).json({ error: String(error) });
     }
+});
+
+app.get('/api/logs', (req, res) => {
+    res.json(logger.getLogs());
+});
+
+app.post('/api/logs/clear', (req, res) => {
+    logger.clear();
+    res.json({ success: true });
 });
 
 // WebSocket for Chat
@@ -226,7 +248,7 @@ wss.on('connection', (ws, req) => {
             }
 
             // Assume it's a Chat Message if not a control type
-            const { sessionId, agentId, messages: userMessages } = parsed;
+            const { sessionId, agentId, messages: userMessages, shouldSummarize } = parsed;
             if (!userMessages) return;
 
             const currentConfig = loadConfig();
@@ -244,6 +266,15 @@ wss.on('connection', (ws, req) => {
             } else {
                 payload.push(userMessages[userMessages.length - 1]);
             }
+
+            logger.log({
+                type: 'request',
+                level: 'info',
+                agentId: agentId || 'clawdbot',
+                sessionId,
+                message: `Outgoing request to provider for agent ${agentId || 'clawdbot'}`,
+                data: { messages: payload, config: currentConfig.lmStudio }
+            });
 
             const chatHistory = [...payload];
             let toolLoop = true;
@@ -284,6 +315,14 @@ wss.on('connection', (ws, req) => {
 
                         try {
                             const result = await ToolManager.callTool(name, args, { agentId: agentId || 'clawdbot' });
+                            logger.log({
+                                type: 'tool',
+                                level: 'info',
+                                agentId: agentId || 'clawdbot',
+                                sessionId,
+                                message: `Tool executed: ${name}`,
+                                data: { name, args, result }
+                            });
                             chatHistory.push({
                                 role: 'tool',
                                 tool_call_id: toolCall.id,
@@ -291,6 +330,14 @@ wss.on('connection', (ws, req) => {
                                 content: JSON.stringify(result)
                             });
                         } catch (err) {
+                            logger.log({
+                                type: 'error',
+                                level: 'error',
+                                agentId: agentId || 'clawdbot',
+                                sessionId,
+                                message: `Tool execution failed: ${name}`,
+                                data: { name, args, error: String(err) }
+                            });
                             chatHistory.push({
                                 role: 'tool',
                                 tool_call_id: toolCall.id,
@@ -302,6 +349,15 @@ wss.on('connection', (ws, req) => {
                 } else {
                     finalAiResponse = fullContent;
                     toolLoop = false;
+
+                    logger.log({
+                        type: 'response',
+                        level: 'info',
+                        agentId: agentId || 'clawdbot',
+                        sessionId,
+                        message: `Final response received for agent ${agentId || 'clawdbot'}`,
+                        data: { content: finalAiResponse }
+                    });
                 }
             }
 
@@ -329,6 +385,28 @@ wss.on('connection', (ws, req) => {
 
                 existing.messages = newMessages;
                 SessionManager.saveSession(existing);
+
+                // Background Summarization if requested
+                if (shouldSummarize && finalAiResponse) {
+                    (async () => {
+                        try {
+                            const summaryPrompt = [
+                                { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
+                                { role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${newMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}` }
+                            ];
+                            const summary = await getChatCompletion(currentConfig, summaryPrompt);
+                            const updatedSession = SessionManager.getSession(sessionId);
+                            if (updatedSession) {
+                                updatedSession.summary = summary.trim();
+                                SessionManager.saveSession(updatedSession);
+                                // Optional: notify client via WS that summary is ready? 
+                                // For now, the next time they fetch sessions it will be there.
+                            }
+                        } catch (err) {
+                            console.error('[Summary] Failed to generate summary:', err);
+                        }
+                    })();
+                }
             }
 
         } catch (error) {

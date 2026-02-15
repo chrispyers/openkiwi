@@ -16,7 +16,10 @@ export async function* streamChatCompletion(
         body.tool_choice = 'auto';
     }
 
-    const response = await fetch(`${config.lmStudio.baseUrl}/chat/completions`, {
+    const normalizedUrl = config.lmStudio.baseUrl.replace(/\/$/, '');
+    const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
@@ -58,4 +61,31 @@ export async function* streamChatCompletion(
             }
         }
     }
+}
+
+export async function getChatCompletion(
+    config: Config,
+    messages: { role: string; content: string }[]
+) {
+    const normalizedUrl = config.lmStudio.baseUrl.replace(/\/$/, '');
+    const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+
+    const response = await fetch(`${baseUrl}/chat/completions`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            model: config.lmStudio.modelId,
+            messages,
+            stream: false,
+        }),
+    });
+
+    if (!response.ok) {
+        throw new Error(`LM Studio API error: ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    return json.choices[0]?.message?.content || '';
 }

@@ -35,7 +35,22 @@ export default {
     handler: async ({ action, filename, content }: { action: string; filename?: string; content?: string }) => {
         try {
             if (action === 'ls') {
-                const results = fs.readdirSync(WORKSPACE_DIR, { withFileTypes: true });
+                const targetDir = filename ? path.join(WORKSPACE_DIR, filename) : WORKSPACE_DIR;
+
+                // Security check
+                if (!targetDir.startsWith(WORKSPACE_DIR)) {
+                    throw new Error('Access denied: Directory is outside of workspace');
+                }
+
+                if (!fs.existsSync(targetDir)) {
+                    throw new Error(`Directory not found: ${filename}`);
+                }
+
+                if (!fs.statSync(targetDir).isDirectory()) {
+                    throw new Error(`Target is not a directory: ${filename}`);
+                }
+
+                const results = fs.readdirSync(targetDir, { withFileTypes: true });
                 return results.map(dirent => ({
                     name: dirent.name,
                     type: dirent.isDirectory() ? 'directory' : 'file'

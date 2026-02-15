@@ -10,6 +10,7 @@ interface ButtonProps {
     onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
     icon?: IconDefinition;
     children?: React.ReactNode;
+    title?: string;
 }
 
 export default function Button(props: ButtonProps) {
@@ -37,6 +38,7 @@ export default function Button(props: ButtonProps) {
             className={`${baseClasses} ${themedClasses} ${defaultClasses} ${props.className || ""}`}
             disabled={props.disabled}
             onClick={props.onClick || (() => { })}
+            title={props.title}
         >
             {props.icon && <FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} />}
             {props.children}

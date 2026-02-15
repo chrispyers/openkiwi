@@ -9,8 +9,8 @@
 /* Light Mode Variables */
 .light,
 :root:not(.dark) {
-  --bg-sidebar: #f5f5f5;
-  /* neutral-100 */
+  --bg-sidebar: #fafafa;
+  /* neutral-50 */
   --bg-primary: #fafafa;
   /* neutral-50 */
   --bg-card: #ffffff;
@@ -25,18 +25,18 @@
 
 /* Dark Mode Variables */
 .dark {
-  --bg-sidebar: #171717;
-  /* neutral-900 */
-  --bg-primary: #0a0a0a;
-  /* neutral-950 */
-  --bg-card: #262626;
+  --bg-sidebar: #262626;
   /* neutral-800 */
+  --bg-primary: #262626;
+  /* neutral-800 */
+  --bg-card: #404040;
+  /* neutral-700 */
   --text-primary: #fafafa;
   /* neutral-50 */
   --text-secondary: #a3a3a3;
   /* neutral-400 */
-  --border-color: #404040;
-  /* neutral-700 */
+  --border-color: #525252;
+  /* neutral-600 */
 }
 
 @layer base {
@@ -132,6 +132,47 @@
   --tw-prose-td-borders: #e5e5e5;
 }
 
+/* Condensed Prose for Chat */
+.prose-chat {
+  @apply max-w-none text-sm;
+}
+
+.prose-chat p {
+  @apply my-1 leading-relaxed;
+}
+
+.prose-chat p:first-child {
+  @apply mt-0;
+}
+
+.prose-chat p:last-child {
+  @apply mb-0;
+}
+
+.prose-chat ul,
+.prose-chat ol {
+  @apply my-1;
+}
+
+.prose-chat li {
+  @apply my-0;
+}
+
+.prose-chat li p {
+  @apply my-0 inline;
+}
+
+.prose-chat pre {
+  @apply my-3;
+}
+
+.prose-chat h1,
+.prose-chat h2,
+.prose-chat h3,
+.prose-chat h4 {
+  @apply mt-4 mb-2 first:mt-0;
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
@@ -161,6 +202,7 @@
   .scrollbar-none::-webkit-scrollbar {
     display: none;
   }
+
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;

@@ -11,6 +11,7 @@ export interface Session {
     id: string;
     agentId: string;
     title: string;
+    summary?: string;
     messages: ChatMessage[];
     updatedAt: number;
 }
