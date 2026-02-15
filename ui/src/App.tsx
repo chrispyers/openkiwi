@@ -42,6 +42,9 @@ import IconBox from './components/IconBox'
 import Badge from './components/Badge'
 import Modal from './components/Modal'
 import MarkdownRenderer from './components/MarkdownRenderer'
+import AgentsPage from './components/pages/AgentsPage'
+import ProvidersPage from './components/pages/ProvidersPage'
+import LogsPage from './components/pages/LogsPage'
 import { TABLE, TH, TR, TD } from './components/Table'
 import {
   faPlus,
@@ -875,39 +878,16 @@ function App() {
               </div>
             </div>
           ) : activeView === 'logs' ? (
-            <div className="flex-1 flex flex-col h-full overflow-hidden p-6 lg:p-12">
-              <header className="mb-8">
-                <h2 className="text-3xl font-bold text-neutral-600 dark:text-white tracking-tight flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary">
-                    <FontAwesomeIcon icon={faFileLines} />
-                  </div>
-                  System Logs
-                </h2>
-                <p className="text-neutral-500 mt-2">Real-time inspection of WebSocket communication and system events.</p>
-              </header>
-
-              <div className="flex-1 overflow-auto border border-border-color rounded-2xl bg-bg-card shadow-sm custom-scrollbar">
-                <TABLE header={['Timestamp', 'Data']}>
-                  {logs.length === 0 ? (
-                    <TR>
-                      <TD colSpan={2} className="text-center py-12 text-neutral-400 italic">No logs recorded yet. Start a conversation to see data.</TD>
-                    </TR>
-                  ) : (
-                    logs.map((log, i) => (
-                      <TR key={i}>
-                        <TD className="whitespace-nowrap font-mono text-xs text-neutral-500 w-48 align-top">{log.timestamp}</TD>
-                        <TD className="font-mono text-xs break-all text-neutral-600 dark:text-neutral-300 align-top leading-relaxed">{log.data}</TD>
-                      </TR>
-                    ))
-                  )}
-                </TABLE>
-              </div>
-            </div>
-          ) : ['agents', 'gateway', 'providers'].includes(activeView) ? (
+            <LogsPage logs={logs} />
+          ) : activeView === 'agents' ? (
+            <AgentsPage />
+          ) : activeView === 'providers' ? (
+            <ProvidersPage />
+          ) : ['gateway'].includes(activeView) ? (
             <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
               <div className="w-20 h-20 bg-bg-card border border-border-color rounded-3xl flex items-center justify-center mb-6 shadow-sm">
                 <FontAwesomeIcon
-                  icon={activeView === 'agents' ? faRobot : activeView === 'gateway' ? faServer : faCube}
+                  icon={faServer}
                   className="text-3xl text-accent-primary opacity-20"
                 />
               </div>
