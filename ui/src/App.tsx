@@ -271,8 +271,18 @@ function App() {
     }
   }, [config?.lmStudio.baseUrl]);
 
+  const chatContainerRef = useRef<HTMLDivElement>(null);
+  const isAtBottom = useRef(true);
+
   useEffect(() => {
-    scrollToBottom();
+    // Only auto-scroll if we are already at the bottom or if it's a user message
+    const lastMsg = messages[messages.length - 1];
+    if (lastMsg?.role === 'user') {
+      isAtBottom.current = true;
+      scrollToBottom();
+    } else if (isAtBottom.current) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -305,6 +315,14 @@ function App() {
       }
     }
     setLoading(false);
+  };
+
+  const handleScroll = () => {
+    if (chatContainerRef.current) {
+      const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
+      const distanceToBottom = scrollHeight - scrollTop - clientHeight;
+      isAtBottom.current = distanceToBottom < 100; // 100px threshold
+    }
   };
 
   const scrollToBottom = () => {
@@ -474,12 +492,14 @@ function App() {
     setActiveSessionId(null);
     setMessages([]);
     setInputText('');
+    isAtBottom.current = true;
   };
 
   const loadSession = (session: Session) => {
     setActiveSessionId(session.id);
     setSelectedAgentId(session.agentId);
     setMessages(session.messages);
+    isAtBottom.current = true;
     navigate('/chat');
   };
 
@@ -741,7 +761,11 @@ function App() {
               </div>
 
               {/* Messages Area */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar px-6 lg:px-12 py-8 space-y-6">
+              <div
+                ref={chatContainerRef}
+                onScroll={handleScroll}
+                className="flex-1 overflow-y-auto custom-scrollbar px-6 lg:px-12 py-8 space-y-6"
+              >
                 {messages.length === 0 && (
                   <div className="flex flex-col items-center justify-center h-full py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
                     <div className="w-24 h-24 bg-bg-card border border-border-color rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-sm animate-bounce-slow">
@@ -786,7 +810,7 @@ function App() {
                             <div className="w-full">
                               <MarkdownRenderer
                                 content={msg.content}
-                                className={msg.role === 'user' ? 'prose-invert' : 'prose dark:prose-invert'}
+                                className={msg.role === 'user' ? 'prose-invert prose-chat' : 'prose dark:prose-invert prose-chat'}
                               />
                             </div>
                           </div>
