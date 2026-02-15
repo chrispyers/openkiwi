@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { useNavigate, useLocation } from 'react-router-dom'
 import {
   Send,
   Settings,
@@ -111,8 +112,26 @@ interface ToolDefinition {
   };
 }
 
+
 function App() {
-  const [activeView, setActiveView] = useState<'chat' | 'agents' | 'gateway' | 'providers' | 'settings' | 'logs'>('chat');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  // Derive active view from URL path
+  const getActiveView = () => {
+    const path = location.pathname.split('/')[1];
+    if (!path) return 'chat';
+    return path;
+  };
+
+  const activeView = getActiveView();
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/chat', { replace: true });
+    }
+  }, [location.pathname, navigate]);
+
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<{ timestamp: string, data: string }[]>([]);
@@ -459,7 +478,7 @@ function App() {
     setActiveSessionId(session.id);
     setSelectedAgentId(session.agentId);
     setMessages(session.messages);
-    setActiveView('chat');
+    navigate('/chat');
   };
 
   const deleteSession = async (id: string, e: React.MouseEvent) => {
@@ -636,7 +655,7 @@ function App() {
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => setActiveView(item.id as any)}
+              onClick={() => navigate('/' + item.id)}
               className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-200 group relative flex items-center gap-4 ${activeView === item.id
                 ? 'bg-accent-primary text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
                 : 'text-neutral-500 hover:bg-white-trans hover:text-neutral-600 dark:text-white'
