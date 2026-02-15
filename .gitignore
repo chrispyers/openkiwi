@@ -4,3 +4,6 @@ ui/node_modules/*
 sessions/*
 workspace/*
 ui/dist/*
+agents/*/*.md
+agents/*/config.json
+config.json

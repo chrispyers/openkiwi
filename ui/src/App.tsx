@@ -132,13 +132,14 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools'>('general');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<{ timestamp: string, data: string }[]>([]);
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
     return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
   });
+  const [generateSummaries, setGenerateSummaries] = useState(false);
   const [gatewayToken, setGatewayToken] = useState(() => {
     return localStorage.getItem('gateway_token') || '';
   });
@@ -1026,30 +1027,6 @@ function App() {
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-bold text-neutral-600 dark:text-white group-hover:text-accent-primary transition-colors">Show Thought Process</h3>
-                              <p className="text-xs">Display reasoning blocks if available</p>
-                            </div>
-                            <Toggle
-                              checked={config?.lmStudio.showReasoning || false}
-                              onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, showReasoning: !prev.lmStudio.showReasoning } } : null)}
-                            />
-                          </div>
-
-                          <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
-                            <div className="space-y-1">
-                              <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors"><History size={14} /> Stateful Conversations</h3>
-                              <p className="text-xs">Preserve context across multiple message turns</p>
-                            </div>
-                            <Toggle
-                              checked={config?.lmStudio.includeHistory || false}
-                              onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, includeHistory: !prev.lmStudio.includeHistory } } : null)}
-                            />
-                          </div>
-                        </div>
-
                         <div className="space-y-2">
                           <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"><Terminal size={14} /> Global System Prompt</label>
                           <textarea
@@ -1332,6 +1309,42 @@ function App() {
                               </div>
                             </div>
                           ))}
+                        </div>
+                      </section>
+                    </div>
+                  )}
+
+                  {activeSettingsSection === 'chat' && (
+                    <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                      <section className="bg-bg-card border border-border-color rounded-3xl p-8 space-y-8">
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center">
+                            <MessageSquare size={20} className="text-accent-primary" />
+                          </div>
+                          <Text bold={true} size="xl">Chat Settings</Text>
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-bold text-neutral-600 dark:text-white group-hover:text-accent-primary transition-colors">Show Thought Process</h3>
+                              <p className="text-xs">Display reasoning blocks if available</p>
+                            </div>
+                            <Toggle
+                              checked={config?.lmStudio.showReasoning || false}
+                              onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, showReasoning: !prev.lmStudio.showReasoning } } : null)}
+                            />
+                          </div>
+
+                          <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                            <div className="space-y-1">
+                              <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors"><History size={14} /> Stateful Conversations</h3>
+                              <p className="text-xs">Preserve context across multiple message turns</p>
+                            </div>
+                            <Toggle
+                              checked={config?.lmStudio.includeHistory || false}
+                              onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, includeHistory: !prev.lmStudio.includeHistory } } : null)}
+                            />
+                          </div>
                         </div>
                       </section>
                     </div>
