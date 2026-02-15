@@ -1,13 +1,13 @@
 {
   "lmStudio": {
-    "baseUrl": "http://localhost:1234/v1",
-    "modelId": "",
+    "baseUrl": "http://192.168.86.38:1234",
+    "modelId": "mistralai/ministral-3-14b-reasoning",
     "showReasoning": false,
     "includeHistory": true,
     "systemPrompt": "You are a helpful AI assistant."
   },
   "gateway": {
     "port": 3808,
-    "secretToken": ""
+    "secretToken": "4f5ae18c2932d763cf335a060d73bb0f116561bd8089cef1"
   }
 }

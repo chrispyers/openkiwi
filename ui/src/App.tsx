@@ -110,7 +110,7 @@ interface ToolDefinition {
 }
 
 function App() {
-  const [activeView, setActiveView] = useState<'chat' | 'settings'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'agents' | 'gateway' | 'providers' | 'settings'>('chat');
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools'>('general');
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
@@ -617,55 +617,67 @@ function App() {
 
       <Header isGatewayConnected={isGatewayConnected} onRefresh={() => initializeApp()} />
       <div className="flex flex-1 overflow-hidden">
-        {/* Sidebar */}
-        <nav className="w-72 bg-bg-sidebar border-r border-border-color flex flex-col z-50 transition-all duration-300">
-          <div className="p-5">
-            <Button
-              className="w-full bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 border border-border-color transition-colors text-neutral-600 dark:text-white"
-              icon={faPlus}
-              onClick={createNewSession}
-              disabled={!isGatewayConnected}
+        {/* Primary Sidebar */}
+        <nav className="w-16 bg-bg-sidebar border-r border-border-color flex flex-col items-center py-6 gap-4 z-51">
+          {[
+            { id: 'chat', icon: faComments, label: 'Chat' },
+            { id: 'agents', icon: faRobot, label: 'Agents' },
+            { id: 'gateway', icon: faServer, label: 'Gateway' },
+            { id: 'providers', icon: faCube, label: 'Providers' },
+            { id: 'settings', icon: faGear, label: 'Settings' },
+          ].map((item) => (
+            <button
+              key={item.id}
+              onClick={() => setActiveView(item.id as any)}
+              className={`p-3 rounded-xl transition-all duration-200 group relative ${activeView === item.id
+                ? 'bg-accent-primary text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
+                : 'text-neutral-500 hover:bg-white-trans hover:text-neutral-600 dark:text-white'
+                }`}
+              title={item.label}
             >
-              New Chat
-            </Button>
-          </div>
-
-          <div className="flex-1 overflow-y-auto px-3 space-y-1 py-2 custom-scrollbar">
-            {sessions.map(s => (
-              <div
-                key={s.id}
-                className={`group w-full p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-200 ${activeSessionId === s.id ? 'bg-white-trans text-neutral-600 dark:text-white' : ' hover:bg-white-trans hover:text-neutral-600 dark:text-white'}`}
-                onClick={() => loadSession(s)}
-              >
-                <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
-                  {agents.find(a => a.id === s.agentId)?.emoji || '💬'}
-                </div>
-                <span className="flex-1 text-sm font-medium truncate">{s.title}</span>
-                <Button
-                  className="opacity-0 group-hover:opacity-100 !p-1.5 !rounded-lg"
-                  icon={faTrash}
-                  onClick={(e) => deleteSession(s.id, e)}
-                />
+              <FontAwesomeIcon icon={item.icon} className="text-xl" />
+              <div className="absolute left-full ml-2 px-2 py-1 bg-neutral-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none transition-opacity whitespace-nowrap z-[100]">
+                {item.label}
               </div>
-            ))}
-          </div>
-
-          <div className="p-4 border-t border-border-color flex gap-3">
-            <Button
-              themed={activeView === 'chat'}
-              className={`flex-1 h-11 !px-0 flex items-center justify-center ${activeView !== 'chat' ? '!bg-transparent' : ''}`}
-              onClick={() => setActiveView('chat')}
-              icon={faComments}
-              disabled={!isGatewayConnected}
-            />
-            <Button
-              themed={activeView === 'settings'}
-              className={`flex-1 h-11 !px-0 flex items-center justify-center ${activeView !== 'settings' ? '!bg-transparent' : ''}`}
-              onClick={() => setActiveView('settings')}
-              icon={faGear}
-            />
-          </div>
+            </button>
+          ))}
         </nav>
+
+        {/* Secondary Sidebar (Chat Sessions) */}
+        {activeView === 'chat' && (
+          <nav className="w-72 bg-bg-sidebar border-r border-border-color flex flex-col z-50 transition-all duration-300">
+            <div className="p-5">
+              <Button
+                className="w-full bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 border border-border-color transition-colors text-neutral-600 dark:text-white"
+                icon={faPlus}
+                onClick={createNewSession}
+                disabled={!isGatewayConnected}
+              >
+                New Chat
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto px-3 space-y-1 py-2 custom-scrollbar">
+              {sessions.map(s => (
+                <div
+                  key={s.id}
+                  className={`group w-full p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-200 ${activeSessionId === s.id ? 'bg-white-trans text-neutral-600 dark:text-white' : ' hover:bg-white-trans hover:text-neutral-600 dark:text-white'}`}
+                  onClick={() => loadSession(s)}
+                >
+                  <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
+                    {agents.find(a => a.id === s.agentId)?.emoji || '💬'}
+                  </div>
+                  <span className="flex-1 text-sm font-medium truncate">{s.title}</span>
+                  <Button
+                    className="opacity-0 group-hover:opacity-100 !p-1.5 !rounded-lg"
+                    icon={faTrash}
+                    onClick={(e) => deleteSession(s.id, e)}
+                  />
+                </div>
+              ))}
+            </div>
+          </nav>
+        )}
 
         {/* Main Content */}
         <main className="flex-1 flex flex-col relative overflow-hidden bg-bg-primary">
@@ -832,6 +844,21 @@ function App() {
                   Press <span className="px-1.5 py-0.5 bg-white-trans rounded mx-1 text-neutral-600 dark:text-white">Enter</span> to send, <span className="px-1.5 py-0.5 bg-white-trans rounded mx-1 text-neutral-600 dark:text-white">Shift + Enter</span> for new line
                 </div>
               </div>
+            </div>
+          ) : ['agents', 'gateway', 'providers'].includes(activeView) ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-12 text-center">
+              <div className="w-20 h-20 bg-bg-card border border-border-color rounded-3xl flex items-center justify-center mb-6 shadow-sm">
+                <FontAwesomeIcon
+                  icon={activeView === 'agents' ? faRobot : activeView === 'gateway' ? faServer : faCube}
+                  className="text-3xl text-accent-primary opacity-20"
+                />
+              </div>
+              <h2 className="text-3xl font-bold text-neutral-600 dark:text-white mb-2 tracking-tight transition-all duration-300">
+                {activeView.charAt(0).toUpperCase() + activeView.slice(1)}
+              </h2>
+              <p className="max-w-md text-neutral-500 leading-relaxed">
+                This section is coming soon. We're working hard to bring you the best local AI management experience for your {activeView}.
+              </p>
             </div>
           ) : (
             <div className="flex-1 p-8 lg:p-12 overflow-y-auto">
