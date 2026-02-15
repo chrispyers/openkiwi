@@ -1,0 +1,13 @@
+{
+  "lmStudio": {
+    "baseUrl": "http://localhost:1234/v1",
+    "modelId": "",
+    "showReasoning": false,
+    "includeHistory": true,
+    "systemPrompt": "You are a helpful AI assistant."
+  },
+  "gateway": {
+    "port": 3808,
+    "secretToken": ""
+  }
+}

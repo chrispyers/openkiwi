@@ -1,0 +1,28 @@
+FROM node:20-slim AS builder
+
+WORKDIR /app
+
+COPY package*.json ./
+RUN npm install
+
+COPY . .
+RUN npm run build
+
+FROM node:20-slim
+
+WORKDIR /app
+
+# Install tsx globally or in the app to support dynamic .ts tools in production
+COPY package*.json ./
+RUN npm install
+
+COPY --from=builder /app/dist ./dist
+# Source code is needed for tsx to run the dynamic tools
+COPY src ./src
+COPY tools ./tools
+COPY tsconfig.json ./
+
+EXPOSE 3001
+
+# Run with tsx so we can dynamically load .ts tools from the /tools folder
+CMD ["npx", "tsx", "src/index.ts"]

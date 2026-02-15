@@ -1,0 +1,6 @@
+.DS_Store
+node_modules/*
+ui/node_modules/*
+sessions/*
+workspace/*
+ui/dist/*

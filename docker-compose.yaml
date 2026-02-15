@@ -1,0 +1,24 @@
+version: '3.8'
+
+services:
+  gateway:
+    build:
+      context: .
+      dockerfile: Dockerfile.gateway
+    ports:
+      - "3808:3000" # Host 3808 -> Container 3000
+    volumes:
+      - ./agents:/app/agents
+      - ./config.json:/app/config.json
+      - ./sessions:/app/sessions
+      - ./tools:/app/tools
+      - ./workspace:/app/workspace
+    restart: unless-stopped
+
+  ui:
+    build:
+      context: ./ui
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80" # Host 3000 -> UI Nginx 80
+    restart: unless-stopped
