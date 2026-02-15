@@ -46,7 +46,7 @@ export function loadConfig(): Config {
                 systemPrompt: "You are a helpful AI assistant.",
             },
             gateway: {
-                port: 3001,
+                port: 3808,
                 secretToken: "",
             },
         };

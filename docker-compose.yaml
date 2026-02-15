@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile.gateway
     ports:
-      - "3808:3000" # Host 3808 -> Container 3000
+      - "3808:3808" # Host 3808 -> Container 3808
     volumes:
       - ./agents:/app/agents
       - ./config.json:/app/config.json
@@ -15,7 +15,7 @@ services:
       - ./workspace:/app/workspace
     restart: unless-stopped
 
-  ui:
+  gateway-ui:
     build:
       context: ./ui
       dockerfile: Dockerfile

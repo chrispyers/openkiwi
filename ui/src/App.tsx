@@ -112,7 +112,7 @@ function App() {
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools'>('general');
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
-    return localStorage.getItem('gateway_addr') || 'http://localhost:3001';
+    return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
   });
   const [gatewayToken, setGatewayToken] = useState(() => {
     return localStorage.getItem('gateway_token') || '';
@@ -168,7 +168,7 @@ function App() {
       return `${protocol}//${url.host}/ws?token=${gatewayToken}&hostname=${hostname}`;
     } catch (e) {
       // Fallback for invalid URLs
-      return `ws://${window.location.hostname}:3001/ws`;
+      return `ws://${window.location.hostname}:3808/ws`;
     }
   };
 
@@ -1118,7 +1118,7 @@ function App() {
                           </label>
                           <div className="space-y-6">
                             <p className="text-md leading-relaxed">
-                              Specify the address of your gateway. For local development, use <code className="text-accent-primary">http://localhost:3001</code>.
+                              Specify the address of your gateway. For local development, use <code className="text-accent-primary">http://localhost:3808</code>.
                             </p>
 
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -1126,7 +1126,7 @@ function App() {
                                 label="Endpoint"
                                 currentText={gatewayAddr}
                                 onChange={e => setGatewayAddr(e.target.value)}
-                                placeholder="http://localhost:3001"
+                                placeholder="http://localhost:3808"
                                 icon={faGlobe}
                                 clearText={() => setGatewayAddr('')}
                                 className="!mt-0"
