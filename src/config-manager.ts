@@ -6,9 +6,9 @@ const ConfigSchema = z.object({
     lmStudio: z.object({
         baseUrl: z.string().url(),
         modelId: z.string(),
-        showReasoning: z.boolean().default(true),
-        includeHistory: z.boolean().default(false),
-        generateSummaries: z.boolean().default(false),
+        showReasoning: z.boolean(),
+        includeHistory: z.boolean(),
+        generateSummaries: z.boolean(),
         systemPrompt: z.string().default("You are a helpful AI assistant."),
     }),
     gateway: z.object({
