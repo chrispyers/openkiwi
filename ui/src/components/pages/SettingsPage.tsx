@@ -46,6 +46,7 @@ interface Config {
         modelId: string;
         showReasoning: boolean;
         includeHistory: boolean;
+        generateSummaries: boolean;
         systemPrompt: string;
     };
     gateway: {
@@ -74,8 +75,8 @@ interface ToolDefinition {
 }
 
 interface SettingsPageProps {
-    activeSettingsSection: 'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat';
-    setActiveSettingsSection: (section: 'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat') => void;
+    activeSettingsSection: 'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat' | 'config';
+    setActiveSettingsSection: (section: 'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat' | 'config') => void;
     isGatewayConnected: boolean;
     loading: boolean;
     theme: 'dark' | 'light' | 'system';
@@ -141,7 +142,7 @@ export default function SettingsPage({
             </header>
 
             <nav className="flex gap-8 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
-                {['agents', 'gateway', 'general', 'provider', 'tools', 'chat'].map(id => (
+                {['agents', 'gateway', 'general', 'provider', 'tools', 'chat', 'config'].map(id => (
                     <button
                         key={id}
                         className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 relative flex items-center gap-2 ${activeSettingsSection === id ? 'text-accent-primary' : ' hover:text-neutral-600 dark:text-white'}`}
@@ -541,6 +542,48 @@ export default function SettingsPage({
                                             onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, includeHistory: !prev.lmStudio.includeHistory } } : null)}
                                         />
                                     </div>
+
+                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                                        <div className="space-y-1">
+                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors">
+                                                <FileText size={14} /> Generate Chat Summaries
+                                            </h3>
+                                            <p className="text-xs">Summarize long conversations for better context retention</p>
+                                        </div>
+                                        <Toggle
+                                            checked={config?.lmStudio.generateSummaries || false}
+                                            onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, generateSummaries: !prev.lmStudio.generateSummaries } } : null)}
+                                        />
+                                    </div>
+                                </div>
+                                <div className="pt-4 border-t border-border-color">
+                                    <Button
+                                        themed={true}
+                                        className="w-full h-12 text-white"
+                                        onClick={(e) => saveConfig(e)}
+                                        icon={faSave}
+                                    >
+                                        Save Chat Configurations
+                                    </Button>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
+
+                    {activeSettingsSection === 'config' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <Card className="space-y-8">
+                                <div className="flex items-center gap-3">
+                                    <IconBox icon={<FileText size={20} />} />
+                                    <Text bold={true} size="xl">config.json</Text>
+                                </div>
+                                <div className="space-y-4">
+                                    <p className="text-sm">
+                                        Raw configuration file contents. Changes made through the UI are saved to this file.
+                                    </p>
+                                    <pre className="bg-bg-primary border border-border-color rounded-xl p-6 overflow-x-auto text-sm font-mono leading-relaxed">
+                                        <code>{JSON.stringify(config, null, 2)}</code>
+                                    </pre>
                                 </div>
                             </Card>
                         </div>
@@ -550,3 +593,4 @@ export default function SettingsPage({
         </div>
     )
 }
+

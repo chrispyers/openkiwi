@@ -78,6 +78,7 @@ interface Config {
     modelId: string;
     showReasoning: boolean;
     includeHistory: boolean;
+    generateSummaries: boolean;
     systemPrompt: string;
   };
   gateway: {
@@ -105,6 +106,7 @@ interface Session {
   id: string;
   agentId: string;
   title: string;
+  summary?: string;
   messages: Message[];
   updatedAt: number;
 }
@@ -139,14 +141,14 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat'>('general');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat' | 'config'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<{ timestamp: string, data: string }[]>([]);
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
     return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
   });
-  const [generateSummaries, setGenerateSummaries] = useState(false);
+
   const [gatewayToken, setGatewayToken] = useState(() => {
     return localStorage.getItem('gateway_token') || '';
   });
@@ -447,6 +449,9 @@ function App() {
           toast.success('Configuration saved successfully!');
         }
       }
+
+      // Refresh local config state from server to ensure we're in sync
+      fetchConfig();
     } catch (error) {
       console.error('Failed to save config:', error);
     }
@@ -551,7 +556,8 @@ function App() {
       const payload = {
         sessionId: sessionToUse,
         agentId: selectedAgentId,
-        messages: newMessages.map(m => ({ role: m.role, content: m.content }))
+        messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+        shouldSummarize: config?.lmStudio.generateSummaries || false
       };
       setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[SENT] ${JSON.stringify(payload)}` }, ...prev].slice(0, 100)); // Keep last 100 logs
       socket.send(JSON.stringify(payload));
@@ -726,7 +732,9 @@ function App() {
                   <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
                     {agents.find(a => a.id === s.agentId)?.emoji || '💬'}
                   </div>
-                  <span className="flex-1 text-sm font-medium truncate">{s.title}</span>
+                  <span className="flex-1 text-sm font-medium truncate" title={s.summary || s.title}>
+                    {s.summary || s.title}
+                  </span>
                   <Button
                     className="opacity-0 group-hover:opacity-100 !p-1.5 !rounded-lg"
                     icon={faTrash}

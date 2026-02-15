@@ -8,6 +8,7 @@ const ConfigSchema = z.object({
         modelId: z.string(),
         showReasoning: z.boolean().default(true),
         includeHistory: z.boolean().default(false),
+        generateSummaries: z.boolean().default(false),
         systemPrompt: z.string().default("You are a helpful AI assistant."),
     }),
     gateway: z.object({
@@ -26,6 +27,7 @@ export function loadConfig(): Config {
         const json = JSON.parse(data);
         const config = ConfigSchema.parse(json);
 
+
         // Auto-generate token if missing or empty
         if (!config.gateway.secretToken) {
             const crypto = require('node:crypto');
@@ -43,6 +45,7 @@ export function loadConfig(): Config {
                 modelId: 'default-model',
                 showReasoning: true,
                 includeHistory: false,
+                generateSummaries: false,
                 systemPrompt: "You are a helpful AI assistant.",
             },
             gateway: {

@@ -36,6 +36,7 @@ interface Config {
         modelId: string;
         showReasoning: boolean;
         includeHistory: boolean;
+        generateSummaries: boolean;
         systemPrompt: string;
     };
     gateway: {
@@ -54,9 +55,9 @@ interface ChatPageProps {
     setInputText: (text: string) => void;
     handleSend: (e: React.FormEvent) => Promise<void>;
     isGatewayConnected: boolean;
-    messagesEndRef: React.RefObject<HTMLDivElement>;
-    textareaRef: React.RefObject<HTMLTextAreaElement>;
-    chatContainerRef: React.RefObject<HTMLDivElement>;
+    messagesEndRef: React.RefObject<HTMLDivElement | null>;
+    textareaRef: React.RefObject<HTMLTextAreaElement | null>;
+    chatContainerRef: React.RefObject<HTMLDivElement | null>;
     handleScroll: () => void;
     formatTimestamp: (timestamp?: number) => string;
 }
