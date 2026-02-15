@@ -40,6 +40,7 @@ import Select from './components/Select'
 import Toggle from './components/Toggle'
 import Text from './components/Text'
 import Header from './components/Header'
+import { TABLE, TH, TR, TD } from './components/Table'
 import {
   faPlus,
   faPlug,
@@ -111,9 +112,10 @@ interface ToolDefinition {
 }
 
 function App() {
-  const [activeView, setActiveView] = useState<'chat' | 'agents' | 'gateway' | 'providers' | 'settings'>('chat');
+  const [activeView, setActiveView] = useState<'chat' | 'agents' | 'gateway' | 'providers' | 'settings' | 'logs'>('chat');
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
+  const [logs, setLogs] = useState<{ timestamp: string, data: string }[]>([]);
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
     return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
@@ -499,11 +501,13 @@ function App() {
     ws.current = socket;
 
     socket.onopen = () => {
-      socket.send(JSON.stringify({
+      const payload = {
         sessionId: sessionToUse,
         agentId: selectedAgentId,
         messages: newMessages.map(m => ({ role: m.role, content: m.content }))
-      }));
+      };
+      setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[SENT] ${JSON.stringify(payload)}` }, ...prev].slice(0, 100)); // Keep last 100 logs
+      socket.send(JSON.stringify(payload));
     };
 
     socket.onerror = (err) => {
@@ -521,6 +525,7 @@ function App() {
     let isInsideReasoning = false;
 
     socket.onmessage = (event) => {
+      setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[RECEIVED] ${event.data}` }, ...prev].slice(0, 100)); // Keep last 100 logs
       const data = JSON.parse(event.data);
       if (data.type === 'delta') {
         const chunk = data.content;
@@ -857,6 +862,35 @@ function App() {
                 <div className="mt-2 text-xs text-center flex items-center justify-center gap-1">
                   Press <span className="px-1.5 py-0.5 bg-white-trans rounded mx-1 text-neutral-600 dark:text-white">Enter</span> to send, <span className="px-1.5 py-0.5 bg-white-trans rounded mx-1 text-neutral-600 dark:text-white">Shift + Enter</span> for new line
                 </div>
+              </div>
+            </div>
+          ) : activeView === 'logs' ? (
+            <div className="flex-1 flex flex-col h-full overflow-hidden p-6 lg:p-12">
+              <header className="mb-8">
+                <h2 className="text-3xl font-bold text-neutral-600 dark:text-white tracking-tight flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-accent-primary/10 flex items-center justify-center text-accent-primary">
+                    <FontAwesomeIcon icon={faFileLines} />
+                  </div>
+                  System Logs
+                </h2>
+                <p className="text-neutral-500 mt-2">Real-time inspection of WebSocket communication and system events.</p>
+              </header>
+
+              <div className="flex-1 overflow-auto border border-border-color rounded-2xl bg-bg-card shadow-sm custom-scrollbar">
+                <TABLE header={['Timestamp', 'Data']}>
+                  {logs.length === 0 ? (
+                    <TR>
+                      <TD colSpan={2} className="text-center py-12 text-neutral-400 italic">No logs recorded yet. Start a conversation to see data.</TD>
+                    </TR>
+                  ) : (
+                    logs.map((log, i) => (
+                      <TR key={i}>
+                        <TD className="whitespace-nowrap font-mono text-xs text-neutral-500 w-48 align-top">{log.timestamp}</TD>
+                        <TD className="font-mono text-xs break-all text-neutral-600 dark:text-neutral-300 align-top leading-relaxed">{log.data}</TD>
+                      </TR>
+                    ))
+                  )}
+                </TABLE>
               </div>
             </div>
           ) : ['agents', 'gateway', 'providers'].includes(activeView) ? (
