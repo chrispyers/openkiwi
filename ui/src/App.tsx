@@ -59,7 +59,8 @@ import {
   faSmile,
   faFolder,
   faCube,
-  faRobot
+  faRobot,
+  faFileLines
 } from '@fortawesome/free-solid-svg-icons'
 
 interface Config {
@@ -619,12 +620,13 @@ function App() {
       <Header isGatewayConnected={isGatewayConnected} onRefresh={() => initializeApp()} onMenuClick={() => setIsNavExpanded(!isNavExpanded)} />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}
-        <nav className={`${isNavExpanded ? 'w-64' : 'w-16'} bg-bg-sidebar border-r border-border-color flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
+        <nav className={`${isNavExpanded ? 'w-48' : 'w-16'} bg-bg-sidebar border-r border-border-color flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
           {[
             { id: 'chat', icon: faComments, label: 'Chat' },
             { id: 'agents', icon: faRobot, label: 'Agents' },
             { id: 'gateway', icon: faServer, label: 'Gateway' },
             { id: 'providers', icon: faCube, label: 'Providers' },
+            { id: 'logs', icon: faFileLines, label: 'Logs' },
             { id: 'settings', icon: faGear, label: 'Settings' },
           ].map((item) => (
             <button
@@ -880,7 +882,7 @@ function App() {
               </header>
 
               <nav className="flex gap-8 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
-                {['agents', 'gateway', 'general', 'provider', 'tools'].map(id => (
+                {['agents', 'gateway', 'general', 'provider', 'tools', 'chat'].map(id => (
                   <button
                     key={id}
                     className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 relative flex items-center gap-2 ${activeSettingsSection === id ? 'text-accent-primary' : ' hover:text-neutral-600 dark:text-white'}`}
