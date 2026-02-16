@@ -14,7 +14,7 @@ interface HeaderProps {
 
 const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onRefresh, onMenuClick }) => {
     return (
-        <header className="h-14 border-b border-border-color bg-bg-card flex items-center justify-between px-6 z-[60] shadow-sm">
+        <header className="h-14 border-b border-border-color bg-bg-primary flex items-center justify-between px-6 z-[60] shadow-sm">
             <div className="flex items-center gap-4">
                 {onMenuClick && (
                     <button
