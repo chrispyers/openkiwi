@@ -411,7 +411,12 @@ wss.on('connection', (ws, req) => {
                         try {
                             const summaryPrompt = [
                                 { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
-                                { role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${newMessages.map(m => `${m.role.toUpperCase()}: ${m.content}`).join('\n')}` }
+                                {
+                                    role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${newMessages.map(m => {
+                                        const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+                                        return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
+                                    }).filter(Boolean).join('\n')}`
+                                }
                             ];
                             const summary = await getChatCompletion(currentConfig, summaryPrompt);
                             const updatedSession = SessionManager.getSession(sessionId);

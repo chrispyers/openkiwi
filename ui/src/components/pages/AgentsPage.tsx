@@ -139,9 +139,19 @@ export default function AgentsPage({
 
     return (
         <div className="flex-1 p-8 lg:p-12 overflow-y-auto">
-            <header className="mb-10">
-                <h1 className="text-4xl font-extrabold text-neutral-600 dark:text-white tracking-tight mb-2">Agents</h1>
-                <p className="text-lg">Manage your AI agent personalities and configurations.</p>
+            <header className="mb-10 flex items-center justify-between">
+                <div>
+                    <h1 className="text-4xl font-extrabold text-neutral-600 dark:text-white tracking-tight mb-2">Agents</h1>
+                    <p className="text-lg">Manage your AI agent personalities and configurations.</p>
+                </div>
+                <Button
+                    themed={true}
+                    className="h-10 text-white"
+                    onClick={() => setIsModalOpen(true)}
+                    icon={faPlus}
+                >
+                    Add Agent
+                </Button>
             </header>
 
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-5xl">
@@ -171,21 +181,16 @@ export default function AgentsPage({
                                     onClick={() => setSelectedAgentId(a.id)}
                                 >
                                     <span className="text-xl mr-1">{a.emoji}</span>
-                                    <span className="font-semibold text-sm">{a.name}</span>
+                                    <div className="text-left">
+                                        <div className="font-semibold text-sm">{a.name}</div>
+                                        <div className="text-xs opacity-60 font-normal">{a.provider || 'Global Default'}</div>
+                                    </div>
                                 </Button>
                             ))
                         )}
                     </Card>
 
-                    {/* New Agent Button */}
-                    <Button
-                        themed={true}
-                        className="w-full h-12 text-white"
-                        onClick={() => setIsModalOpen(true)}
-                        icon={faPlus}
-                    >
-                        New Agent
-                    </Button>
+
                 </div>
 
                 {/* Right Column - Agent Details */}
@@ -219,7 +224,7 @@ export default function AgentsPage({
                                         />
                                     </div>
                                     <div className="mb-4">
-                                        <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60">Provider Override</label>
+                                        <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60">Model</label>
                                         <select
                                             className="w-full bg-bg-primary border border-border-color rounded-xl px-4 py-3 outline-none focus:border-accent-primary transition-all text-sm appearance-none"
                                             value={agentForm.provider || ''}

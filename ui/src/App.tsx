@@ -593,10 +593,44 @@ function App() {
     isAtBottom.current = true;
   };
 
+  const processSessionMessages = (msgs: Message[]) => {
+    const processed: Message[] = [];
+    msgs.forEach(msg => {
+      // Check for thought/reasoning tags in assistant messages
+      if (msg.role === 'assistant' && /<(think|thought|reasoning)>/.test(msg.content)) {
+        const thinkMatch = msg.content.match(/<(think|thought|reasoning)>([\s\S]*?)<\/\1>/i);
+        if (thinkMatch) {
+          // Add the reasoning message
+          processed.push({
+            role: 'reasoning',
+            content: thinkMatch[2],
+            timestamp: msg.timestamp
+          });
+
+          // Add the clean assistant message
+          const cleanContent = msg.content.replace(thinkMatch[0], '').trim();
+          if (cleanContent) {
+            processed.push({
+              role: 'assistant',
+              content: cleanContent,
+              timestamp: msg.timestamp
+            });
+          }
+        } else {
+          // In case of malformed tags, keep original
+          processed.push(msg);
+        }
+      } else {
+        processed.push(msg);
+      }
+    });
+    return processed;
+  };
+
   const loadSession = (session: Session) => {
     setActiveSessionId(session.id);
     setSelectedAgentId(session.agentId);
-    setMessages(session.messages);
+    setMessages(processSessionMessages(session.messages));
     isAtBottom.current = true;
     navigate('/chat');
   };
