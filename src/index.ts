@@ -57,6 +57,12 @@ const connectedClients = new Map<WebSocket, ConnectedClient>();
 const pendingToolCalls = new Map<string, { resolve: (val: any) => void, reject: (err: any) => void }>();
 
 // API to get/update config
+const SCREENSHOTS_DIR = path.resolve(process.cwd(), 'screenshots');
+if (!fs.existsSync(SCREENSHOTS_DIR)) {
+    fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+}
+app.use('/screenshots', express.static(SCREENSHOTS_DIR));
+
 app.get('/api/config', (req, res) => {
     res.json(loadConfig());
 });

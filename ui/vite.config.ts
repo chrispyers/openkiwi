@@ -10,7 +10,8 @@ export default defineConfig({
             '/ws': {
                 target: 'ws://localhost:3808',
                 ws: true
-            }
+            },
+            '/screenshots': 'http://localhost:3808'
         }
     }
 })

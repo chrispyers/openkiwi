@@ -16,6 +16,7 @@
   "dependencies": {
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "puppeteer": "^24.37.3",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
   },

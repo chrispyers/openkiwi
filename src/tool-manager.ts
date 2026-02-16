@@ -70,26 +70,7 @@ export class ToolManager {
             }
         });
 
-        this.registerTool({
-            definition: {
-                name: 'search_web',
-                description: 'Search the web for information',
-                parameters: {
-                    type: 'object',
-                    properties: {
-                        query: { type: 'string', description: 'The search query' }
-                    },
-                    required: ['query']
-                }
-            },
-            handler: async ({ query }) => {
-                return {
-                    results: [
-                        { title: `Result for ${query}`, url: 'https://example.com', snippet: 'This is a mock search result.' }
-                    ]
-                };
-            }
-        });
+
     }
 
     static registerTool(tool: Tool) {

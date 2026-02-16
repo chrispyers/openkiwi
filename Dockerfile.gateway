@@ -14,6 +14,18 @@ WORKDIR /app
 
 # Install tsx globally or in the app to support dynamic .ts tools in production
 COPY package*.json ./
+
+# Install Chromium and dependencies for Puppeteer
+RUN apt-get update && apt-get install -y \
+    chromium \
+    fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    --no-install-recommends \
+    && rm -rf /var/lib/apt/lists/*
+
+# Tell Puppeteer to skip installing Chrome. We'll use the installed package.
+ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+
 RUN npm install
 
 COPY --from=builder /app/dist ./dist
