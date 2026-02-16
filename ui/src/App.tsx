@@ -119,6 +119,17 @@ interface Session {
   updatedAt: number;
 }
 
+interface LogEntry {
+  id: number;
+  timestamp: number;
+  type: 'request' | 'response' | 'error' | 'tool' | 'system';
+  agentId?: string;
+  sessionId?: string;
+  level: 'info' | 'warn' | 'error' | 'debug';
+  message: string;
+  data?: any;
+}
+
 interface ToolDefinition {
   name: string;
   description: string;
@@ -151,7 +162,7 @@ function App() {
 
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'tools' | 'chat' | 'config'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
-  const [logs, setLogs] = useState<{ timestamp: string, data: string }[]>([]);
+  const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
     return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
@@ -183,6 +194,42 @@ function App() {
   const [inputText, setInputText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isGatewayConnected, setIsGatewayConnected] = useState(false);
+
+  const fetchLogs = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/logs'), {
+        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      });
+      if (!response.ok) throw new Error('Failed to fetch logs');
+      const data = await response.json();
+      setLogs(data);
+    } catch (error) {
+      console.error('Failed to fetch logs:', error);
+    }
+  };
+
+  const handleClearLogs = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/logs/clear'), {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      });
+      if (!response.ok) throw new Error('Failed to clear logs');
+      toast.success('Logs cleared');
+      fetchLogs();
+    } catch (error) {
+      console.error('Failed to clear logs:', error);
+      toast.error('Failed to clear logs');
+    }
+  };
+
+  useEffect(() => {
+    if (activeView === 'logs') {
+      fetchLogs();
+      const interval = setInterval(fetchLogs, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [activeView, gatewayToken]);
 
   const ws = useRef<WebSocket | null>(null);
   const presenceWs = useRef<WebSocket | null>(null);
@@ -676,7 +723,8 @@ function App() {
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
         shouldSummarize: config?.chat.generateSummaries || false
       };
-      setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[SENT] ${JSON.stringify(payload)}` }, ...prev].slice(0, 100)); // Keep last 100 logs
+      setLogs(prev => prev); // Removed local logging
+
       socket.send(JSON.stringify(payload));
     };
 
@@ -695,7 +743,8 @@ function App() {
     let isInsideReasoning = false;
 
     socket.onmessage = (event) => {
-      setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[RECEIVED] ${event.data}` }, ...prev].slice(0, 100)); // Keep last 100 logs
+      // setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[RECEIVED] ${event.data}` }, ...prev].slice(0, 100)); // Keep last 100 logs
+
       const data = JSON.parse(event.data);
       if (data.type === 'delta') {
         const chunk = data.content;
@@ -884,7 +933,7 @@ function App() {
               formatTimestamp={formatTimestamp}
             />
           ) : activeView === 'logs' ? (
-            <LogsPage logs={logs} />
+            <LogsPage logs={logs} onClear={handleClearLogs} />
           ) : activeView === 'agents' ? (
             <AgentsPage
               gatewayAddr={gatewayAddr}

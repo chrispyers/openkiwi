@@ -318,8 +318,8 @@ wss.on('connection', (ws, req) => {
                 level: 'info',
                 agentId: agentId || 'clawdbot',
                 sessionId,
-                message: `Outgoing request to provider for agent ${agentId || 'clawdbot'}`,
-                data: { messages: payload, config: llmConfig }
+                message: `User message to ${agentId || 'clawdbot'}`,
+                data: userMessages[userMessages.length - 1]?.content || 'Empty message'
             });
 
             const chatHistory = [...payload];
@@ -401,8 +401,8 @@ wss.on('connection', (ws, req) => {
                         level: 'info',
                         agentId: agentId || 'clawdbot',
                         sessionId,
-                        message: `Final response received for agent ${agentId || 'clawdbot'}`,
-                        data: { content: finalAiResponse }
+                        message: `Response from ${agentId || 'clawdbot'}`,
+                        data: finalAiResponse
                     });
                 }
             }

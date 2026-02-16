@@ -13,6 +13,7 @@ import {
     Monitor,
     Layout
 } from 'lucide-react'
+import Page from './Page'
 import { useTheme } from '../../contexts/ThemeContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
@@ -145,12 +146,10 @@ export default function SettingsPage({
 }: SettingsPageProps) {
 
     return (
-        <div className="flex-1 p-8 lg:p-12 overflow-y-auto">
-            <header className="mb-10">
-                <h1 className="text-4xl font-extrabold text-neutral-600 dark:text-white tracking-tight mb-2">Settings</h1>
-                <p className="text-lg">Manage your gateway, providers, and agent personalities.</p>
-            </header>
-
+        <Page
+            title="Settings"
+            subtitle="Manage your gateway, providers, and agent personalities."
+        >
             <nav className="flex gap-8 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
                 {['agents', 'gateway', 'general', 'tools', 'chat', 'config'].map(id => (
                     <button
@@ -430,7 +429,6 @@ export default function SettingsPage({
                     )}
                 </div>
             )}
-        </div>
+        </Page >
     )
 }
-
