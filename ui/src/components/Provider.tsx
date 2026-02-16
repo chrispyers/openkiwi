@@ -35,11 +35,6 @@ export default function Provider({
 }: ProviderProps) {
     return (
         <Card className="space-y-6">
-            <div className="flex items-center gap-3 mb-2">
-                <IconBox icon={<Globe size={20} />} />
-                <Text bold={true} size="xl">Model & Provider Settings</Text>
-            </div>
-
             <div className="space-y-2">
                 <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
                     <FontAwesomeIcon icon={faAlignLeft} size="sm" /> Description
