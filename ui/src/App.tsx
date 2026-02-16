@@ -85,6 +85,7 @@ interface Config {
   };
   gateway: {
     port: number;
+    endpoint: string;
   };
 }
 
@@ -183,13 +184,8 @@ function App() {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
 
-  useEffect(() => {
-    localStorage.setItem('gateway_addr', gatewayAddr);
-  }, [gatewayAddr]);
-
-  useEffect(() => {
-    localStorage.setItem('gateway_token', gatewayToken);
-  }, [gatewayToken]);
+  // Don't auto-save gateway settings on every keystroke - only save when user clicks "Connect"
+  // This prevents breaking the UI when typing a new gateway address
 
   // Helper for Gateway URLs
   const getApiUrl = (path: string) => `${gatewayAddr.replace(/\/$/, '')}${path}`;
@@ -258,18 +254,40 @@ function App() {
 
   // Only fetch when manually requested or on initial load
   useEffect(() => {
-    // Initial load (silent)
-    initializeApp(true);
+    // Only try to connect if we have saved credentials
+    const savedAddr = localStorage.getItem('gateway_addr');
+    const savedToken = localStorage.getItem('gateway_token');
+
+    if (savedAddr && savedToken) {
+      // Initial load (silent)
+      initializeApp(true);
+    } else {
+      // No saved credentials - just clear loading state
+      setLoading(false);
+    }
+
+    // Safety timeout: if loading doesn't clear within 10 seconds, force it to false
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 10000);
+
+    return () => clearTimeout(timeout);
   }, []);
 
   useEffect(() => {
     if (activeView === 'settings') {
-      fetchAgents();
-      fetchConfig();
-      fetchTools();
+      // Fetch data for settings page, but don't let errors break the UI
+      Promise.all([
+        fetchAgents().catch(e => console.error('Failed to fetch agents:', e)),
+        fetchConfig().catch(e => console.error('Failed to fetch config:', e)),
+        fetchTools().catch(e => console.error('Failed to fetch tools:', e))
+      ]);
+
       if (activeSettingsSection === 'gateway') {
-        fetchConnectedClients();
-        const interval = setInterval(fetchConnectedClients, 5000);
+        fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
+        const interval = setInterval(() => {
+          fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
+        }, 5000);
         return () => clearInterval(interval);
       }
     }
@@ -307,6 +325,21 @@ function App() {
   const initializeApp = async (isSilent = false) => {
     setLoading(true);
     try {
+      // Test connection first before saving to localStorage
+      const testResponse = await fetch(getApiUrl('/api/config'), {
+        headers: { 'Authorization': `Bearer ${gatewayToken}` },
+        signal: AbortSignal.timeout(5000) // 5 second timeout
+      });
+
+      if (!testResponse.ok) {
+        throw new Error('Authentication failed or gateway unreachable');
+      }
+
+      // Connection successful - save to localStorage
+      localStorage.setItem('gateway_addr', gatewayAddr);
+      localStorage.setItem('gateway_token', gatewayToken);
+
+      // Now fetch all data
       await Promise.all([
         fetchConfig(),
         fetchAgents(),
@@ -314,17 +347,31 @@ function App() {
         fetchTools(),
         fetchConnectedClients()
       ]);
+
       if (!isSilent) {
         toast.success('Connected to Gateway', { description: 'Successfully authenticated and synced.' });
       }
     } catch (e) {
-      // Only show error if this was a manual connection attempt or if it's a critical failure that should be bubbled
-      // For now, let's keep error visible even on silent init as failure to connect is important
+      const errorMsg = e instanceof Error ? e.message : 'Unknown error';
+      console.error('Gateway connection failed:', errorMsg);
+
       if (!isSilent) {
-        toast.error('Connection Failed', { description: 'Could not connect to Gateway. Check URL and Token.' });
+        toast.error('Connection Failed', {
+          description: `Could not connect to gateway at ${gatewayAddr}. ${errorMsg}`
+        });
       }
+
+      // Don't save failed connection to localStorage
+      // Revert to saved values if they exist
+      const savedAddr = localStorage.getItem('gateway_addr');
+      const savedToken = localStorage.getItem('gateway_token');
+      if (savedAddr && savedToken && !isSilent) {
+        setGatewayAddr(savedAddr);
+        setGatewayToken(savedToken);
+      }
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
   };
 
   const handleScroll = () => {

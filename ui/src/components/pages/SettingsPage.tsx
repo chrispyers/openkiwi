@@ -5,6 +5,7 @@ import {
     History,
     Terminal,
     Globe,
+    Brain,
     BrainCircuit,
     FileText,
     Wrench,
@@ -53,6 +54,7 @@ interface Config {
     };
     gateway: {
         port: number;
+        endpoint: string;
     };
 }
 
@@ -419,6 +421,11 @@ export default function SettingsPage({
                                                 />
                                             </div>
 
+
+                                            <p className="text-xs text-neutral-500 dark:text-neutral-400 italic">
+                                                Changes to endpoint or token will only take effect after clicking "Connect to Gateway"
+                                            </p>
+
                                             <Button
                                                 themed={true}
                                                 onClick={() => initializeApp()}
@@ -527,7 +534,9 @@ export default function SettingsPage({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
-                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white group-hover:text-accent-primary transition-colors">Show Thought Process</h3>
+                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors">
+                                                <Brain size={14} /> Show Thought Process
+                                            </h3>
                                             <p className="text-xs">Display reasoning blocks if available</p>
                                         </div>
                                         <Toggle

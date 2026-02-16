@@ -16,6 +16,7 @@ const ConfigSchema = z.object({
     gateway: z.object({
         port: z.number().int().positive(),
         secretToken: z.string().default(""),
+        endpoint: z.string().url().default("http://localhost:3808"),
     }),
 });
 
@@ -55,6 +56,7 @@ export function loadConfig(): Config {
             gateway: {
                 port: 3808,
                 secretToken: "",
+                endpoint: "http://localhost:3808",
             },
         };
     }
