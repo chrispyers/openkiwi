@@ -447,6 +447,10 @@ function App() {
       if (data.length > 0 && !settingsAgentId) {
         setSettingsAgentId(data[0].id);
       }
+      // Set selectedAgentId to first agent if current selection doesn't exist
+      if (data.length > 0 && !data.find((a: Agent) => a.id === selectedAgentId)) {
+        setSelectedAgentId(data[0].id);
+      }
     } catch (error) {
       console.error('Failed to fetch agents:', error);
       throw error;
