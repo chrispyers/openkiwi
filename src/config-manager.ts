@@ -6,10 +6,12 @@ const ConfigSchema = z.object({
     lmStudio: z.object({
         baseUrl: z.string().url(),
         modelId: z.string(),
+        systemPrompt: z.string().default("You are a helpful AI assistant."),
+    }),
+    chat: z.object({
         showReasoning: z.boolean(),
         includeHistory: z.boolean(),
         generateSummaries: z.boolean(),
-        systemPrompt: z.string().default("You are a helpful AI assistant."),
     }),
     gateway: z.object({
         port: z.number().int().positive(),
@@ -43,10 +45,12 @@ export function loadConfig(): Config {
             lmStudio: {
                 baseUrl: 'http://localhost:1234/v1',
                 modelId: 'default-model',
+                systemPrompt: "You are a helpful AI assistant.",
+            },
+            chat: {
                 showReasoning: true,
                 includeHistory: false,
                 generateSummaries: false,
-                systemPrompt: "You are a helpful AI assistant.",
             },
             gateway: {
                 port: 3808,

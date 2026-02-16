@@ -34,10 +34,12 @@ interface Config {
     lmStudio: {
         baseUrl: string;
         modelId: string;
+        systemPrompt: string;
+    };
+    chat: {
         showReasoning: boolean;
         includeHistory: boolean;
         generateSummaries: boolean;
-        systemPrompt: string;
     };
     gateway: {
         port: number;
@@ -135,7 +137,7 @@ export default function ChatPage({
                 )}
 
                 {messages.map((msg, i) => {
-                    if (msg.role === 'reasoning' && !config?.lmStudio.showReasoning) return null;
+                    if (msg.role === 'reasoning' && !config?.chat.showReasoning) return null;
                     if (msg.role === 'system') return null;
                     return (
                         <div key={i} className={`flex w-full group ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>

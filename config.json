@@ -2,10 +2,12 @@
   "lmStudio": {
     "baseUrl": "http://192.168.86.38:1234",
     "modelId": "mistralai/ministral-3-14b-reasoning",
-    "showReasoning": false,
-    "includeHistory": false,
-    "generateSummaries": false,
     "systemPrompt": "You are a helpful AI assistant."
+  },
+  "chat": {
+    "showReasoning": true,
+    "includeHistory": true,
+    "generateSummaries": true
   },
   "gateway": {
     "port": 3808,

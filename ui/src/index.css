@@ -58,6 +58,10 @@
     box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
   }
 
+  .user-bubble * {
+    @apply text-white !important;
+  }
+
   .ai-bubble {
     @apply bg-neutral-100 dark:bg-bg-card text-text-primary border border-border-color rounded-tl-[4px];
   }

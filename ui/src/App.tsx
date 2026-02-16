@@ -76,10 +76,12 @@ interface Config {
   lmStudio: {
     baseUrl: string;
     modelId: string;
+    systemPrompt: string;
+  };
+  chat: {
     showReasoning: boolean;
     includeHistory: boolean;
     generateSummaries: boolean;
-    systemPrompt: string;
   };
   gateway: {
     port: number;
@@ -557,7 +559,7 @@ function App() {
         sessionId: sessionToUse,
         agentId: selectedAgentId,
         messages: newMessages.map(m => ({ role: m.role, content: m.content })),
-        shouldSummarize: config?.lmStudio.generateSummaries || false
+        shouldSummarize: config?.chat.generateSummaries || false
       };
       setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[SENT] ${JSON.stringify(payload)}` }, ...prev].slice(0, 100)); // Keep last 100 logs
       socket.send(JSON.stringify(payload));

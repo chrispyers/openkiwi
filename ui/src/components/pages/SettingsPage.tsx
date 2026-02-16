@@ -44,10 +44,12 @@ interface Config {
     lmStudio: {
         baseUrl: string;
         modelId: string;
+        systemPrompt: string;
+    };
+    chat: {
         showReasoning: boolean;
         includeHistory: boolean;
         generateSummaries: boolean;
-        systemPrompt: string;
     };
     gateway: {
         port: number;
@@ -527,8 +529,8 @@ export default function SettingsPage({
                                             <p className="text-xs">Display reasoning blocks if available</p>
                                         </div>
                                         <Toggle
-                                            checked={config?.lmStudio.showReasoning || false}
-                                            onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, showReasoning: !prev.lmStudio.showReasoning } } : null)}
+                                            checked={config?.chat.showReasoning || false}
+                                            onChange={() => setConfig(prev => prev ? { ...prev, chat: { ...prev.chat, showReasoning: !prev.chat.showReasoning } } : null)}
                                         />
                                     </div>
 
@@ -538,8 +540,8 @@ export default function SettingsPage({
                                             <p className="text-xs">Preserve context across multiple message turns</p>
                                         </div>
                                         <Toggle
-                                            checked={config?.lmStudio.includeHistory || false}
-                                            onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, includeHistory: !prev.lmStudio.includeHistory } } : null)}
+                                            checked={config?.chat.includeHistory || false}
+                                            onChange={() => setConfig(prev => prev ? { ...prev, chat: { ...prev.chat, includeHistory: !prev.chat.includeHistory } } : null)}
                                         />
                                     </div>
 
@@ -551,8 +553,8 @@ export default function SettingsPage({
                                             <p className="text-xs">Summarize long conversations for better context retention</p>
                                         </div>
                                         <Toggle
-                                            checked={config?.lmStudio.generateSummaries || false}
-                                            onChange={() => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, generateSummaries: !prev.lmStudio.generateSummaries } } : null)}
+                                            checked={config?.chat.generateSummaries || false}
+                                            onChange={() => setConfig(prev => prev ? { ...prev, chat: { ...prev.chat, generateSummaries: !prev.chat.generateSummaries } } : null)}
                                         />
                                     </div>
                                 </div>

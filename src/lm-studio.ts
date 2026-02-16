@@ -19,13 +19,21 @@ export async function* streamChatCompletion(
     const normalizedUrl = config.lmStudio.baseUrl.replace(/\/$/, '');
     const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(body),
-    });
+    let response;
+    try {
+        response = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(body),
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`fetch failed: ${error.message}`);
+        }
+        throw error;
+    }
 
     if (!response.ok) {
         throw new Error(`LM Studio API error: ${response.statusText}`);
@@ -70,17 +78,25 @@ export async function getChatCompletion(
     const normalizedUrl = config.lmStudio.baseUrl.replace(/\/$/, '');
     const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
 
-    const response = await fetch(`${baseUrl}/chat/completions`, {
-        method: 'POST',
-        headers: {
-            'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-            model: config.lmStudio.modelId,
-            messages,
-            stream: false,
-        }),
-    });
+    let response;
+    try {
+        response = await fetch(`${baseUrl}/chat/completions`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                model: config.lmStudio.modelId,
+                messages,
+                stream: false,
+            }),
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`fetch failed: ${error.message}`);
+        }
+        throw error;
+    }
 
     if (!response.ok) {
         throw new Error(`LM Studio API error: ${response.statusText}`);

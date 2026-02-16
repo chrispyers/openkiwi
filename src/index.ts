@@ -261,7 +261,7 @@ wss.on('connection', (ws, req) => {
                 payload.push({ role: 'system', content: systemPrompt });
             }
 
-            if (currentConfig.lmStudio.includeHistory) {
+            if (currentConfig.chat.includeHistory) {
                 payload.push(...userMessages);
             } else {
                 payload.push(userMessages[userMessages.length - 1]);
@@ -411,7 +411,26 @@ wss.on('connection', (ws, req) => {
 
         } catch (error) {
             console.error('WS Error:', error);
-            ws.send(JSON.stringify({ type: 'error', message: String(error) }));
+
+            // Provide user-friendly error messages
+            let errorMessage = 'An unexpected error occurred';
+
+            if (error instanceof Error) {
+                // Check for common connection errors
+                if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
+                    errorMessage = `Unable to connect to LM Studio at ${currentConfig.lmStudio.baseUrl}. Please ensure LM Studio is running and accessible.`;
+                } else if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
+                    errorMessage = `Connection to LM Studio timed out. Please check your network connection and ensure LM Studio is responding.`;
+                } else if (error.message.includes('ENOTFOUND')) {
+                    errorMessage = `Could not resolve hostname for LM Studio. Please check the baseUrl in your configuration: ${currentConfig.lmStudio.baseUrl}`;
+                } else if (error.message.includes('LM Studio API error')) {
+                    errorMessage = error.message;
+                } else {
+                    errorMessage = `Error communicating with LM Studio: ${error.message}`;
+                }
+            }
+
+            ws.send(JSON.stringify({ type: 'error', message: errorMessage }));
         }
     });
 });
