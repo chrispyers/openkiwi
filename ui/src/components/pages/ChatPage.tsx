@@ -34,7 +34,6 @@ interface Config {
     lmStudio: {
         baseUrl: string;
         modelId: string;
-        systemPrompt: string;
     };
     chat: {
         showReasoning: boolean;
@@ -43,6 +42,9 @@ interface Config {
     };
     gateway: {
         port: number;
+    };
+    global?: {
+        systemPrompt: string;
     };
 }
 

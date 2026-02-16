@@ -45,7 +45,6 @@ interface Config {
     lmStudio: {
         baseUrl: string;
         modelId: string;
-        systemPrompt: string;
     };
     chat: {
         showReasoning: boolean;
@@ -55,6 +54,9 @@ interface Config {
     gateway: {
         port: number;
         endpoint: string;
+    };
+    global?: {
+        systemPrompt: string;
     };
 }
 
@@ -235,36 +237,32 @@ export default function SettingsPage({
                                     </div>
                                 </div>
 
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"><Terminal size={14} /> Global System Prompt</label>
-                                    <textarea
-                                        className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-4 outline-none focus:border-accent-primary transition-all text-sm h-32 custom-scrollbar resize-none"
-                                        value={config?.lmStudio.systemPrompt}
-                                        onChange={(e) => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, systemPrompt: e.target.value } } : null)}
-                                        placeholder="Describe how the AI should behave globally..."
-                                    />
-                                </div>
+
                                 <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Provider Configurations</Button>
                             </Card>
                         </form>
                     )}
 
                     {activeSettingsSection === 'agents' && (
-                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                        <form onSubmit={saveConfig} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-6">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-3 mb-2">
                                     <IconBox icon={<BrainCircuit size={20} />} />
-                                    <Text bold={true} size="xl">Agent Management</Text>
+                                    <Text bold={true} size="xl">Agent Configuration</Text>
                                 </div>
-                                <div className="py-12 text-center">
-                                    <BrainCircuit size={48} className="mx-auto mb-4 text-accent-primary opacity-20" />
-                                    <p className="text-lg font-medium mb-2">Agent controls have moved!</p>
-                                    <p className="text-sm opacity-60">
-                                        Please use the <strong>Agents</strong> page from the sidebar to manage your AI agents.
-                                    </p>
+
+                                <div className="space-y-2">
+                                    <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"><Terminal size={14} /> Global System Prompt</label>
+                                    <textarea
+                                        className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-4 outline-none focus:border-accent-primary transition-all text-sm h-32 custom-scrollbar resize-none"
+                                        value={config?.global?.systemPrompt || ''}
+                                        onChange={(e) => setConfig(prev => prev ? { ...prev, global: { ...(prev.global || {}), systemPrompt: e.target.value } } : null)}
+                                        placeholder="Describe how the AI should behave globally..."
+                                    />
                                 </div>
+                                <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Agent Configurations</Button>
                             </Card>
-                        </div>
+                        </form>
                     )}
 
                     {activeSettingsSection === 'gateway' && (

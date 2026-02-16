@@ -268,7 +268,7 @@ wss.on('connection', (ws, req) => {
             const agent = AgentManager.getAgent(agentId || 'clawdbot');
 
             const payload: any[] = [];
-            const systemPrompt = agent?.systemPrompt || currentConfig.lmStudio.systemPrompt;
+            const systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
 
             if (systemPrompt) {
                 payload.push({ role: 'system', content: systemPrompt });

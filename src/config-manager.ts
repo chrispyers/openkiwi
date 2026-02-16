@@ -6,7 +6,6 @@ const ConfigSchema = z.object({
     lmStudio: z.object({
         baseUrl: z.string().url(),
         modelId: z.string(),
-        systemPrompt: z.string().default("You are a helpful AI assistant."),
     }),
     chat: z.object({
         showReasoning: z.boolean(),
@@ -18,6 +17,9 @@ const ConfigSchema = z.object({
         secretToken: z.string().default(""),
         endpoint: z.string().url().default("http://localhost:3808"),
     }),
+    global: z.object({
+        systemPrompt: z.string().default("You are a helpful AI assistant."),
+    }).optional(),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -46,7 +48,6 @@ export function loadConfig(): Config {
             lmStudio: {
                 baseUrl: 'http://localhost:1234/v1',
                 modelId: 'default-model',
-                systemPrompt: "You are a helpful AI assistant.",
             },
             chat: {
                 showReasoning: true,
@@ -57,6 +58,9 @@ export function loadConfig(): Config {
                 port: 3808,
                 secretToken: "",
                 endpoint: "http://localhost:3808",
+            },
+            global: {
+                systemPrompt: "You are a helpful AI assistant.",
             },
         };
     }
