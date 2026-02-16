@@ -11,6 +11,10 @@ export interface Agent {
     memory: string;
     systemPrompt: string;
     provider?: string;
+    heartbeat?: {
+        enabled: boolean;
+        schedule: string;
+    };
 }
 
 const AGENTS_DIR = path.resolve(process.cwd(), 'agents');
@@ -34,7 +38,7 @@ export class AgentManager {
 
         // Load agent-specific config if it exists
         const configPath = path.join(agentDir, 'config.json');
-        let agentConfig = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '🤖', provider: '' };
+        let agentConfig: any = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '🤖', provider: '' };
         if (fs.existsSync(configPath)) {
             try {
                 agentConfig = { ...agentConfig, ...JSON.parse(fs.readFileSync(configPath, 'utf-8')) };
@@ -72,7 +76,8 @@ Keep your responses concise and focused on the task at hand.
             soul,
             memory,
             systemPrompt,
-            provider: agentConfig.provider
+            provider: agentConfig.provider,
+            heartbeat: agentConfig.heartbeat
         };
     }
 

@@ -10,6 +10,7 @@ import { AgentManager } from './agent-manager.js';
 import { SessionManager, Session } from './session-manager.js';
 import { ToolManager } from './tool-manager.js';
 import { logger } from './logger.js';
+import { HeartbeatManager } from './heartbeat-manager.js';
 
 
 const config = loadConfig();
@@ -20,6 +21,7 @@ const wss = new WebSocketServer({ server });
 async function startServer() {
     console.log('Initializing systems...');
     await ToolManager.discoverTools();
+    await HeartbeatManager.start();
 
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {

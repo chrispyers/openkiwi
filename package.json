@@ -17,6 +17,7 @@
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "node-cron": "^4.2.1",
     "puppeteer": "^24.37.3",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
@@ -26,6 +27,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/node": "^25.2.3",
+    "@types/node-cron": "^3.0.11",
     "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1",
     "tsx": "^4.21.0",
