@@ -8,10 +8,22 @@ if (!fs.existsSync(SCREENSHOTS_DIR)) {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 }
 
+// Global browser instance
 let browser: any = null;
 
 async function getBrowser() {
-    if (browser) return browser;
+    // Check if existing browser is still valid
+    if (browser) {
+        if (browser.isConnected()) {
+            return browser;
+        }
+        // If disconnected, clear it and restart
+        console.log('[Browser] Browser disconnected, relaunching...');
+        try {
+            await browser.close();
+        } catch (e) { /* ignore */ }
+        browser = null;
+    }
 
     const options: any = {
         headless: 'new',
@@ -19,7 +31,10 @@ async function getBrowser() {
             '--no-sandbox',
             '--disable-setuid-sandbox',
             '--disable-dev-shm-usage', // critical for docker
-            '--disable-gpu'
+            '--disable-gpu',
+            '--no-zygote',
+            '--single-process', // helps in low resource containers
+            '--window-size=1280,800'
         ]
     };
 
@@ -29,10 +44,11 @@ async function getBrowser() {
     }
 
     try {
+        console.log('[Browser] Launching new browser instance...');
         browser = await puppeteer.launch(options);
         return browser;
     } catch (error) {
-        console.error('Failed to launch browser:', error);
+        console.error('[Browser] Failed to launch browser:', error);
         throw new Error('Browser launch failed');
     }
 }
@@ -58,21 +74,22 @@ export default {
         }
     },
     handler: async ({ action, input }: { action: 'search' | 'browse'; input: string }) => {
-        const browser = await getBrowser();
-        const page = await browser.newPage();
-
-        // Set a normal viewport size
-        await page.setViewport({ width: 1280, height: 800 });
-
-        // Randomize User Agent slightly
-        await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+        let page: any = null;
 
         try {
+            const browserInstance = await getBrowser();
+            page = await browserInstance.newPage();
+
+            // Set a normal viewport size
+            await page.setViewport({ width: 1280, height: 800 });
+
+            // Randomize User Agent
+            await page.setUserAgent('Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36');
+
             let urlToVisit = input;
 
             if (action === 'search') {
                 // Use DuckDuckGo
-                // We use html version for speed/simplicity sometimes, but standard version gives better results for visual screenshot
                 const q = encodeURIComponent(input);
                 urlToVisit = `https://duckduckgo.com/?q=${q}&t=h_&ia=web`;
             } else {
@@ -84,17 +101,26 @@ export default {
 
             console.log(`[Browser] Visiting: ${urlToVisit}`);
 
-            // Navigate
-            // Wait until network is idle specifically to load dynamic content
-            await page.goto(urlToVisit, { waitUntil: 'networkidle2', timeout: 30000 });
+            // Navigate with increased timeout and better wait condition
+            const response = await page.goto(urlToVisit, {
+                waitUntil: ['domcontentloaded', 'networkidle2'],
+                timeout: 30000
+            });
+
+            if (!response) {
+                throw new Error('Navigation failed: No response received');
+            }
+
+            if (!response.ok()) {
+                console.warn(`[Browser] Page responded with status ${response.status()}`);
+            }
 
             // If it's a search, maybe we wait a bit more for results to pop in?
             if (action === 'search') {
                 try {
-                    // Wait for results container
-                    await page.waitForSelector('#react-layout', { timeout: 5000 });
+                    await page.waitForSelector('#react-layout, #links, .result', { timeout: 5000 });
                 } catch (e) {
-                    // Ignore
+                    // Ignore timeout waiting for specific selector
                 }
             }
 
@@ -103,84 +129,58 @@ export default {
             const screenshotPath = path.join(SCREENSHOTS_DIR, filename);
             await page.screenshot({ path: screenshotPath, fullPage: false });
 
-            // Extract text content (simple)
-            // We get the body text
+            // Extract text content
             const textContent = await page.evaluate(() => {
-                // Helper to remove script/style
-                const scripts = document.querySelectorAll('script, style, noscript');
+                const scripts = document.querySelectorAll('script, style, noscript, svg, img');
                 scripts.forEach(s => s.remove());
-                return document.body.innerText.trim().substring(0, 4000); // Limit context
+                return document.body.innerText.trim().substring(0, 4000);
             });
 
-            // If search, try to get specific results structure for better summaries
             let searchResults = [];
             if (action === 'search') {
                 searchResults = await page.evaluate(() => {
-                    const articles = Array.from(document.querySelectorAll('article')); // DuckDuckGo structure changes often, but let's try
+                    const articles = Array.from(document.querySelectorAll('article, .result'));
                     return articles.slice(0, 5).map((art: any) => {
-                        const title = art.querySelector('h2 a')?.innerText || '';
-                        const snippet = art.querySelector('[data-result="snippet"]')?.innerText || '';
-                        const link = art.querySelector('h2 a')?.href || '';
+                        const title = art.querySelector('h2 a, .result__title a')?.innerText || '';
+                        const snippet = art.querySelector('[data-result="snippet"], .result__snippet')?.innerText || '';
+                        const link = art.querySelector('h2 a, .result__title a')?.href || '';
                         return { title, snippet, link };
                     }).filter((r: any) => r.title);
                 });
             }
 
-            // Construct Response
-            // We return a markdown formatted string with the image and text
-            // The image URL assumes the gateway is serving /screenshots
-            // We need to know the gateway base URL. But simpler is just relative path if the UI supports it?
-            // The UI is on port 3000, Gateway 3808.
-            // We will return a full URL if we can, but we don't know the host address.
-            // We'll return a relative path `/api/screenshots/filename`?
-            // Wait, in `src/index.ts` we served `/screenshots`.
-
-            // Since the UI fetches from Gateway, if the markdown has `![Image](/screenshots/filename.png)`, 
-            // the UI will interpret it relative to the UI domain (http://localhost:3000). 
-            // So we need to point to the Gateway URL.
-            // But the agent doesn't know the Gateway URL.
-            // However, the proxy setup might route `/api` to gateway?
-            // Let's check `nginx.conf` or how UI connects.
-            // The UI connects to `gatewayAddr` stored in localStorage.
-            // This is tricky.
-            // The agent produces text. The UI renders markdown.
-            // If the agent says `![Screenshot](http://localhost:3808/screenshots/foo.png)`, it works locally.
-            // If in production/docker, users might access via IP.
-
-            // Idea: Return the filename. Let the UI handle it? No application logic in UI for this.
-            // Better: Return a markdown image with a placeholder or relative path, and hope.
-            // OR: We try to guess or use a standard convention.
-            // Let's just return `screenshot_url: "/screenshots/${filename}"` in the structured data, 
-            // and let the agent formulate the text response.
-            // The Tool result is JSON.
-            // The agent (LLM) will see the JSON and formulate a response using the `screenshot_url`.
-            // The LLM will likely output: "Here is the search result: ![Screenshot](/screenshots/foo.png)".
-            // If the UI is rendering this markdown, `src="/screenshots/foo.png"` will be requested from the UI server (localhost:3000).
-            // We need to proxy `/screenshots` in the UI dev server or nginx to the gateway.
-
-            // Let's check `ui/vite.config.ts` or `ui/nginx.conf`.
-
             const screenshotUrl = `/screenshots/${filename}`;
+            const pageTitle = await page.title();
 
-            await page.close();
+            // Normally close page in finally block
 
-            const response: any = {
-                title: await page.title(),
+            const result: any = {
+                title: pageTitle,
                 url: urlToVisit,
-                screenshot_url: screenshotUrl, // Agent should use this
+                screenshot_url: screenshotUrl,
                 content_snippet: textContent
             };
 
             if (searchResults && searchResults.length > 0) {
-                response.search_results = searchResults;
+                result.search_results = searchResults;
             }
 
-            return response;
+            return result;
 
         } catch (error: any) {
-            await page.close();
-            // Maybe browser too if it crashed?
+            console.error('[Browser] Error during execution:', error);
             return { error: `Browser error: ${error.message}` };
+        } finally {
+            if (page) {
+                try {
+                    await page.close();
+                } catch (e: any) {
+                    // Start of the error that user reported
+                    if (!e.message.includes('No target with given id found')) {
+                        console.error('[Browser] Error closing page:', e);
+                    }
+                }
+            }
         }
     }
 };
