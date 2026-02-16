@@ -4,6 +4,8 @@ import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import Provider from '../Provider'
 import Button from '../Button'
 import Modal from '../Modal'
+import Page from './Page'
+
 
 interface Config {
 
@@ -45,21 +47,20 @@ export default function ProvidersPage({
     const [newProvider, setNewProvider] = useState({ description: '', endpoint: '', model: '' });
 
     return (
-        <div className="flex-1 p-8 lg:p-12 overflow-y-auto">
-            <header className="mb-10">
-                <h1 className="text-4xl font-extrabold text-neutral-600 dark:text-white tracking-tight mb-2">Providers</h1>
-                <div className="flex justify-between items-end">
-                    <p className="text-lg">Configure your AI model providers and endpoints.</p>
-                    <Button
-                        themed={true}
-                        className="text-white px-4 py-2 h-10"
-                        icon={faPlus}
-                        onClick={() => setIsModalOpen(true)}
-                    >
-                        Add Provider
-                    </Button>
-                </div>
-            </header>
+        <Page
+            title="Providers"
+            subtitle="Configure your AI model providers and endpoints."
+            headerAction={
+                <Button
+                    themed={true}
+                    className="text-white px-4 py-2 h-10"
+                    icon={faPlus}
+                    onClick={() => setIsModalOpen(true)}
+                >
+                    Add Provider
+                </Button>
+            }
+        >
 
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-5xl">
                 {/* Saved Providers */}
@@ -141,6 +142,6 @@ export default function ProvidersPage({
                     />
                 </div>
             </Modal>
-        </div>
+        </Page >
     )
 }

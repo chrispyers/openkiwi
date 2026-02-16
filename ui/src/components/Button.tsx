@@ -25,7 +25,7 @@ export default function Button(props: ButtonProps) {
         props.className.includes('dark:bg-')
     );
 
-    const baseClasses = "px-4 py-3 rounded-xl transition-all font-semibold disabled:opacity-50 disabled:pointer-events-none";
+    const baseClasses = "px-4 py-3 rounded-xl transition-all font-semibold disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center";
 
     const themedClasses = props.themed === true ? getThemeButtonClasses() : "";
 

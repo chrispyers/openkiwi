@@ -8,6 +8,7 @@ import IconBox from '../IconBox'
 import Text from '../Text'
 import Modal from '../Modal'
 import Input from '../Input'
+import Page from './Page'
 
 interface Agent {
     id: string;
@@ -138,22 +139,20 @@ export default function AgentsPage({
     }
 
     return (
-        <div className="flex-1 p-8 lg:p-12 overflow-y-auto">
-            <header className="mb-10 flex items-center justify-between">
-                <div>
-                    <h1 className="text-4xl font-extrabold text-neutral-600 dark:text-white tracking-tight mb-2">Agents</h1>
-                    <p className="text-lg">Manage your AI agent personalities and configurations.</p>
-                </div>
+        <Page
+            title="Agents"
+            subtitle="Manage your AI agent personalities and configurations."
+            headerAction={
                 <Button
                     themed={true}
-                    className="h-10 text-white"
+                    className="h-10 px-4 py-2 text-white"
                     onClick={() => setIsModalOpen(true)}
                     icon={faPlus}
                 >
                     Add Agent
                 </Button>
-            </header>
-
+            }
+        >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-5xl">
                 {/* Left Column - Discovered Agents */}
                 <div className="lg:col-span-4 space-y-4">
@@ -387,6 +386,6 @@ export default function AgentsPage({
                     </div>
                 </div>
             </Modal>
-        </div>
+        </Page>
     )
 }
