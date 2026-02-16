@@ -73,11 +73,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 
 interface Config {
-  lmStudio: {
-    baseUrl: string;
-    modelId: string;
-    description?: string;
-  };
+
   chat: {
     showReasoning: boolean;
     includeHistory: boolean;
@@ -304,10 +300,10 @@ function App() {
   }, [activeView, activeSettingsSection, settingsAgentId]);
 
   useEffect(() => {
-    if (config?.lmStudio.baseUrl) {
+    if (config?.providers?.length) {
       fetchModels();
     }
-  }, [config?.lmStudio.baseUrl]);
+  }, [config?.providers]);
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useRef(true);
@@ -500,7 +496,7 @@ function App() {
     } catch (error) {
       console.error('Failed to fetch models:', error);
       toast.error('Failed to scan for models', {
-        description: error instanceof Error ? error.message : 'Could not connect to LM Studio. Please check the endpoint URL.'
+        description: error instanceof Error ? error.message : 'Could not connect to LLM provider. Please check the endpoint URL.'
       });
       return false;
     }

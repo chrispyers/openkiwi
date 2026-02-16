@@ -3,11 +3,7 @@ import path from 'node:path';
 import { z } from 'zod';
 
 const ConfigSchema = z.object({
-    lmStudio: z.object({
-        baseUrl: z.string().url(),
-        modelId: z.string(),
-        description: z.string().optional(),
-    }),
+
     chat: z.object({
         showReasoning: z.boolean(),
         includeHistory: z.boolean(),
@@ -51,10 +47,7 @@ export function loadConfig(): Config {
     } catch (error) {
         console.error('Failed to load config.json, using defaults:', error);
         return {
-            lmStudio: {
-                baseUrl: 'http://localhost:1234/v1',
-                modelId: 'default-model',
-            },
+
             chat: {
                 showReasoning: true,
                 includeHistory: false,

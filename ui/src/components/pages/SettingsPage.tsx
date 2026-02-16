@@ -42,11 +42,7 @@ import { Loader2 } from 'lucide-react'
 
 // Re-using types from App.tsx - ideally these should be moved to a types.ts file
 interface Config {
-    lmStudio: {
-        baseUrl: string;
-        modelId: string;
-        description?: string;
-    };
+
     chat: {
         showReasoning: boolean;
         includeHistory: boolean;

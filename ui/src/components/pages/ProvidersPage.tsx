@@ -6,11 +6,7 @@ import Button from '../Button'
 import Modal from '../Modal'
 
 interface Config {
-    lmStudio: {
-        baseUrl: string;
-        modelId: string;
-        description?: string;
-    };
+
     chat: {
         showReasoning: boolean;
         includeHistory: boolean;

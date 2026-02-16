@@ -5,7 +5,7 @@ import cors from 'cors';
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig, saveConfig, Config } from './config-manager.js';
-import { streamChatCompletion, getChatCompletion } from './lm-studio.js';
+import { streamChatCompletion, getChatCompletion } from './llm-provider.js';
 import { AgentManager } from './agent-manager.js';
 import { SessionManager, Session } from './session-manager.js';
 import { ToolManager } from './tool-manager.js';
@@ -153,7 +153,9 @@ app.get('/api/models', async (req, res) => {
     try {
         const queryUrl = req.query.baseUrl as string;
         const currentConfig = loadConfig();
-        const rawBaseUrl = queryUrl || currentConfig.lmStudio.baseUrl;
+        // Use the first provider's endpoint as default if available
+        const defaultProvider = currentConfig.providers[0];
+        const rawBaseUrl = queryUrl || (defaultProvider ? defaultProvider.endpoint : '');
 
         if (!rawBaseUrl) {
             return res.json({ data: [] });
@@ -280,8 +282,27 @@ wss.on('connection', (ws, req) => {
                 payload.push({ role: 'system', content: systemPrompt });
             }
 
+            // Determine provider
+            const providerName = agent?.provider;
+            let providerConfig = currentConfig.providers.find(p => p.model === providerName);
+
+            // Fallback to first provider if specific one not found or not specified
+            if (!providerConfig && currentConfig.providers.length > 0) {
+                providerConfig = currentConfig.providers[0];
+            }
+
+            if (!providerConfig) {
+                ws.send(JSON.stringify({ type: 'error', message: 'No LLM provider configured. Please add a provider in settings.' }));
+                return;
+            }
+
+            const llmConfig = {
+                baseUrl: providerConfig.endpoint,
+                modelId: providerConfig.model
+            };
+
             if (currentConfig.chat.includeHistory) {
-                // Filter out 'reasoning' messages as LM Studio only accepts user, assistant, system, tool
+                // Filter out 'reasoning' messages as many providers only accept user, assistant, system, tool
                 const validMessages = userMessages.filter((msg: any) => msg.role !== 'reasoning');
                 payload.push(...validMessages);
             } else {
@@ -298,7 +319,7 @@ wss.on('connection', (ws, req) => {
                 agentId: agentId || 'clawdbot',
                 sessionId,
                 message: `Outgoing request to provider for agent ${agentId || 'clawdbot'}`,
-                data: { messages: payload, config: currentConfig.lmStudio }
+                data: { messages: payload, config: llmConfig }
             });
 
             const chatHistory = [...payload];
@@ -309,7 +330,7 @@ wss.on('connection', (ws, req) => {
                 let fullContent = '';
                 let toolCalls: any[] = [];
 
-                for await (const delta of streamChatCompletion(currentConfig, chatHistory, ToolManager.getToolDefinitions())) {
+                for await (const delta of streamChatCompletion(llmConfig, chatHistory, ToolManager.getToolDefinitions())) {
                     if (delta.content) {
                         fullContent += delta.content;
                         ws.send(JSON.stringify({ type: 'delta', content: delta.content }));
@@ -327,7 +348,7 @@ wss.on('connection', (ws, req) => {
                     }
                 }
 
-                // Filtering empty slots in toolCalls (Vite/LM Studio stream index might skip)
+                // Filtering empty slots in toolCalls (stream index might skip)
                 const actualToolCalls = toolCalls.filter(Boolean);
 
                 if (actualToolCalls.length > 0) {
@@ -424,7 +445,7 @@ wss.on('connection', (ws, req) => {
                                     }).filter(Boolean).join('\n')}`
                                 }
                             ];
-                            const summary = await getChatCompletion(currentConfig, summaryPrompt);
+                            const summary = await getChatCompletion(llmConfig, summaryPrompt);
                             const updatedSession = SessionManager.getSession(sessionId);
                             if (updatedSession) {
                                 updatedSession.summary = summary.trim();
@@ -448,15 +469,15 @@ wss.on('connection', (ws, req) => {
             if (error instanceof Error) {
                 // Check for common connection errors
                 if (error.message.includes('fetch failed') || error.message.includes('ECONNREFUSED')) {
-                    errorMessage = `Unable to connect to LM Studio at ${currentConfig.lmStudio.baseUrl}. Please ensure LM Studio is running and accessible.`;
+                    errorMessage = `Unable to connect to LLM provider. Please ensure the provider is running and accessible.`;
                 } else if (error.message.includes('ETIMEDOUT') || error.message.includes('timeout')) {
-                    errorMessage = `Connection to LM Studio timed out. Please check your network connection and ensure LM Studio is responding.`;
+                    errorMessage = `Connection to LLM provider timed out. Please check your network connection.`;
                 } else if (error.message.includes('ENOTFOUND')) {
-                    errorMessage = `Could not resolve hostname for LM Studio. Please check the baseUrl in your configuration: ${currentConfig.lmStudio.baseUrl}`;
-                } else if (error.message.includes('LM Studio API error')) {
+                    errorMessage = `Could not resolve hostname for LLM provider. Please check the endpoint configuration.`;
+                } else if (error.message.includes('LLM API error')) {
                     errorMessage = error.message;
                 } else {
-                    errorMessage = `Error communicating with LM Studio: ${error.message}`;
+                    errorMessage = `Error communicating with LLM provider: ${error.message}`;
                 }
             }
 

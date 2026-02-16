@@ -1,12 +1,16 @@
-import { Config } from './config-manager.js';
+
+export interface LLMProviderConfig {
+    baseUrl: string;
+    modelId: string;
+}
 
 export async function* streamChatCompletion(
-    config: Config,
+    providerConfig: LLMProviderConfig,
     messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[],
     tools?: any[]
 ) {
     const body: any = {
-        model: config.lmStudio.modelId,
+        model: providerConfig.modelId,
         messages,
         stream: true,
     };
@@ -16,7 +20,7 @@ export async function* streamChatCompletion(
         body.tool_choice = 'auto';
     }
 
-    const normalizedUrl = config.lmStudio.baseUrl.replace(/\/$/, '');
+    const normalizedUrl = providerConfig.baseUrl.replace(/\/$/, '');
     const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
 
     let response;
@@ -36,7 +40,7 @@ export async function* streamChatCompletion(
     }
 
     if (!response.ok) {
-        throw new Error(`LM Studio API error: ${response.statusText}`);
+        throw new Error(`LLM API error: ${response.statusText}`);
     }
 
     const reader = response.body?.getReader();
@@ -72,10 +76,10 @@ export async function* streamChatCompletion(
 }
 
 export async function getChatCompletion(
-    config: Config,
+    providerConfig: LLMProviderConfig,
     messages: { role: string; content: string }[]
 ) {
-    const normalizedUrl = config.lmStudio.baseUrl.replace(/\/$/, '');
+    const normalizedUrl = providerConfig.baseUrl.replace(/\/$/, '');
     const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
 
     let response;
@@ -86,7 +90,7 @@ export async function getChatCompletion(
                 'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-                model: config.lmStudio.modelId,
+                model: providerConfig.modelId,
                 messages,
                 stream: false,
             }),
@@ -99,7 +103,7 @@ export async function getChatCompletion(
     }
 
     if (!response.ok) {
-        throw new Error(`LM Studio API error: ${response.statusText}`);
+        throw new Error(`LLM API error: ${response.statusText}`);
     }
 
     const json = await response.json();
