@@ -21,6 +21,11 @@ const ConfigSchema = z.object({
     global: z.object({
         systemPrompt: z.string().default("You are a helpful AI assistant."),
     }).optional(),
+    providers: z.array(z.object({
+        description: z.string().default(""),
+        endpoint: z.string().url(),
+        model: z.string(),
+    })).default([]),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -63,6 +68,7 @@ export function loadConfig(): Config {
             global: {
                 systemPrompt: "You are a helpful AI assistant.",
             },
+            providers: [],
         };
     }
 }

@@ -59,6 +59,11 @@ interface Config {
     global?: {
         systemPrompt: string;
     };
+    providers: {
+        description: string;
+        endpoint: string;
+        model: string;
+    }[];
 }
 
 interface Agent {
@@ -97,8 +102,8 @@ interface SettingsPageProps {
     setSettingsAgentId: (id: string) => void;
     activeAgentInSettings?: Agent;
     fetchAgents: () => Promise<void>;
-    agentForm: { name: string; emoji: string };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string }>>;
+    agentForm: { name: string; emoji: string; provider?: string };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string }>>;
     saveAgentConfig: () => Promise<void>;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     gatewayAddr: string;

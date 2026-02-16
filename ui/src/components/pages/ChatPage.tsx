@@ -47,6 +47,11 @@ interface Config {
     global?: {
         systemPrompt: string;
     };
+    providers: {
+        description: string;
+        endpoint: string;
+        model: string;
+    }[];
 }
 
 interface ChatPageProps {

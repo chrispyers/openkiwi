@@ -10,6 +10,7 @@ export interface Agent {
     soul: string;
     memory: string;
     systemPrompt: string;
+    provider?: string;
 }
 
 const AGENTS_DIR = path.resolve(process.cwd(), 'agents');
@@ -33,7 +34,7 @@ export class AgentManager {
 
         // Load agent-specific config if it exists
         const configPath = path.join(agentDir, 'config.json');
-        let agentConfig = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '🤖' };
+        let agentConfig = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '🤖', provider: '' };
         if (fs.existsSync(configPath)) {
             try {
                 agentConfig = { ...agentConfig, ...JSON.parse(fs.readFileSync(configPath, 'utf-8')) };
@@ -70,7 +71,8 @@ Keep your responses concise and focused on the task at hand.
             identity,
             soul,
             memory,
-            systemPrompt
+            systemPrompt,
+            provider: agentConfig.provider
         };
     }
 
@@ -140,7 +142,7 @@ This space will be used to store important facts and preferences about users acr
         return this.getAgent(id)!;
     }
 
-    static saveAgentConfig(id: string, config: { name: string; emoji: string }): void {
+    static saveAgentConfig(id: string, config: { name: string; emoji: string; provider?: string }): void {
         const agentDir = path.join(AGENTS_DIR, id);
         if (!fs.existsSync(agentDir)) return;
         const configPath = path.join(agentDir, 'config.json');

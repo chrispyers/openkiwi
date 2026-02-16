@@ -25,13 +25,18 @@ interface Config {
     global?: {
         systemPrompt: string;
     };
+    providers: {
+        description: string;
+        endpoint: string;
+        model: string;
+    }[];
 }
 
 interface ProvidersPageProps {
     config: Config | null;
     setConfig: React.Dispatch<React.SetStateAction<Config | null>>;
     models: string[];
-    saveConfig: (e?: React.FormEvent) => Promise<void>;
+    saveConfig: (e?: React.FormEvent, configOverride?: Config) => Promise<void>;
     fetchModels: () => Promise<boolean | void>;
 }
 
@@ -114,7 +119,28 @@ export default function ProvidersPage({
                     </div>
 
 
-                    <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Provider Configurations</Button>
+                    <Button themed={true} className="w-full h-12 text-white" onClick={async (e) => {
+                        e.preventDefault();
+                        if (!config) return;
+
+                        const newProvider = {
+                            description: config.lmStudio.description || "",
+                            endpoint: config.lmStudio.baseUrl,
+                            model: config.lmStudio.modelId
+                        };
+
+                        // Append new provider to the list
+                        const updatedProviders = [...(config.providers || []), newProvider];
+
+                        const newConfig = {
+                            ...config,
+                            providers: updatedProviders
+                        };
+
+                        // Update local state and save to backend
+                        setConfig(newConfig);
+                        await saveConfig(undefined, newConfig);
+                    }} icon={faSave}>Save Provider Configurations</Button>
                 </Card>
             </form>
         </div>

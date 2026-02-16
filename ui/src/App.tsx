@@ -90,6 +90,11 @@ interface Config {
   global?: {
     systemPrompt: string;
   };
+  providers: {
+    description: string;
+    endpoint: string;
+    model: string;
+  }[];
 }
 
 interface Agent {
@@ -100,6 +105,7 @@ interface Agent {
   identity: string;
   soul: string;
   systemPrompt: string;
+  provider?: string;
 }
 
 interface Message {
@@ -173,7 +179,7 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState({ name: '', emoji: '' });
+  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string }>({ name: '', emoji: '', provider: '' });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
@@ -500,9 +506,10 @@ function App() {
     }
   }
 
-  const saveConfig = async (e?: React.FormEvent) => {
+  const saveConfig = async (e?: React.FormEvent, configOverride?: Config) => {
     if (e) e.preventDefault();
-    if (!config) return;
+    const configToSave = configOverride || config;
+    if (!configToSave) return;
     try {
       const response = await fetch(getApiUrl('/api/config'), {
         method: 'POST',
@@ -510,7 +517,7 @@ function App() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${gatewayToken}`
         },
-        body: JSON.stringify(config),
+        body: JSON.stringify(configToSave),
       });
       if (response.ok && e) {
         if (activeSettingsSection === 'gateway') {
@@ -859,6 +866,7 @@ function App() {
               fetchAgents={fetchAgents}
               selectedAgentId={agentsPageAgentId}
               setSelectedAgentId={setAgentsPageAgentId}
+              providers={config?.providers || []}
             />
           ) : activeView === 'providers' ? (
             <ProvidersPage

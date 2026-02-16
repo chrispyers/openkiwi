@@ -97,8 +97,8 @@ app.post('/api/agents', (req, res) => {
 
 app.post('/api/agents/:id/config', (req, res) => {
     try {
-        const { name, emoji } = req.body;
-        AgentManager.saveAgentConfig(req.params.id, { name, emoji });
+        const { name, emoji, provider } = req.body;
+        AgentManager.saveAgentConfig(req.params.id, { name, emoji, provider });
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ error: String(error) });

@@ -18,18 +18,20 @@ interface Agent {
     soul: string;
     memory?: string;
     systemPrompt: string;
+    provider?: string;
 }
 
 interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; emoji: string };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string }>>;
+    agentForm: { name: string; emoji: string; provider?: string };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string }>>;
     saveAgentConfig: () => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
     setSelectedAgentId: (id: string) => void;
+    providers: { description: string; endpoint: string; model: string }[];
 }
 
 export default function AgentsPage({
@@ -41,7 +43,8 @@ export default function AgentsPage({
     saveAgentConfig,
     fetchAgents: fetchAgentsFromParent,
     selectedAgentId: selectedAgentIdFromParent,
-    setSelectedAgentId: setSelectedAgentIdFromParent
+    setSelectedAgentId: setSelectedAgentIdFromParent,
+    providers
 }: AgentsPageProps) {
     const [agents, setAgents] = useState<Agent[]>([])
     const [loading, setLoading] = useState(true)
@@ -59,7 +62,7 @@ export default function AgentsPage({
     // Update agentForm when selected agent changes
     useEffect(() => {
         if (selectedAgent) {
-            setAgentForm({ name: selectedAgent.name, emoji: selectedAgent.emoji })
+            setAgentForm({ name: selectedAgent.name, emoji: selectedAgent.emoji, provider: selectedAgent.provider || '' })
         }
     }, [selectedAgent, setAgentForm])
 
@@ -214,6 +217,19 @@ export default function AgentsPage({
                                             icon={faSmile}
                                             inputClassName="!mt-0 font-emoji text-center pl-0"
                                         />
+                                    </div>
+                                    <div className="mb-4">
+                                        <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60">Provider Override</label>
+                                        <select
+                                            className="w-full bg-bg-primary border border-border-color rounded-xl px-4 py-3 outline-none focus:border-accent-primary transition-all text-sm appearance-none"
+                                            value={agentForm.provider || ''}
+                                            onChange={(e) => setAgentForm({ ...agentForm, provider: e.target.value })}
+                                        >
+                                            <option value="">Use Global Default</option>
+                                            {providers.map((p, idx) => (
+                                                <option key={idx} value={p.model}>{p.description ? `${p.description} (${p.model})` : p.model}</option>
+                                            ))}
+                                        </select>
                                     </div>
                                     <Button
                                         themed={true}
