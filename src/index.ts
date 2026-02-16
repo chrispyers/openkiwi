@@ -284,7 +284,7 @@ wss.on('connection', (ws, req) => {
 
             // Determine provider
             const providerName = agent?.provider;
-            let providerConfig = currentConfig.providers.find(p => p.model === providerName);
+            let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
 
             // Fallback to first provider if specific one not found or not specified
             if (!providerConfig && currentConfig.providers.length > 0) {
