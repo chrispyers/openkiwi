@@ -227,7 +227,7 @@ export default function AgentsPage({
                                         >
                                             <option value="">Use Global Default</option>
                                             {providers.map((p, idx) => (
-                                                <option key={idx} value={p.model}>{p.description ? `${p.description} (${p.model})` : p.model}</option>
+                                                <option key={idx} value={p.description}>{p.description}</option>
                                             ))}
                                         </select>
                                     </div>
