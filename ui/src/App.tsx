@@ -76,6 +76,7 @@ interface Config {
   lmStudio: {
     baseUrl: string;
     modelId: string;
+    description?: string;
   };
   chat: {
     showReasoning: boolean;
@@ -146,7 +147,7 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat' | 'config'>('general');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'tools' | 'chat' | 'config'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<{ timestamp: string, data: string }[]>([]);
   const { theme, setTheme } = useTheme();
@@ -860,7 +861,13 @@ function App() {
               setSelectedAgentId={setAgentsPageAgentId}
             />
           ) : activeView === 'providers' ? (
-            <ProvidersPage />
+            <ProvidersPage
+              config={config}
+              setConfig={setConfig}
+              models={models}
+              saveConfig={saveConfig}
+              fetchModels={fetchModels}
+            />
           ) : activeView === 'gateway' ? (
             <GatewayPage />
           ) : (

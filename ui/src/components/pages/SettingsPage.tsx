@@ -45,6 +45,7 @@ interface Config {
     lmStudio: {
         baseUrl: string;
         modelId: string;
+        description?: string;
     };
     chat: {
         showReasoning: boolean;
@@ -81,8 +82,8 @@ interface ToolDefinition {
 }
 
 interface SettingsPageProps {
-    activeSettingsSection: 'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat' | 'config';
-    setActiveSettingsSection: (section: 'agents' | 'gateway' | 'general' | 'provider' | 'tools' | 'chat' | 'config') => void;
+    activeSettingsSection: 'agents' | 'gateway' | 'general' | 'tools' | 'chat' | 'config';
+    setActiveSettingsSection: (section: 'agents' | 'gateway' | 'general' | 'tools' | 'chat' | 'config') => void;
     isGatewayConnected: boolean;
     loading: boolean;
     theme: 'dark' | 'light' | 'system';
@@ -150,7 +151,7 @@ export default function SettingsPage({
             </header>
 
             <nav className="flex gap-8 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
-                {['agents', 'gateway', 'general', 'provider', 'tools', 'chat', 'config'].map(id => (
+                {['agents', 'gateway', 'general', 'tools', 'chat', 'config'].map(id => (
                     <button
                         key={id}
                         className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 relative flex items-center gap-2 ${activeSettingsSection === id ? 'text-accent-primary' : ' hover:text-neutral-600 dark:text-white'}`}
@@ -183,64 +184,6 @@ export default function SettingsPage({
 
                             </Card>
                         </div>
-                    )}
-
-                    {activeSettingsSection === 'provider' && (
-                        <form onSubmit={saveConfig} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <Card className="space-y-6">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <IconBox icon={<Globe size={20} />} />
-                                    <Text bold={true} size="xl">Model & Provider Settings</Text>
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                            <FontAwesomeIcon icon={faLink} size="sm" /> LM Studio Endpoint
-                                        </label>
-                                        <div className="flex gap-2">
-                                            <input
-                                                type="text"
-                                                className="flex-1 bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                                                value={config?.lmStudio.baseUrl || ''}
-                                                onChange={(e) => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, baseUrl: e.target.value } } : null)}
-                                                placeholder="http://localhost:1234/v1"
-                                            />
-                                            <Button
-                                                themed={true}
-                                                className="px-6 text-white whitespace-nowrap"
-                                                onClick={async () => {
-                                                    // Save the config first to ensure the new endpoint is used
-                                                    await saveConfig();
-                                                    // Then fetch models
-                                                    await fetchModels();
-                                                }}
-                                            >
-                                                <RefreshCw size={16} className="mr-2" />
-                                                Scan
-                                            </Button>
-                                        </div>
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <Select
-                                            icon={faCube}
-                                            className="!mt-0"
-                                            label="Model"
-                                            value={config?.lmStudio.modelId || ''}
-                                            onChange={(e) => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, modelId: e.target.value } } : null)}
-                                            options={[
-                                                { value: '', label: 'Select a model...' },
-                                                ...models.map(m => ({ value: m, label: m }))
-                                            ]}
-                                        />
-                                    </div>
-                                </div>
-
-
-                                <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Provider Configurations</Button>
-                            </Card>
-                        </form>
                     )}
 
                     {activeSettingsSection === 'agents' && (

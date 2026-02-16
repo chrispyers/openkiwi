@@ -6,6 +6,7 @@ const ConfigSchema = z.object({
     lmStudio: z.object({
         baseUrl: z.string().url(),
         modelId: z.string(),
+        description: z.string().optional(),
     }),
     chat: z.object({
         showReasoning: z.boolean(),
