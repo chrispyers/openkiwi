@@ -439,16 +439,22 @@ wss.on('connection', (ws, req) => {
                             const summaryPrompt = [
                                 { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
                                 {
-                                    role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${newMessages.map(m => {
-                                        const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
-                                        return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
-                                    }).filter(Boolean).join('\n')}`
+                                    role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${newMessages
+                                        .filter(m => m.role !== 'reasoning')
+                                        .map(m => {
+                                            const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+                                            return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
+                                        })
+                                        .filter(Boolean)
+                                        .join('\n')}`
                                 }
                             ];
-                            const summary = await getChatCompletion(llmConfig, summaryPrompt);
+                            const rawSummary = await getChatCompletion(llmConfig, summaryPrompt);
+                            const cleanSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
                             const updatedSession = SessionManager.getSession(sessionId);
                             if (updatedSession) {
-                                updatedSession.summary = summary.trim();
+                                updatedSession.summary = cleanSummary;
                                 SessionManager.saveSession(updatedSession);
                                 // Optional: notify client via WS that summary is ready? 
                                 // For now, the next time they fetch sessions it will be there.

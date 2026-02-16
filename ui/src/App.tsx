@@ -898,11 +898,16 @@ function App() {
                   <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
                     {agents.find(a => a.id === s.agentId)?.emoji || '💬'}
                   </div>
-                  <span className="flex-1 text-sm font-medium truncate" title={s.summary || s.title}>
-                    {s.summary || s.title}
-                  </span>
+                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
+                    <span className="text-sm font-medium truncate" title={s.summary || s.title}>
+                      {s.summary || s.title}
+                    </span>
+                    <span className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
+                      {formatTimestamp(s.updatedAt)}
+                    </span>
+                  </div>
                   <Button
-                    className="opacity-0 group-hover:opacity-100 !p-1.5 !rounded-lg"
+                    className="opacity-0 group-hover:opacity-100 !p-1.5 !rounded-lg flex-shrink-0"
                     icon={faTrash}
                     onClick={(e) => deleteSession(s.id, e)}
                   />
