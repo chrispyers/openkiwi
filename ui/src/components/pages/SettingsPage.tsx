@@ -250,135 +250,20 @@ export default function SettingsPage({
                     )}
 
                     {activeSettingsSection === 'agents' && (
-                        <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 animate-in fade-in slide-in-from-right-4 duration-500">
-                            <Card padding="p-4" className="lg:col-span-4 space-y-1 h-min max-h-[60vh] overflow-y-auto custom-scrollbar">
-                                <div className="px-4 py-2 mb-2">
-                                    <h3 className="text-sm font-bold uppercase">Discovered Agents</h3>
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <Card className="space-y-6">
+                                <div className="flex items-center gap-3">
+                                    <IconBox icon={<BrainCircuit size={20} />} />
+                                    <Text bold={true} size="xl">Agent Management</Text>
                                 </div>
-                                {agents.map(a => (
-                                    <Button
-                                        key={a.id}
-                                        themed={settingsAgentId === a.id}
-                                        className={`w-full flex items-center gap-3 !px-4 !py-3 ${settingsAgentId !== a.id ? '!bg-transparent hover:!bg-white/5' : ''}`}
-                                        onClick={() => setSettingsAgentId(a.id)}
-                                    >
-                                        <span className="text-xl mr-1">{a.emoji}</span>
-                                        <span className="font-semibold text-sm">{a.name}</span>
-                                    </Button>
-                                ))}
+                                <div className="py-12 text-center">
+                                    <BrainCircuit size={48} className="mx-auto mb-4 text-accent-primary opacity-20" />
+                                    <p className="text-lg font-medium mb-2">Agent controls have moved!</p>
+                                    <p className="text-sm opacity-60">
+                                        Please use the <strong>Agents</strong> page from the sidebar to manage your AI agents.
+                                    </p>
+                                </div>
                             </Card>
-
-                            <div className="lg:col-span-8 flex flex-col gap-6">
-                                {activeAgentInSettings ? (
-                                    <>
-                                        <Card className="space-y-6">
-                                            <div className="flex items-center justify-between gap-3">
-                                                <div className="flex items-center gap-3">
-                                                    <IconBox icon={<BrainCircuit size={20} />} />
-                                                    <Text bold={true} size="xl">Personalization for {activeAgentInSettings.name}</Text>
-                                                </div>
-                                                <button
-                                                    onClick={() => fetchAgents()}
-                                                    className="p-2 hover:bg-white-trans rounded-lg transition-all group"
-                                                    title="Refresh Agent Data"
-                                                >
-                                                    <RefreshCw size={18} className="group-active:rotate-180 transition-transform duration-500" />
-                                                </button>
-                                            </div>
-
-                                            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                                                <Input
-                                                    label="Agent Nickname"
-                                                    currentText={agentForm.name}
-                                                    onChange={e => setAgentForm({ ...agentForm, name: e.target.value })}
-                                                    icon={faUser}
-                                                    className="md:col-span-2"
-                                                    inputClassName="!mt-0"
-                                                />
-                                                <Input
-                                                    label="Emoji Icon"
-                                                    currentText={agentForm.emoji}
-                                                    onChange={e => setAgentForm({ ...agentForm, emoji: e.target.value })}
-                                                    icon={faSmile}
-                                                    inputClassName="!mt-0 font-emoji text-center pl-0"
-                                                />
-                                            </div>
-
-                                            <Input
-                                                label="Filesystem Runtime Path"
-                                                currentText={activeAgentInSettings.path}
-                                                readOnly={true}
-                                                icon={faFolder}
-                                                inputClassName="!mt-0 !text-xs !font-mono"
-                                            />
-
-                                            <Button
-                                                themed={true}
-                                                className="w-full h-12 text-white"
-                                                onClick={saveAgentConfig}
-                                                icon={faSave}
-                                            >
-                                                Update Agent Meta Profile
-                                            </Button>
-                                        </Card>
-
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                            <Card
-                                                padding="p-5"
-                                                className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
-                                                onClick={() => setViewingFile({ title: 'IDENTITY.md', content: activeAgentInSettings.identity, isEditing: true, agentId: activeAgentInSettings.id })}
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
-                                                        <FileText size={24} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold uppercase text-xs tracking-tight">IDENTITY.md</div>
-                                                        <div className="text-xs">Core instructions</div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-
-                                            <Card
-                                                padding="p-5"
-                                                className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
-                                                onClick={() => setViewingFile({ title: 'SOUL.md', content: activeAgentInSettings.soul, isEditing: true, agentId: activeAgentInSettings.id })}
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-amber-400 group-hover:bg-amber-400/10 transition-all">
-                                                        <BrainCircuit size={24} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold uppercase text-xs tracking-tight">SOUL.md</div>
-                                                        <div className="text-xs">Moral values</div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-
-                                            <Card
-                                                padding="p-5"
-                                                className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
-                                                onClick={() => setViewingFile({ title: 'MEMORY.md', content: (activeAgentInSettings as any).memory || '', isEditing: true, agentId: activeAgentInSettings.id })}
-                                            >
-                                                <div className="flex items-center gap-4">
-                                                    <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-emerald-400 group-hover:bg-emerald-400/10 transition-all">
-                                                        <History size={24} />
-                                                    </div>
-                                                    <div>
-                                                        <div className="font-bold uppercase text-xs tracking-tight">MEMORY.md</div>
-                                                        <div className="text-xs">Stored facts</div>
-                                                    </div>
-                                                </div>
-                                            </Card>
-                                        </div>
-                                    </>
-                                ) : (
-                                    <div className="flex-1 flex flex-col items-center justify-center py-20 bg-bg-card rounded-3xl border border-dashed border-border-color">
-                                        <BrainCircuit size={40} className="text-border-color mb-4" />
-                                        <p className="font-medium italic">Select an agent from the left to view configuration</p>
-                                    </div>
-                                )}
-                            </div>
                         </div>
                     )}
 
