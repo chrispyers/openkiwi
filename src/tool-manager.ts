@@ -50,25 +50,7 @@ export class ToolManager {
     }
 
     private static registerBuiltInTools() {
-        this.registerTool({
-            definition: {
-                name: 'get_weather',
-                description: 'Get the current weather for a specific location',
-                parameters: {
-                    type: 'object',
-                    properties: {
-                        location: { type: 'string', description: 'The city and state, e.g. San Francisco, CA' },
-                        unit: { type: 'string', enum: ['celsius', 'fahrenheit'] }
-                    },
-                    required: ['location']
-                }
-            },
-            handler: async ({ location, unit = 'celsius' }) => {
-                // Mock implementation
-                const temp = Math.floor(Math.random() * 30);
-                return { location, temperature: temp, unit, condition: 'Sunny' };
-            }
-        });
+
 
 
     }

@@ -7,3 +7,4 @@ ui/dist/*
 agents/*/*.md
 agents/*/config.json
 config.json
+dist/*
