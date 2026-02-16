@@ -82,6 +82,19 @@ app.get('/api/agents', (req, res) => {
     res.json(agents);
 });
 
+app.post('/api/agents', (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            return res.status(400).json({ error: 'Agent name is required' });
+        }
+        const agent = AgentManager.createAgent(name.trim());
+        res.json(agent);
+    } catch (error) {
+        res.status(400).json({ error: String(error) });
+    }
+});
+
 app.post('/api/agents/:id/config', (req, res) => {
     try {
         const { name, emoji } = req.body;

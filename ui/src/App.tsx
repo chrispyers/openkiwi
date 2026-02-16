@@ -169,8 +169,9 @@ function App() {
 
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
+  const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
   const [agentForm, setAgentForm] = useState({ name: '', emoji: '' });
-  const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean } | null>(null);
+  const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
@@ -523,7 +524,15 @@ function App() {
 
   const saveAgentConfig = async () => {
     try {
-      const response = await fetch(getApiUrl(`/api/agents/${settingsAgentId}/config`), {
+      // Use agentsPageAgentId if on agents page, otherwise use settingsAgentId
+      const agentId = activeView === 'agents' ? agentsPageAgentId : settingsAgentId;
+
+      if (!agentId) {
+        console.error('No agent selected');
+        return;
+      }
+
+      const response = await fetch(getApiUrl(`/api/agents/${agentId}/config`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -545,7 +554,7 @@ function App() {
   const saveAgentFile = async () => {
     if (!viewingFile) return;
     try {
-      const response = await fetch(getApiUrl(`/api/agents/${settingsAgentId}/files/${viewingFile.title}`), {
+      const response = await fetch(getApiUrl(`/api/agents/${viewingFile.agentId}/files/${viewingFile.title}`), {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -833,7 +842,17 @@ function App() {
           ) : activeView === 'logs' ? (
             <LogsPage logs={logs} />
           ) : activeView === 'agents' ? (
-            <AgentsPage />
+            <AgentsPage
+              gatewayAddr={gatewayAddr}
+              gatewayToken={gatewayToken}
+              setViewingFile={setViewingFile}
+              agentForm={agentForm}
+              setAgentForm={setAgentForm}
+              saveAgentConfig={saveAgentConfig}
+              fetchAgents={fetchAgents}
+              selectedAgentId={agentsPageAgentId}
+              setSelectedAgentId={setAgentsPageAgentId}
+            />
           ) : activeView === 'providers' ? (
             <ProvidersPage />
           ) : activeView === 'gateway' ? (

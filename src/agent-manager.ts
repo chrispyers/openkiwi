@@ -74,6 +74,72 @@ Keep your responses concise and focused on the task at hand.
         };
     }
 
+    static createAgent(name: string): Agent {
+        // Create a safe ID from the name
+        const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+
+        if (!id) {
+            throw new Error('Invalid agent name');
+        }
+
+        const agentDir = path.join(AGENTS_DIR, id);
+
+        // Check if agent already exists
+        if (fs.existsSync(agentDir)) {
+            throw new Error('An agent with this name already exists');
+        }
+
+        // Create agent directory
+        if (!fs.existsSync(AGENTS_DIR)) {
+            fs.mkdirSync(AGENTS_DIR, { recursive: true });
+        }
+        fs.mkdirSync(agentDir);
+
+        // Create default files
+        const defaultIdentity = `# Identity
+
+You are ${name}, a helpful AI assistant.
+
+## Your Purpose
+Help users with their tasks and questions in a friendly and efficient manner.
+
+## Your Personality
+- Professional yet approachable
+- Clear and concise in communication
+- Patient and understanding
+`;
+
+        const defaultSoul = `# Values & Soul
+
+## Core Values
+- **Honesty**: Always be truthful and transparent
+- **Helpfulness**: Prioritize being useful and supportive
+- **Respect**: Treat all users with dignity and consideration
+
+## Guiding Principles
+- Focus on understanding the user's needs
+- Provide accurate and well-reasoned responses
+- Admit when you don't know something
+`;
+
+        const defaultMemory = `# Long-term Memory
+
+This space will be used to store important facts and preferences about users across sessions.
+`;
+
+        // Write files
+        fs.writeFileSync(path.join(agentDir, 'IDENTITY.md'), defaultIdentity, 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'SOUL.md'), defaultSoul, 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'MEMORY.md'), defaultMemory, 'utf-8');
+
+        // Create config
+        const config = { name, emoji: '🤖' };
+        fs.writeFileSync(path.join(agentDir, 'config.json'), JSON.stringify(config, null, 2), 'utf-8');
+
+        // Return the newly created agent
+        return this.getAgent(id)!;
+    }
+
     static saveAgentConfig(id: string, config: { name: string; emoji: string }): void {
         const agentDir = path.join(AGENTS_DIR, id);
         if (!fs.existsSync(agentDir)) return;

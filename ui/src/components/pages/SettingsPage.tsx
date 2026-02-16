@@ -97,7 +97,7 @@ interface SettingsPageProps {
     agentForm: { name: string; emoji: string };
     setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string }>>;
     saveAgentConfig: () => Promise<void>;
-    setViewingFile: (file: { title: string, content: string, isEditing: boolean } | null) => void;
+    setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     gatewayAddr: string;
     setGatewayAddr: (addr: string) => void;
     gatewayToken: string;
@@ -326,7 +326,7 @@ export default function SettingsPage({
                                             <Card
                                                 padding="p-5"
                                                 className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
-                                                onClick={() => setViewingFile({ title: 'IDENTITY.md', content: activeAgentInSettings.identity, isEditing: true })}
+                                                onClick={() => setViewingFile({ title: 'IDENTITY.md', content: activeAgentInSettings.identity, isEditing: true, agentId: activeAgentInSettings.id })}
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
@@ -342,7 +342,7 @@ export default function SettingsPage({
                                             <Card
                                                 padding="p-5"
                                                 className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
-                                                onClick={() => setViewingFile({ title: 'SOUL.md', content: activeAgentInSettings.soul, isEditing: true })}
+                                                onClick={() => setViewingFile({ title: 'SOUL.md', content: activeAgentInSettings.soul, isEditing: true, agentId: activeAgentInSettings.id })}
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-amber-400 group-hover:bg-amber-400/10 transition-all">
@@ -358,7 +358,7 @@ export default function SettingsPage({
                                             <Card
                                                 padding="p-5"
                                                 className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all"
-                                                onClick={() => setViewingFile({ title: 'MEMORY.md', content: (activeAgentInSettings as any).memory || '', isEditing: true })}
+                                                onClick={() => setViewingFile({ title: 'MEMORY.md', content: (activeAgentInSettings as any).memory || '', isEditing: true, agentId: activeAgentInSettings.id })}
                                             >
                                                 <div className="flex items-center gap-4">
                                                     <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-emerald-400 group-hover:bg-emerald-400/10 transition-all">
