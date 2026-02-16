@@ -262,9 +262,15 @@ wss.on('connection', (ws, req) => {
             }
 
             if (currentConfig.chat.includeHistory) {
-                payload.push(...userMessages);
+                // Filter out 'reasoning' messages as LM Studio only accepts user, assistant, system, tool
+                const validMessages = userMessages.filter((msg: any) => msg.role !== 'reasoning');
+                payload.push(...validMessages);
             } else {
-                payload.push(userMessages[userMessages.length - 1]);
+                // Get the last non-reasoning message
+                const validMessages = userMessages.filter((msg: any) => msg.role !== 'reasoning');
+                if (validMessages.length > 0) {
+                    payload.push(validMessages[validMessages.length - 1]);
+                }
             }
 
             logger.log({

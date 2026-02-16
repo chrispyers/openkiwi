@@ -331,7 +331,7 @@ function App() {
     if (chatContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-      isAtBottom.current = distanceToBottom < 100; // 100px threshold
+      isAtBottom.current = distanceToBottom < 10; // 10px threshold
     }
   };
 
@@ -422,11 +422,26 @@ function App() {
       const response = await fetch(getApiUrl('/api/models'), {
         headers: { 'Authorization': `Bearer ${gatewayToken}` }
       });
+
+      if (!response.ok) {
+        throw new Error(`Failed to fetch models: ${response.statusText}`);
+      }
+
       const data = await response.json();
       const modelList = data.data.map((m: any) => m.id);
       setModels(modelList);
+
+      toast.success(`Success! Found ${modelList.length} model${modelList.length !== 1 ? 's' : ''}`, {
+        description: modelList.length > 0 ? `Available models: ${modelList.slice(0, 3).join(', ')}${modelList.length > 3 ? '...' : ''}` : 'No models available'
+      });
+
+      return true;
     } catch (error) {
       console.error('Failed to fetch models:', error);
+      toast.error('Failed to scan for models', {
+        description: error instanceof Error ? error.message : 'Could not connect to LM Studio. Please check the endpoint URL.'
+      });
+      return false;
     }
   }
 
@@ -804,6 +819,7 @@ function App() {
               initializeApp={initializeApp}
               connectedClients={connectedClients}
               fetchConnectedClients={fetchConnectedClients}
+              fetchModels={fetchModels}
               tools={tools}
             />
           )}

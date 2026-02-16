@@ -103,6 +103,7 @@ interface SettingsPageProps {
     initializeApp: (isSilent?: boolean) => Promise<void>;
     connectedClients: any[];
     fetchConnectedClients: () => Promise<void>;
+    fetchModels: () => Promise<boolean | void>;
     tools: ToolDefinition[];
 }
 
@@ -133,6 +134,7 @@ export default function SettingsPage({
     initializeApp,
     connectedClients,
     fetchConnectedClients,
+    fetchModels,
     tools
 }: SettingsPageProps) {
 
@@ -174,26 +176,7 @@ export default function SettingsPage({
                                     <Text bold={true} size="xl">General Settings</Text>
                                 </div>
 
-                                <div className="space-y-4">
-                                    <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                        Appearance
-                                    </label>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        {[
-                                            { id: 'light', name: 'Light', icon: faSun },
-                                            { id: 'dark', name: 'Dark', icon: faMoon },
-                                            { id: 'system', name: 'System', icon: faDesktop },
-                                        ].map((item) => (
-                                            <Button
-                                                key={item.id}
-                                                themed={theme === item.id}
-                                                onClick={() => setTheme(item.id as any)}
-                                                className={`!p-3 flex-1 flex items-center justify-center gap-2 group ${theme !== item.id ? '!bg-bg-primary border border-border-color' : ''}`}
-                                                icon={item.icon}
-                                            >{item.name}</Button>
-                                        ))}
-                                    </div>
-                                </div>
+
                             </Card>
                         </div>
                     )}
@@ -207,14 +190,33 @@ export default function SettingsPage({
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <Input
-                                        label="LM Studio Endpoint"
-                                        currentText={config?.lmStudio.baseUrl || ''}
-                                        onChange={(e) => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, baseUrl: e.target.value } } : null)}
-                                        placeholder="http://localhost:1234/v1"
-                                        icon={faLink}
-                                        className="!mt-0"
-                                    />
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                            <FontAwesomeIcon icon={faLink} size="sm" /> LM Studio Endpoint
+                                        </label>
+                                        <div className="flex gap-2">
+                                            <input
+                                                type="text"
+                                                className="flex-1 bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
+                                                value={config?.lmStudio.baseUrl || ''}
+                                                onChange={(e) => setConfig(prev => prev ? { ...prev, lmStudio: { ...prev.lmStudio, baseUrl: e.target.value } } : null)}
+                                                placeholder="http://localhost:1234/v1"
+                                            />
+                                            <Button
+                                                themed={true}
+                                                className="px-6 text-white whitespace-nowrap"
+                                                onClick={async () => {
+                                                    // Save the config first to ensure the new endpoint is used
+                                                    await saveConfig();
+                                                    // Then fetch models
+                                                    await fetchModels();
+                                                }}
+                                            >
+                                                <RefreshCw size={16} className="mr-2" />
+                                                Scan
+                                            </Button>
+                                        </div>
+                                    </div>
 
                                     <div className="space-y-2">
                                         <Select
