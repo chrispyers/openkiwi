@@ -1,18 +1,16 @@
 import React from 'react'
 import {
     Cpu,
-    RefreshCw,
     Menu
 } from 'lucide-react'
 import ThemeSelector from './ThemeSelector'
 
 interface HeaderProps {
     isGatewayConnected: boolean;
-    onRefresh?: () => void;
     onMenuClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onRefresh, onMenuClick }) => {
+const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick }) => {
     return (
         <header className="h-14 border-b border-border-color bg-bg-primary flex items-center justify-between px-6 z-[60] shadow-sm">
             <div className="flex items-center gap-4">
@@ -45,16 +43,6 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onRefresh, onMenuCl
                 <div className="h-6 w-px bg-border-color mx-2" />
 
                 <div className="flex items-center gap-4">
-                    {onRefresh && (
-                        <button
-                            onClick={onRefresh}
-                            className="p-2 rounded-lg text-neutral-500 hover:text-accent-primary hover:bg-white-trans transition-all"
-                            title="Refresh Connection"
-                        >
-                            <RefreshCw size={18} />
-                        </button>
-                    )}
-
                     <ThemeSelector />
                 </div>
             </div>

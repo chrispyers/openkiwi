@@ -22,7 +22,7 @@ import {
   Save,
   Edit2,
   Wrench,
-  RefreshCw,
+
   Monitor,
   Sun,
   Moon,
@@ -138,7 +138,7 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'gateway' | 'general' | 'tools' | 'chat' | 'config'>('general');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'general' | 'tools' | 'chat' | 'config'>('general');
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, setTheme } = useTheme();
@@ -155,7 +155,7 @@ function App() {
 
   // Agent & Session State
   const [agents, setAgents] = useState<Agent[]>([]);
-  const [selectedAgentId, setSelectedAgentId] = useState('clawdbot');
+  const [selectedAgentId, setSelectedAgentId] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
@@ -252,7 +252,7 @@ function App() {
           console.log('[Presence] Connected to Gateway');
           setIsGatewayConnected(true);
           // Refresh client list immediately on connection
-          if (activeSettingsSection === 'gateway') fetchConnectedClients();
+          if (activeView === 'gateway') fetchConnectedClients();
         };
 
         socket.onclose = () => {
@@ -313,14 +313,12 @@ function App() {
         fetchConfig().catch(e => console.error('Failed to fetch config:', e)),
         fetchTools().catch(e => console.error('Failed to fetch tools:', e))
       ]);
-
-      if (activeSettingsSection === 'gateway') {
+    } else if (activeView === 'gateway') {
+      fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
+      const interval = setInterval(() => {
         fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
-        const interval = setInterval(() => {
-          fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
-        }, 5000);
-        return () => clearInterval(interval);
-      }
+      }, 5000);
+      return () => clearInterval(interval);
     } else if (activeView === 'chat' && isGatewayConnected) {
       fetchAgents().catch(e => console.error('Failed to fetch agents:', e));
     }
@@ -345,6 +343,16 @@ function App() {
       scrollToBottom();
     }
   }, [messages]);
+
+  // Reset session when leaving chat view
+  useEffect(() => {
+    if (activeView !== 'chat') {
+      setActiveSessionId(null);
+      setSelectedAgentId('');
+      setMessages([]);
+      setInputText('');
+    }
+  }, [activeView]);
 
   useEffect(() => {
     if (textareaRef.current) {
@@ -540,7 +548,7 @@ function App() {
         body: JSON.stringify(configToSave),
       });
       if (response.ok && e) {
-        if (activeSettingsSection === 'gateway') {
+        if (activeView === 'gateway') {
           toast.success('Gateway persistent state updated', {
             description: 'Port changes will take effect next time the service is launched.'
           });
@@ -812,7 +820,7 @@ function App() {
         </div>
       </Modal>
 
-      <Header isGatewayConnected={isGatewayConnected} onRefresh={() => initializeApp()} onMenuClick={() => setIsNavExpanded(!isNavExpanded)} />
+      <Header isGatewayConnected={isGatewayConnected} onMenuClick={() => setIsNavExpanded(!isNavExpanded)} />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}
         <nav className={`${isNavExpanded ? 'w-48' : 'w-16'} bg-bg-sidebar border-r border-border-color flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
@@ -826,7 +834,10 @@ function App() {
           ].map((item) => (
             <button
               key={item.id}
-              onClick={() => navigate('/' + item.id)}
+              onClick={() => {
+                if (item.id === 'chat') createNewSession();
+                navigate('/' + item.id);
+              }}
               className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-200 group relative flex items-center gap-4 ${activeView === item.id
                 ? 'bg-accent-primary text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
                 : 'text-neutral-500 hover:bg-white-trans hover:text-neutral-600 dark:text-white'
@@ -927,12 +938,19 @@ function App() {
               fetchModels={fetchModels}
             />
           ) : activeView === 'gateway' ? (
-            <GatewayPage />
+            <GatewayPage
+              gatewayAddr={gatewayAddr}
+              setGatewayAddr={setGatewayAddr}
+              gatewayToken={gatewayToken}
+              setGatewayToken={setGatewayToken}
+              initializeApp={initializeApp}
+              connectedClients={connectedClients}
+              fetchConnectedClients={fetchConnectedClients}
+            />
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}
               setActiveSettingsSection={setActiveSettingsSection}
-              isGatewayConnected={isGatewayConnected}
               loading={loading}
               theme={theme}
               setTheme={setTheme}
@@ -949,14 +967,6 @@ function App() {
               setAgentForm={setAgentForm}
               saveAgentConfig={saveAgentConfig}
               setViewingFile={setViewingFile}
-              gatewayAddr={gatewayAddr}
-              setGatewayAddr={setGatewayAddr}
-              gatewayToken={gatewayToken}
-              setGatewayToken={setGatewayToken}
-              initializeApp={initializeApp}
-              connectedClients={connectedClients}
-              fetchConnectedClients={fetchConnectedClients}
-              fetchModels={fetchModels}
               tools={tools}
             />
           )}
