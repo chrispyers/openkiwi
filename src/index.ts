@@ -348,6 +348,16 @@ wss.on('connection', (ws, req) => {
                             }
                         }
                     }
+                    if (delta.usage) {
+                        logger.log({
+                            type: 'usage',
+                            level: 'info',
+                            agentId: agentId || 'clawdbot',
+                            sessionId,
+                            message: 'Token usage report',
+                            data: delta.usage
+                        });
+                    }
                 }
 
                 // Filtering empty slots in toolCalls (stream index might skip)
@@ -451,7 +461,19 @@ wss.on('connection', (ws, req) => {
                                         .join('\n')}`
                                 }
                             ];
-                            const rawSummary = await getChatCompletion(llmConfig, summaryPrompt);
+                            const completion = await getChatCompletion(llmConfig, summaryPrompt);
+                            const rawSummary = completion.content;
+
+                            if (completion.usage) {
+                                logger.log({
+                                    type: 'usage',
+                                    level: 'info',
+                                    agentId: agentId || 'clawdbot',
+                                    sessionId,
+                                    message: 'Summary token usage',
+                                    data: completion.usage
+                                });
+                            }
                             const cleanSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
 
                             const updatedSession = SessionManager.getSession(sessionId);

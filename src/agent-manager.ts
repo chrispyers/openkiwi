@@ -1,5 +1,6 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import { loadConfig } from './config-manager.js';
 
 export interface Agent {
     id: string;
@@ -20,6 +21,7 @@ export interface Agent {
 
 
 const AGENTS_DIR = path.resolve(process.cwd(), 'agents');
+const TEMPLATE_DIR = path.resolve(process.cwd(), 'agent_template');
 
 export class AgentManager {
     static listAgents(): string[] {
@@ -49,26 +51,17 @@ export class AgentManager {
                 console.error(`Failed to parse config for agent ${id}`);
             }
         }
+        const globalConfig = loadConfig();
+        const globalSystemPrompt = globalConfig.global?.systemPrompt || '';
 
         const systemPrompt = `
-You are ${agentConfig.name} ${agentConfig.emoji}.
-
-# IDENTITY
 ${identity}
 
-# VALUES & SOUL
 ${soul}
 
-# LONG-TERM MEMORY
 ${memory || 'Your memory is currently empty.'}
 
-# CAPABILITIES & TOOLS
-You have access to specialized tools to interact with the user's environment. 
-- Use 'save_to_memory' whenever the user shares personal information, preferences, or important facts you should remember across sessions. Do NOT just say you will remember it; actually call the tool.
-- Use 'manage_files' to help the user with their workspace.
-
-Keep your responses concise and focused on the task at hand.
-`.trim();
+${globalSystemPrompt}`.trim();
 
         return {
             id,
@@ -106,43 +99,26 @@ Keep your responses concise and focused on the task at hand.
         }
         fs.mkdirSync(agentDir);
 
-        // Create default files
-        const defaultIdentity = `# Identity
+        // Helper to read template files
+        const readTemplate = (filename: string): string => {
+            const templatePath = path.join(TEMPLATE_DIR, filename);
+            if (fs.existsSync(templatePath)) {
+                return fs.readFileSync(templatePath, 'utf-8');
+            }
+            return '';
+        };
 
-You are ${name}, a helpful AI assistant.
-
-## Your Purpose
-Help users with their tasks and questions in a friendly and efficient manner.
-
-## Your Personality
-- Professional yet approachable
-- Clear and concise in communication
-- Patient and understanding
-`;
-
-        const defaultSoul = `# Values & Soul
-
-## Core Values
-- **Honesty**: Always be truthful and transparent
-- **Helpfulness**: Prioritize being useful and supportive
-- **Respect**: Treat all users with dignity and consideration
-
-## Guiding Principles
-- Focus on understanding the user's needs
-- Provide accurate and well-reasoned responses
-- Admit when you don't know something
-`;
-
-        const defaultMemory = `# Long-term Memory
-
-This space will be used to store important facts and preferences about users across sessions.
-`;
+        // Get template contents
+        const identity = readTemplate('IDENTITY.md').replace(/\${name}/g, name);
+        const soul = readTemplate('SOUL.md');
+        const memory = readTemplate('MEMORY.md');
+        const heartbeat = readTemplate('HEARTBEAT.md');
 
         // Write files
-        fs.writeFileSync(path.join(agentDir, 'IDENTITY.md'), defaultIdentity, 'utf-8');
-        fs.writeFileSync(path.join(agentDir, 'SOUL.md'), defaultSoul, 'utf-8');
-        fs.writeFileSync(path.join(agentDir, 'MEMORY.md'), defaultMemory, 'utf-8');
-        fs.writeFileSync(path.join(agentDir, 'HEARTBEAT.md'), '# Heartbeat Instructions\n\nThis file contains instructions for the agent to execute proactively on a schedule.\n', 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'IDENTITY.md'), identity, 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'SOUL.md'), soul, 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'MEMORY.md'), memory, 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'HEARTBEAT.md'), heartbeat, 'utf-8');
 
         // Create config
         const config = { name, emoji: '🤖' };

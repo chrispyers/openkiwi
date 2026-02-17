@@ -5,7 +5,7 @@ import fs from 'node:fs';
 export interface LogEntry {
     id: number; // SQLite rowid or auto-increment id
     timestamp: number;
-    type: 'request' | 'response' | 'error' | 'tool' | 'system' | 'thinking';
+    type: 'request' | 'response' | 'error' | 'tool' | 'system' | 'thinking' | 'usage';
     agentId?: string;
     sessionId?: string;
     level: 'info' | 'warn' | 'error' | 'debug';

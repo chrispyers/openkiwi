@@ -13,6 +13,7 @@ export async function* streamChatCompletion(
         model: providerConfig.modelId,
         messages,
         stream: true,
+        stream_options: { include_usage: true },
     };
 
     if (tools && tools.length > 0) {
@@ -67,6 +68,7 @@ export async function* streamChatCompletion(
                     const json = JSON.parse(data);
                     const delta = json.choices[0]?.delta;
                     if (delta) yield delta;
+                    if (json.usage) yield { usage: json.usage };
                 } catch (e) {
                     // Ignore parse errors for incomplete JSON
                 }
@@ -107,5 +109,8 @@ export async function getChatCompletion(
     }
 
     const json = await response.json();
-    return json.choices[0]?.message?.content || '';
+    return {
+        content: json.choices[0]?.message?.content || '',
+        usage: json.usage
+    };
 }

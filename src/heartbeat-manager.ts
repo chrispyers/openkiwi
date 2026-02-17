@@ -159,6 +159,16 @@ Please execute these instructions now.
                             }
                         }
                     }
+                    if (delta.usage) {
+                        logger.log({
+                            type: 'usage',
+                            level: 'info',
+                            agentId: agent.id,
+                            sessionId: 'heartbeat',
+                            message: '[Heartbeat] Token usage report',
+                            data: delta.usage
+                        });
+                    }
                 }
 
                 const actualToolCalls = toolCalls.filter(Boolean);
