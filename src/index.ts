@@ -105,8 +105,8 @@ app.post('/api/agents', (req, res) => {
 
 app.post('/api/agents/:id/config', (req, res) => {
     try {
-        const { name, emoji, provider } = req.body;
-        AgentManager.saveAgentConfig(req.params.id, { name, emoji, provider });
+        AgentManager.saveAgentConfig(req.params.id, req.body);
+        HeartbeatManager.refreshAgent(req.params.id);
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ error: String(error) });

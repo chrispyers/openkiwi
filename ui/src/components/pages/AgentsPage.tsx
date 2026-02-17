@@ -8,6 +8,7 @@ import IconBox from '../IconBox'
 import Text from '../Text'
 import Modal from '../Modal'
 import Input from '../Input'
+import Toggle from '../Toggle'
 import Page from './Page'
 
 interface Agent {
@@ -18,6 +19,11 @@ interface Agent {
     identity: string;
     soul: string;
     memory?: string;
+    heartbeatInstructions?: string;
+    heartbeat?: {
+        enabled: boolean;
+        schedule: string;
+    };
     systemPrompt: string;
     provider?: string;
 }
@@ -26,8 +32,8 @@ interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; emoji: string; provider?: string };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string }>>;
+    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } }>>;
     saveAgentConfig: () => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -63,7 +69,12 @@ export default function AgentsPage({
     // Update agentForm when selected agent changes
     useEffect(() => {
         if (selectedAgent) {
-            setAgentForm({ name: selectedAgent.name, emoji: selectedAgent.emoji, provider: selectedAgent.provider || '' })
+            setAgentForm({
+                name: selectedAgent.name,
+                emoji: selectedAgent.emoji,
+                provider: selectedAgent.provider || '',
+                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *' }
+            })
         }
     }, [selectedAgent, setAgentForm])
 
@@ -222,6 +233,66 @@ export default function AgentsPage({
                                             inputClassName="!mt-0 font-emoji text-center pl-0"
                                         />
                                     </div>
+                                    <div className="mb-4 bg-bg-primary/50 border border-border-color rounded-xl p-4">
+                                        <div className="flex justify-between items-center mb-4">
+                                            <div>
+                                                <h4 className="text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
+                                                    <FontAwesomeIcon icon={faRobot} /> Proactive Heartbeat
+                                                </h4>
+                                                <p className="text-xs opacity-60">Allows the agent to wake up on a schedule</p>
+                                            </div>
+                                            <Toggle
+                                                checked={agentForm.heartbeat?.enabled || false}
+                                                onChange={() => setAgentForm({
+                                                    ...agentForm,
+                                                    heartbeat: {
+                                                        schedule: agentForm.heartbeat?.schedule || '* * * * *',
+                                                        enabled: !(agentForm.heartbeat?.enabled)
+                                                    }
+                                                })}
+                                            />
+                                        </div>
+
+                                        {(agentForm.heartbeat?.enabled) && (
+                                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <Input
+                                                    label="Cron Schedule"
+                                                    currentText={agentForm.heartbeat?.schedule || ''}
+                                                    onChange={e => setAgentForm({
+                                                        ...agentForm,
+                                                        heartbeat: {
+                                                            ...agentForm.heartbeat!,
+                                                            schedule: e.target.value
+                                                        }
+                                                    })}
+                                                    placeholder="e.g. */10 * * * *"
+                                                    className="!mt-0"
+                                                />
+                                                <div className="flex gap-2">
+                                                    {[
+                                                        { label: 'Every 10m', val: '*/10 * * * *' },
+                                                        { label: 'Hourly', val: '0 * * * *' },
+                                                        { label: 'Daily', val: '0 0 * * *' }
+                                                    ].map(opt => (
+                                                        <button
+                                                            key={opt.label}
+                                                            onClick={() => setAgentForm({
+                                                                ...agentForm,
+                                                                heartbeat: {
+                                                                    ...agentForm.heartbeat!,
+                                                                    schedule: opt.val
+                                                                }
+                                                            })}
+                                                            className="px-3 py-1.5 bg-bg-primary border border-border-color rounded-lg text-xs font-medium hover:bg-white-trans transition-colors text-left"
+                                                        >
+                                                            {opt.label}
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+
                                     <div className="mb-4">
                                         <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60">Model</label>
                                         <select
@@ -302,6 +373,22 @@ export default function AgentsPage({
                                                 <div>
                                                     <div className="font-bold uppercase text-xs tracking-tight">MEMORY.md</div>
                                                     <div className="text-xs">Stored facts</div>
+                                                </div>
+                                            </div>
+                                        </Card>
+
+                                        <Card
+                                            padding="p-5"
+                                            className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                            onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
+                                        >
+                                            <div className="flex items-center gap-4">
+                                                <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-rose-400 group-hover:bg-rose-400/10 transition-all">
+                                                    <FontAwesomeIcon icon={faRobot} className="text-xl" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-bold uppercase text-xs tracking-tight">HEARTBEAT.md</div>
+                                                    <div className="text-xs">Scheduled tasks</div>
                                                 </div>
                                             </div>
                                         </Card>

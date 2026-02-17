@@ -100,6 +100,11 @@ interface Agent {
   path: string;
   identity: string;
   soul: string;
+  heartbeatInstructions?: string;
+  heartbeat?: {
+    enabled: boolean;
+    schedule: string;
+  };
   systemPrompt: string;
   provider?: string;
 }
@@ -186,7 +191,7 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string }>({ name: '', emoji: '', provider: '' });
+  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } }>({ name: '', emoji: '', provider: '', heartbeat: { enabled: false, schedule: '* * * * *' } });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State

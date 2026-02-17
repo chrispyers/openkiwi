@@ -9,6 +9,7 @@ export interface Agent {
     identity: string;
     soul: string;
     memory: string;
+    heartbeatInstructions: string;
     systemPrompt: string;
     provider?: string;
     heartbeat?: {
@@ -16,6 +17,7 @@ export interface Agent {
         schedule: string;
     };
 }
+
 
 const AGENTS_DIR = path.resolve(process.cwd(), 'agents');
 
@@ -35,6 +37,7 @@ export class AgentManager {
         const identity = this.readFile(path.join(agentDir, 'IDENTITY.md'));
         const soul = this.readFile(path.join(agentDir, 'SOUL.md'));
         const memory = this.readFile(path.join(agentDir, 'MEMORY.md'));
+        const heartbeatInstructions = this.readFile(path.join(agentDir, 'HEARTBEAT.md'));
 
         // Load agent-specific config if it exists
         const configPath = path.join(agentDir, 'config.json');
@@ -75,6 +78,7 @@ Keep your responses concise and focused on the task at hand.
             identity,
             soul,
             memory,
+            heartbeatInstructions,
             systemPrompt,
             provider: agentConfig.provider,
             heartbeat: agentConfig.heartbeat
@@ -138,6 +142,7 @@ This space will be used to store important facts and preferences about users acr
         fs.writeFileSync(path.join(agentDir, 'IDENTITY.md'), defaultIdentity, 'utf-8');
         fs.writeFileSync(path.join(agentDir, 'SOUL.md'), defaultSoul, 'utf-8');
         fs.writeFileSync(path.join(agentDir, 'MEMORY.md'), defaultMemory, 'utf-8');
+        fs.writeFileSync(path.join(agentDir, 'HEARTBEAT.md'), '# Heartbeat Instructions\n\nThis file contains instructions for the agent to execute proactively on a schedule.\n', 'utf-8');
 
         // Create config
         const config = { name, emoji: '🤖' };
@@ -147,11 +152,23 @@ This space will be used to store important facts and preferences about users acr
         return this.getAgent(id)!;
     }
 
-    static saveAgentConfig(id: string, config: { name: string; emoji: string; provider?: string }): void {
+    static saveAgentConfig(id: string, config: any): void {
         const agentDir = path.join(AGENTS_DIR, id);
         if (!fs.existsSync(agentDir)) return;
         const configPath = path.join(agentDir, 'config.json');
-        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+
+        let existingConfig: any = {};
+        if (fs.existsSync(configPath)) {
+            try {
+                existingConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+            } catch (e) {
+                console.error(`Failed to parse existing config for agent ${id}, starting fresh.`);
+            }
+        }
+
+        const newConfig = { ...existingConfig, ...config };
+
+        fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf-8');
     }
 
     private static readFile(filePath: string): string {

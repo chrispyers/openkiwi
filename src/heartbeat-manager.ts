@@ -29,6 +29,21 @@ export class HeartbeatManager {
         this.jobs.clear();
     }
 
+    static refreshAgent(agentId: string) {
+        // Stop existing job if any
+        if (this.jobs.has(agentId)) {
+            this.jobs.get(agentId).stop();
+            this.jobs.delete(agentId);
+            console.log(`💓 Heartbeat Manager: Stopped existing job for ${agentId}`);
+        }
+
+        // Get updated agent config
+        const agent = AgentManager.getAgent(agentId);
+        if (agent && agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
+            this.scheduleHeartbeat(agent);
+        }
+    }
+
     private static scheduleHeartbeat(agent: Agent) {
         if (!agent.heartbeat?.schedule) return;
 
