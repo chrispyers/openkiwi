@@ -956,6 +956,7 @@ function App() {
               selectedAgentId={agentsPageAgentId}
               setSelectedAgentId={setAgentsPageAgentId}
               providers={config?.providers || []}
+              agents={agents}
             />
           ) : activeView === 'providers' ? (
             <ProvidersPage

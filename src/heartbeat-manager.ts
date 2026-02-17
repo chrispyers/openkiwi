@@ -9,6 +9,7 @@ import { logger } from './logger.js';
 
 export class HeartbeatManager {
     private static jobs: Map<string, any> = new Map();
+    private static executingAgents: Set<string> = new Set();
 
     static async start() {
         console.log('💓 Heartbeat Manager: Initializing...');
@@ -66,59 +67,75 @@ export class HeartbeatManager {
     }
 
     private static async executeHeartbeat(agentId: string) {
+        if (this.executingAgents.has(agentId)) {
+            console.log(`⚠️ Heartbeat skipped for ${agentId}: Previous execution still running.`);
+            return;
+        }
+
         const agent = AgentManager.getAgent(agentId);
         if (!agent) return;
 
+        this.executingAgents.add(agentId);
+
+        logger.log({
+            type: 'system',
+            level: 'info',
+            agentId: agent.id,
+            sessionId: 'heartbeat',
+            message: '[Heartbeat] Session started',
+            data: null
+        });
+
         console.log(`💓 Executing heartbeat for ${agent.name}...`);
 
-        // Load HEARTBEAT.md
-        const heartbeatPath = path.join(agent.path, 'HEARTBEAT.md');
-        if (!fs.existsSync(heartbeatPath)) {
-            console.warn(`⚠️ No HEARTBEAT.md found for ${agent.name}, skipping.`);
-            return;
-        }
+        try {
+            // Load HEARTBEAT.md
+            const heartbeatPath = path.join(agent.path, 'HEARTBEAT.md');
+            if (!fs.existsSync(heartbeatPath)) {
+                console.warn(`⚠️ No HEARTBEAT.md found for ${agent.name}, skipping.`);
+                return;
+            }
 
-        const heartbeatContent = fs.readFileSync(heartbeatPath, 'utf-8');
-        if (!heartbeatContent.trim()) {
-            console.warn(`⚠️ Empty HEARTBEAT.md for ${agent.name}, skipping.`);
-            return;
-        }
+            const heartbeatContent = fs.readFileSync(heartbeatPath, 'utf-8');
+            if (!heartbeatContent.trim()) {
+                console.warn(`⚠️ Empty HEARTBEAT.md for ${agent.name}, skipping.`);
+                return;
+            }
 
-        // Prepare LLM Request
-        const currentConfig = loadConfig();
-        const providerName = agent.provider;
-        let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
+            // Prepare LLM Request
+            const currentConfig = loadConfig();
+            const providerName = agent.provider;
+            let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
 
-        if (!providerConfig && currentConfig.providers.length > 0) {
-            providerConfig = currentConfig.providers[0];
-        }
+            if (!providerConfig && currentConfig.providers.length > 0) {
+                providerConfig = currentConfig.providers[0];
+            }
 
-        if (!providerConfig) {
-            console.error(`❌ No provider available for ${agent.name} heartbeat.`);
-            return;
-        }
+            if (!providerConfig) {
+                console.error(`❌ No provider available for ${agent.name} heartbeat.`);
+                return;
+            }
 
-        const llmConfig = {
-            baseUrl: providerConfig.endpoint,
-            modelId: providerConfig.model
-        };
+            const llmConfig = {
+                baseUrl: providerConfig.endpoint,
+                modelId: providerConfig.model
+            };
 
-        const messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[] = [
-            { role: 'system', content: agent.systemPrompt },
-            {
-                role: 'user',
-                content: `SYSTEM WAKEUP CALL: It is time to process your HEARTBEAT instructions.
+            const messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[] = [
+                { role: 'system', content: agent.systemPrompt },
+                {
+                    role: 'user',
+                    content: `SYSTEM WAKEUP CALL: It is time to process your HEARTBEAT instructions.
                 
 # INSTRUCTIONS
 ${heartbeatContent}
 
 Please execute these instructions now.
 `
-            }
-        ];
+                }
+            ];
 
-        // Execute Loop
-        try {
+            // Execute Loop
             let toolLoop = true;
             let iterations = 0;
             const MAX_ITERATIONS = 10; // Prevent infinite loops
@@ -182,19 +199,66 @@ Please execute these instructions now.
                     }
                 } else {
                     toolLoop = false;
-                    logger.log({
-                        type: 'response',
-                        level: 'info',
-                        agentId: agent.id,
-                        sessionId: 'heartbeat',
-                        message: `[Heartbeat] Completed execution`,
-                        data: fullContent
-                    });
-                    console.log(`💓 Heartbeat finished for ${agent.name}:`, fullContent.substring(0, 100) + '...');
+
+                    // Parse thinking content
+                    let contentToLog = fullContent;
+                    let thinkingContent = '';
+
+                    const thinkStart = fullContent.indexOf('<think>');
+                    const thinkEnd = fullContent.indexOf('</think>');
+
+                    if (thinkStart !== -1) {
+                        if (thinkEnd !== -1) {
+                            // Complete think block
+                            thinkingContent = fullContent.substring(thinkStart + 7, thinkEnd).trim();
+                            contentToLog = fullContent.substring(0, thinkStart) + fullContent.substring(thinkEnd + 8);
+                        } else {
+                            // Incomplete think block (model forgot to close or was truncated)
+                            // We treat everything after <think> as thinking content
+                            thinkingContent = fullContent.substring(thinkStart + 7).trim();
+                            contentToLog = fullContent.substring(0, thinkStart);
+                        }
+                    }
+                    contentToLog = contentToLog.trim();
+
+                    // Log reasoning if enabled and present
+                    if (thinkingContent && currentConfig.chat.showReasoning) {
+                        logger.log({
+                            type: 'thinking',
+                            level: 'info',
+                            agentId: agent.id,
+                            sessionId: 'heartbeat',
+                            message: `[Heartbeat] Thinking process`,
+                            data: thinkingContent
+                        });
+                    }
+
+                    // Log final response (cleaned or full depending on parsing)
+                    if (contentToLog) {
+                        logger.log({
+                            type: 'response',
+                            level: 'info',
+                            agentId: agent.id,
+                            sessionId: 'heartbeat',
+                            message: `[Heartbeat] Completed execution`,
+                            data: contentToLog
+                        });
+                    }
+                    console.log(`💓 Heartbeat finished for ${agent.name}:`, contentToLog.substring(0, 100) + '...');
                 }
             }
         } catch (error) {
             console.error(`❌ Error during heartbeat execution for ${agent.name}:`, error);
+        } finally {
+            this.executingAgents.delete(agentId);
+            logger.log({
+                type: 'system',
+                level: 'info',
+                agentId: agent.id,
+                sessionId: 'heartbeat',
+                message: '[Heartbeat] Session ended',
+                data: null
+            });
         }
     }
 }

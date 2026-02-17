@@ -48,13 +48,16 @@ export default function AgentsPage({
     agentForm,
     setAgentForm,
     saveAgentConfig,
-    fetchAgents: fetchAgentsFromParent,
+    fetchAgents,
     selectedAgentId: selectedAgentIdFromParent,
     setSelectedAgentId: setSelectedAgentIdFromParent,
-    providers
-}: AgentsPageProps) {
-    const [agents, setAgents] = useState<Agent[]>([])
-    const [loading, setLoading] = useState(true)
+    providers,
+    agents
+}: AgentsPageProps & { agents: Agent[] }) {
+    // Remove local agents state
+    // const [agents, setAgents] = useState<Agent[]>([])
+    // Remove local loading state as we rely on parent's data or we can keep it if we want to show loading while fetching
+    const [loading, setLoading] = useState(false) // Default to false as data typically passed from parent
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [newAgentName, setNewAgentName] = useState('')
     const [creating, setCreating] = useState(false)
@@ -78,26 +81,7 @@ export default function AgentsPage({
         }
     }, [selectedAgent, setAgentForm])
 
-    const fetchAgents = async () => {
-        try {
-            setLoading(true)
-            const response = await fetch(`${gatewayAddr}/api/agents`, {
-                headers: { 'Authorization': `Bearer ${gatewayToken}` }
-            })
-            if (!response.ok) throw new Error('Failed to fetch agents')
-            const data = await response.json()
-            setAgents(data)
-            if (data.length > 0 && !selectedAgentId) {
-                setSelectedAgentId(data[0].id)
-            }
-            // Also update parent's agents state
-            await fetchAgentsFromParent()
-        } catch (error) {
-            console.error('Failed to fetch agents:', error)
-        } finally {
-            setLoading(false)
-        }
-    }
+    // Use parent's fetchAgents directly
 
     const createAgent = async () => {
         if (!newAgentName.trim()) {
@@ -123,12 +107,11 @@ export default function AgentsPage({
             }
 
             const newAgent = await response.json()
-            setAgents([...agents, newAgent])
+            // Update parent's agents state
+            await fetchAgents()
             setSelectedAgentId(newAgent.id)
             setIsModalOpen(false)
             setNewAgentName('')
-            // Also update parent's agents state
-            await fetchAgentsFromParent()
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Failed to create agent')
         } finally {

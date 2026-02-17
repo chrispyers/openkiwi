@@ -72,12 +72,14 @@ export default function LogsPage({ logs, onClear }: LogsPageProps) {
                                 </TD>
                                 <TD className="font-mono text-xs text-neutral-600 dark:text-neutral-300 align-top">
                                     <div className="max-h-32 overflow-y-auto custom-scrollbar">
-                                        {typeof log.data === 'object' ? (
-                                            <pre className="whitespace-pre-wrap word-break-all">
-                                                {JSON.stringify(log.data, null, 2)}
-                                            </pre>
-                                        ) : (
-                                            <span className="break-all">{String(log.data)}</span>
+                                        {log.data !== undefined && log.data !== null && (
+                                            typeof log.data === 'object' ? (
+                                                <pre className="whitespace-pre-wrap word-break-all">
+                                                    {JSON.stringify(log.data, null, 2)}
+                                                </pre>
+                                            ) : (
+                                                <span className="break-all">{String(log.data)}</span>
+                                            )
                                         )}
                                     </div>
                                 </TD>

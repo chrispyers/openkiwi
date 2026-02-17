@@ -198,7 +198,7 @@ export default function ChatPage({
                 <form onSubmit={handleSend} className="relative group max-w-4xl mx-auto">
                     <textarea
                         ref={textareaRef}
-                        className="w-full bg-neutral-100 dark:bg-neutral-800/50 border-2 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-white rounded-full py-3.5 pl-6 pr-14 outline-none hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-accent-primary transition-all scrollbar-none resize-none text-base leading-relaxed"
+                        className="w-full bg-neutral-100 dark:bg-neutral-800/50 border-2 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-white rounded-3xl py-4 pl-6 pr-14 outline-none hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-accent-primary transition-all scrollbar-none resize-none text-base leading-relaxed"
                         placeholder={isGatewayConnected ? `Message ${agents.find(a => a.id === selectedAgentId)?.name}...` : "Gateway Offline - Check Settings"}
                         rows={1}
                         value={inputText}

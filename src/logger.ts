@@ -5,7 +5,7 @@ import fs from 'node:fs';
 export interface LogEntry {
     id: number; // SQLite rowid or auto-increment id
     timestamp: number;
-    type: 'request' | 'response' | 'error' | 'tool' | 'system';
+    type: 'request' | 'response' | 'error' | 'tool' | 'system' | 'thinking';
     agentId?: string;
     sessionId?: string;
     level: 'info' | 'warn' | 'error' | 'debug';
@@ -57,7 +57,7 @@ class Logger {
                 entry.sessionId || null,
                 entry.level,
                 entry.message,
-                entry.data ? JSON.stringify(entry.data) : null
+                entry.data !== undefined && entry.data !== null ? JSON.stringify(entry.data) : null
             );
 
             // Also log to console for visibility in dev
