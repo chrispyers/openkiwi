@@ -71,6 +71,8 @@ import {
   faRobot,
   faFileLines
 } from '@fortawesome/free-solid-svg-icons'
+import SessionButton from './components/SessionButton'
+import { Agent, Message, Session } from './types'
 
 interface Config {
 
@@ -93,36 +95,7 @@ interface Config {
   }[];
 }
 
-interface Agent {
-  id: string;
-  name: string;
-  emoji: string;
-  path: string;
-  identity: string;
-  soul: string;
-  heartbeatInstructions?: string;
-  heartbeat?: {
-    enabled: boolean;
-    schedule: string;
-  };
-  systemPrompt: string;
-  provider?: string;
-}
 
-interface Message {
-  role: 'user' | 'assistant' | 'reasoning' | 'system';
-  content: string;
-  timestamp?: number;
-}
-
-interface Session {
-  id: string;
-  agentId: string;
-  title: string;
-  summary?: string;
-  messages: Message[];
-  updatedAt: number;
-}
 
 interface LogEntry {
   id: number;
@@ -348,8 +321,10 @@ function App() {
         }, 5000);
         return () => clearInterval(interval);
       }
+    } else if (activeView === 'chat' && isGatewayConnected) {
+      fetchAgents().catch(e => console.error('Failed to fetch agents:', e));
     }
-  }, [activeView, activeSettingsSection, settingsAgentId]);
+  }, [activeView, activeSettingsSection, settingsAgentId, isGatewayConnected]);
 
   useEffect(() => {
     if (config?.providers?.length) {
@@ -502,10 +477,7 @@ function App() {
       if (data.length > 0 && !settingsAgentId) {
         setSettingsAgentId(data[0].id);
       }
-      // Set selectedAgentId to first agent if current selection doesn't exist
-      if (data.length > 0 && !data.find((a: Agent) => a.id === selectedAgentId)) {
-        setSelectedAgentId(data[0].id);
-      }
+
     } catch (error) {
       console.error('Failed to fetch agents:', error);
       throw error;
@@ -636,6 +608,7 @@ function App() {
 
   const createNewSession = () => {
     setActiveSessionId(null);
+    setSelectedAgentId('');
     setMessages([]);
     setInputText('');
     isAtBottom.current = true;
@@ -895,28 +868,15 @@ function App() {
 
             <div className="flex-1 overflow-y-auto px-3 space-y-1 py-2 custom-scrollbar">
               {sessions.map(s => (
-                <div
+                <SessionButton
                   key={s.id}
-                  className={`group w-full p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-200 ${activeSessionId === s.id ? 'bg-white-trans text-neutral-600 dark:text-white' : ' hover:bg-white-trans hover:text-neutral-600 dark:text-white'}`}
-                  onClick={() => loadSession(s)}
-                >
-                  <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
-                    {agents.find(a => a.id === s.agentId)?.emoji || '💬'}
-                  </div>
-                  <div className="flex-1 min-w-0 flex flex-col gap-0.5">
-                    <span className="text-sm font-medium truncate" title={s.summary || s.title}>
-                      {s.summary || s.title}
-                    </span>
-                    <span className="text-xs text-neutral-500 dark:text-neutral-400 truncate">
-                      {formatTimestamp(s.updatedAt)}
-                    </span>
-                  </div>
-                  <Button
-                    className="opacity-0 group-hover:opacity-100 !p-1.5 !rounded-lg flex-shrink-0"
-                    icon={faTrash}
-                    onClick={(e) => deleteSession(s.id, e)}
-                  />
-                </div>
+                  session={s}
+                  isActive={activeSessionId === s.id}
+                  agent={agents.find(a => a.id === s.agentId)}
+                  onLoadSession={loadSession}
+                  onDeleteSession={deleteSession}
+                  formatTimestamp={formatTimestamp}
+                />
               ))}
             </div>
           </nav>
