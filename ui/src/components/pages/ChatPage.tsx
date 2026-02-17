@@ -213,7 +213,7 @@ export default function ChatPage({
                     />
                     <Button
                         themed={!isStreaming && inputText.trim().length > 0 && isGatewayConnected}
-                        className={`absolute right-3 top-1/2 -translate-y-1/2 !w-10 !h-10 !rounded-full flex items-center justify-center`}
+                        className={`absolute right-2 bottom-3.5 !w-10 !h-10 !rounded-full`}
                         disabled={isStreaming || !inputText.trim() || !isGatewayConnected}
                         onClick={handleSend}
                         icon={isStreaming ? undefined : faPaperPlane}
@@ -222,7 +222,7 @@ export default function ChatPage({
                     </Button>
                 </form>
                 <div className="mt-2 text-xs text-center flex items-center justify-center gap-1">
-                    Press <span className="px-1.5 py-0.5 bg-white-trans rounded mx-1 text-neutral-600 dark:text-white">Enter</span> to send, <span className="px-1.5 py-0.5 bg-white-trans rounded mx-1 text-neutral-600 dark:text-white">Shift + Enter</span> for new line
+                    Press <span className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-600 rounded mx-1 text-neutral-600 dark:text-white">Enter</span> to send, <span className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-600 rounded mx-1 text-neutral-600 dark:text-white">Shift + Enter</span> for new line
                 </div>
             </div>
         </div>
