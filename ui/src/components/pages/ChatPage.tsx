@@ -149,7 +149,7 @@ export default function ChatPage({
                                 <div className={`flex gap-4 items-start ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                                     <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${msg.role === 'user' ? 'bg-bg-card text-neutral-600 dark:text-white' : msg.role === 'reasoning' ? 'bg-amber-500/10 text-amber-500' : 'bg-accent-primary text-white'} shadow-sm`}>
                                         {msg.role === 'user' ? <User size={18} /> : msg.role === 'reasoning' ? <BrainCircuit size={16} /> : (
-                                            <span>{agents.find(a => a.id === selectedAgentId)?.emoji || '🤖'}</span>
+                                            agents.find(a => a.id === selectedAgentId)?.emoji ? <span>{agents.find(a => a.id === selectedAgentId)?.emoji}</span> : <Bot size={18} />
                                         )}
                                     </div>
                                     <div className={`bubble ${msg.role === 'user' ? 'user-bubble' : msg.role === 'reasoning' ? 'reasoning-bubble' : 'ai-bubble'}`}>
@@ -180,7 +180,7 @@ export default function ChatPage({
                     <div className="flex justify-start animate-in fade-in duration-300">
                         <div className="flex gap-4 items-start">
                             <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-accent-primary flex items-center justify-center text-lg text-white shadow-sm">
-                                <span>{agents.find(a => a.id === selectedAgentId)?.emoji || '🤖'}</span>
+                                {agents.find(a => a.id === selectedAgentId)?.emoji ? <span>{agents.find(a => a.id === selectedAgentId)?.emoji}</span> : <Bot size={18} />}
                             </div>
                             <div className="loading-dots">
                                 <span className="dot" />
