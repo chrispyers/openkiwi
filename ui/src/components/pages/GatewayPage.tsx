@@ -33,11 +33,8 @@ export default function GatewayPage({
         >
             <div className="max-w-5xl animate-in fade-in slide-in-from-right-4 duration-500">
                 <Card className="space-y-6">
-                    <div className="pt-4">
-                        <div className="w-full space-y-6">
-                            <label className="text-md font-bold uppercase tracking-wider flex items-center gap-2">
-                                <FontAwesomeIcon icon={faGlobe} /> Connection & Networking
-                            </label>
+                    <div className="">
+                        <div className="w-full">
                             <div className="space-y-6">
                                 <p className="text-md leading-relaxed">
                                     Specify the address of your gateway. For local development, use <code className="text-accent-primary">http://localhost:3808</code>.

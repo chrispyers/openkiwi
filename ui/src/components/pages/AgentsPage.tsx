@@ -191,19 +191,18 @@ export default function AgentsPage({
                     {selectedAgent ? (
                         <Card className="space-y-6">
                             <div className="flex items-center gap-3">
-                                <IconBox icon={<BrainCircuit size={20} />} />
                                 <Text bold={true} size="xl">{selectedAgent.name}</Text>
                                 <span className="text-3xl ml-2">{selectedAgent.emoji}</span>
                             </div>
 
                             <div className="space-y-4">
                                 <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider mb-3 opacity-60">Personalization</h4>
                                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                                         <Input
                                             label="Agent Nickname"
                                             currentText={agentForm.name}
                                             onChange={e => setAgentForm({ ...agentForm, name: e.target.value })}
+                                            clearText={() => setAgentForm({ ...agentForm, name: '' })}
                                             icon={faUser}
                                             className="md:col-span-2"
                                             inputClassName="!mt-0"
@@ -212,6 +211,7 @@ export default function AgentsPage({
                                             label="Emoji Icon"
                                             currentText={agentForm.emoji}
                                             onChange={e => setAgentForm({ ...agentForm, emoji: e.target.value })}
+                                            clearText={() => setAgentForm({ ...agentForm, emoji: '' })}
                                             icon={faSmile}
                                             inputClassName="!mt-0 font-emoji text-center pl-0"
                                         />
@@ -246,6 +246,13 @@ export default function AgentsPage({
                                                         heartbeat: {
                                                             ...agentForm.heartbeat!,
                                                             schedule: e.target.value
+                                                        }
+                                                    })}
+                                                    clearText={() => setAgentForm({
+                                                        ...agentForm,
+                                                        heartbeat: {
+                                                            ...agentForm.heartbeat!,
+                                                            schedule: ''
                                                         }
                                                     })}
                                                     placeholder="e.g. */10 * * * *"
@@ -297,16 +304,6 @@ export default function AgentsPage({
                                     >
                                         Update Agent Meta Profile
                                     </Button>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-60">Agent ID</h4>
-                                    <p className="text-sm font-mono bg-bg-primary border border-border-color rounded-lg px-4 py-2">{selectedAgent.id}</p>
-                                </div>
-
-                                <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider mb-2 opacity-60">Path</h4>
-                                    <p className="text-sm font-mono bg-bg-primary border border-border-color rounded-lg px-4 py-2 break-all">{selectedAgent.path}</p>
                                 </div>
 
                                 <div>
@@ -413,6 +410,7 @@ export default function AgentsPage({
                         label="Agent Name"
                         currentText={newAgentName}
                         onChange={(e) => setNewAgentName(e.target.value)}
+                        clearText={() => setNewAgentName('')}
                         placeholder="e.g., Assistant, Helper, Guide"
                         icon={faRobot}
                         inputClassName="!mt-0"

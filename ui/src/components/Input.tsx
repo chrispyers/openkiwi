@@ -70,10 +70,10 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
         />
 
         {/* a little"X"button to clear the text */}
-        {currentText && (
+        {currentText && clearText && (
           <button
             onClick={clearText}
-            className="text-lg absolute right-3 mt-1.5 text-neutral-300 dark:text-neutral-500 hover:text-neutral-400 dark:hover:text-neutral-400 focus:outline-none transition-all"
+            className="text-lg absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 dark:text-neutral-500 hover:text-neutral-400 dark:hover:text-neutral-400 focus:outline-none transition-all"
           >
             <FontAwesomeIcon icon={faTimesCircle} />
           </button>

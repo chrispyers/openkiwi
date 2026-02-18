@@ -1,5 +1,6 @@
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
+import { toast } from 'sonner'
 import { faPlus } from '@fortawesome/free-solid-svg-icons'
 import Provider from '../Provider'
 import Button from '../Button'
@@ -33,7 +34,7 @@ interface ProvidersPageProps {
     setConfig: React.Dispatch<React.SetStateAction<Config | null>>;
     models: string[];
     saveConfig: (e?: React.FormEvent, configOverride?: Config) => Promise<void>;
-    fetchModels: () => Promise<boolean | void>;
+    fetchModels: (isSilent?: boolean) => Promise<boolean | void>;
 }
 
 export default function ProvidersPage({
@@ -45,6 +46,14 @@ export default function ProvidersPage({
 }: ProvidersPageProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newProvider, setNewProvider] = useState({ description: '', endpoint: '', model: '' });
+    const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
+
+    useEffect(() => {
+        if (!isModalOpen) {
+            setSelectedProviderType(null);
+            setNewProvider({ description: '', endpoint: '', model: '' });
+        }
+    }, [isModalOpen]);
 
     return (
         <Page
@@ -95,51 +104,60 @@ export default function ProvidersPage({
                 className="max-w-2xl"
             >
                 <div className="p-6">
-                    <Provider
-                        description={newProvider.description}
-                        endpoint={newProvider.endpoint}
-                        model={newProvider.model}
-                        models={models}
-                        onDescriptionChange={(val) => setNewProvider(prev => ({ ...prev, description: val }))}
-                        onEndpointChange={(val) => setNewProvider(prev => ({ ...prev, endpoint: val }))}
-                        onModelChange={(val) => setNewProvider(prev => ({ ...prev, model: val }))}
-                        onScan={async () => {
-                            // Temporarily save to config to scan, or preferably, we'd have a way to scan an endpoint without saving first.
-                            // But given the current architecture relying on saveConfig to update global state for scanning...
-                            // For now, let's just assume users might need to save first or we can try to implement a direct scan if possible.
-                            // However, the `fetchModels` function likely uses the globally saved config.
-                            // To properly support scanning a new endpoint without saving it as the active one first would require refactoring `fetchModels` to accept an endpoint argument.
-                            // For this iteration, let's assume the user manually types the model or we accept that scanning might not work perfectly without saving as global override first.
-                            // Actually, let's try to update the local config state with this new provider as a temporary override if we wanted to scan, but `fetchModels` likely pulls from backend.
-                            // The easiest path for "Add Provider" flow is to fill details and save. Scanning might be a post-creation step or requires backend support for ad-hoc scanning.
-                            // Given the constraints, I will disable Scan in the modal or wire it to just attempt to save first?
-                            // Let's keep it simple: The user enters details. The "Scan" button in `Provider` component calls `onScan`.
-                            // If we want `onScan` to work, `fetchModels` needs to validly hit the endpoint.
-                            // Let's just implement onSave.
-                            await fetchModels();
-                        }}
-                        onSave={async () => {
-                            if (!config) return;
+                    <div className="flex gap-4 justify-center mb-6">
+                        <Button
+                            className={`h-12 flex-1 text-lg font-bold border-2 transition-all ${selectedProviderType === 'lm-studio' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            onClick={() => setSelectedProviderType('lm-studio')}
+                        >
+                            LM Studio
+                        </Button>
+                        <Button
+                            className={`h-12 flex-1 text-lg font-bold border-2 border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500`}
+                            onClick={() => toast.info('Google Gemini support coming soon')}
+                        >
+                            Google Gemini
+                        </Button>
+                    </div>
 
-                            const providerToAdd = {
-                                description: newProvider.description,
-                                endpoint: newProvider.endpoint,
-                                model: newProvider.model
-                            };
+                    {selectedProviderType === 'lm-studio' && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                            <Provider
+                                description={newProvider.description}
+                                endpoint={newProvider.endpoint}
+                                model={newProvider.model}
+                                models={models}
+                                onDescriptionChange={(val) => setNewProvider(prev => ({ ...prev, description: val }))}
+                                onEndpointChange={(val) => setNewProvider(prev => ({ ...prev, endpoint: val }))}
+                                onModelChange={(val) => setNewProvider(prev => ({ ...prev, model: val }))}
+                                onScan={async () => {
+                                    // See comments in previous version about scanning limitations in this modal context
+                                    await fetchModels();
+                                }}
+                                onSave={async () => {
+                                    if (!config) return;
 
-                            const updatedProviders = [...(config.providers || []), providerToAdd];
+                                    const providerToAdd = {
+                                        description: newProvider.description,
+                                        endpoint: newProvider.endpoint,
+                                        model: newProvider.model
+                                    };
 
-                            const newConfig = {
-                                ...config,
-                                providers: updatedProviders
-                            };
+                                    const updatedProviders = [...(config.providers || []), providerToAdd];
 
-                            setConfig(newConfig);
-                            await saveConfig(undefined, newConfig);
-                            setIsModalOpen(false);
-                            setNewProvider({ description: '', endpoint: '', model: '' });
-                        }}
-                    />
+                                    const newConfig = {
+                                        ...config,
+                                        providers: updatedProviders
+                                    };
+
+                                    setConfig(newConfig);
+                                    await saveConfig(undefined, newConfig);
+                                    toast.success("Successfully saved provider");
+                                    setIsModalOpen(false);
+                                    setNewProvider({ description: '', endpoint: '', model: '' });
+                                }}
+                            />
+                        </div>
+                    )}
                 </div>
             </Modal>
         </Page >

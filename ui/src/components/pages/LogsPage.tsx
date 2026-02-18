@@ -49,45 +49,45 @@ export default function LogsPage({ logs, onClear }: LogsPageProps) {
                 </Button>
             }
         >
-            <div className="border border-border-color rounded-2xl bg-bg-card shadow-sm overflow-hidden">
-                <TABLE header={['Timestamp', 'Level', 'Type', 'Message', 'Data']}>
-                    {logs.length === 0 ? (
-                        <TR>
-                            <TD colSpan={5} className="text-center py-12 text-neutral-400 italic">No logs recorded yet. Start a conversation to see data.</TD>
+            {/* <div className="border border-border-color rounded-2xl bg-bg-card shadow-sm overflow-hidden"> */}
+            <TABLE header={['Timestamp', 'Level', 'Type', 'Message', 'Data']}>
+                {logs.length === 0 ? (
+                    <TR>
+                        <TD colSpan={5} className="text-center py-12 text-neutral-400 italic">No logs recorded yet. Start a conversation to see data.</TD>
+                    </TR>
+                ) : (
+                    logs.map((log) => (
+                        <TR key={log.id || Math.random()}>
+                            <TD className="whitespace-nowrap font-mono text-xs text-neutral-500 w-32 align-top">
+                                {new Date(log.timestamp).toLocaleTimeString()}
+                            </TD>
+                            <TD className="w-20 align-top">
+                                <LevelBadge level={log.level} />
+                            </TD>
+                            <TD className="whitespace-nowrap font-mono text-xs text-neutral-600 dark:text-neutral-400 w-24 align-top uppercase">
+                                {log.type}
+                            </TD>
+                            <TD className="text-sm text-neutral-700 dark:text-neutral-200 w-64 align-top">
+                                {log.message}
+                            </TD>
+                            <TD className="font-mono text-xs text-neutral-600 dark:text-neutral-300 align-top">
+                                <div className="max-h-32 overflow-y-auto custom-scrollbar">
+                                    {log.data !== undefined && log.data !== null && (
+                                        typeof log.data === 'object' ? (
+                                            <pre className="whitespace-pre-wrap word-break-all">
+                                                {JSON.stringify(log.data, null, 2)}
+                                            </pre>
+                                        ) : (
+                                            <span className="break-all">{String(log.data)}</span>
+                                        )
+                                    )}
+                                </div>
+                            </TD>
                         </TR>
-                    ) : (
-                        logs.map((log) => (
-                            <TR key={log.id || Math.random()}>
-                                <TD className="whitespace-nowrap font-mono text-xs text-neutral-500 w-32 align-top">
-                                    {new Date(log.timestamp).toLocaleTimeString()}
-                                </TD>
-                                <TD className="w-20 align-top">
-                                    <LevelBadge level={log.level} />
-                                </TD>
-                                <TD className="whitespace-nowrap font-mono text-xs text-neutral-600 dark:text-neutral-400 w-24 align-top uppercase">
-                                    {log.type}
-                                </TD>
-                                <TD className="text-sm text-neutral-700 dark:text-neutral-200 w-64 align-top">
-                                    {log.message}
-                                </TD>
-                                <TD className="font-mono text-xs text-neutral-600 dark:text-neutral-300 align-top">
-                                    <div className="max-h-32 overflow-y-auto custom-scrollbar">
-                                        {log.data !== undefined && log.data !== null && (
-                                            typeof log.data === 'object' ? (
-                                                <pre className="whitespace-pre-wrap word-break-all">
-                                                    {JSON.stringify(log.data, null, 2)}
-                                                </pre>
-                                            ) : (
-                                                <span className="break-all">{String(log.data)}</span>
-                                            )
-                                        )}
-                                    </div>
-                                </TD>
-                            </TR>
-                        ))
-                    )}
-                </TABLE>
-            </div>
+                    ))
+                )}
+            </TABLE>
+            {/* </div> */}
         </Page>
     )
 }

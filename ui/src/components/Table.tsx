@@ -6,7 +6,7 @@ export function TABLE(props: { header?: string[], children: React.ReactNode, cla
         <table className={(props.className || "") + " w-full text-left"}>
             {props.header != null && (
                 <thead>
-                    <tr className="border-b border-border-color">
+                    <tr className="">
                         {props.header.map((obj, idx) => (
                             <TH key={idx} center={props.center}>
                                 {obj}
@@ -24,7 +24,7 @@ export function TABLE(props: { header?: string[], children: React.ReactNode, cla
 
 export function TH({ children, center }: { children: React.ReactNode, center?: boolean }) {
     return (
-        <th className={`py-4 px-6 text-[10px] font-black uppercase tracking-[0.2em] text-neutral-400 ${center ? 'text-center' : ''}`}>
+        <th className={`py-4 px-6 text-xs text-neutral-500 dark:text-white uppercase tracking-[0.1em] ${center ? 'text-center' : ''}`}>
             {children}
         </th>
     )

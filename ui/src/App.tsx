@@ -326,7 +326,7 @@ function App() {
 
   useEffect(() => {
     if (config?.providers?.length) {
-      fetchModels();
+      fetchModels(true);
     }
   }, [config?.providers]);
 
@@ -506,7 +506,7 @@ function App() {
     }
   }
 
-  async function fetchModels() {
+  async function fetchModels(isSilent = false) {
     try {
       const response = await fetch(getApiUrl('/api/models'), {
         headers: { 'Authorization': `Bearer ${gatewayToken}` }
@@ -520,16 +520,20 @@ function App() {
       const modelList = data.data.map((m: any) => m.id);
       setModels(modelList);
 
-      toast.success(`Success! Found ${modelList.length} model${modelList.length !== 1 ? 's' : ''}`, {
-        description: modelList.length > 0 ? `Available models: ${modelList.slice(0, 3).join(', ')}${modelList.length > 3 ? '...' : ''}` : 'No models available'
-      });
+      if (!isSilent) {
+        toast.success(`Success! Found ${modelList.length} model${modelList.length !== 1 ? 's' : ''}`, {
+          description: modelList.length > 0 ? `Available models: ${modelList.slice(0, 3).join(', ')}${modelList.length > 3 ? '...' : ''}` : 'No models available'
+        });
+      }
 
       return true;
     } catch (error) {
       console.error('Failed to fetch models:', error);
-      toast.error('Failed to scan for models', {
-        description: error instanceof Error ? error.message : 'Could not connect to LLM provider. Please check the endpoint URL.'
-      });
+      if (!isSilent) {
+        toast.error('Failed to scan for models', {
+          description: error instanceof Error ? error.message : 'Could not connect to LLM provider. Please check the endpoint URL.'
+        });
+      }
       return false;
     }
   }
