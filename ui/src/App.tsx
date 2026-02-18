@@ -72,6 +72,7 @@ import {
   faFileLines
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
+import SessionGroup from './components/SessionGroup'
 import { Agent, Message, Session } from './types'
 
 interface Config {
@@ -882,12 +883,24 @@ function App() {
             </div>
 
             <div className="flex-1 overflow-y-auto px-3 space-y-1 py-2 custom-scrollbar">
-              {sessions.map(s => (
+              {agents.map(agent => (
+                <SessionGroup
+                  key={agent.id}
+                  agent={agent}
+                  sessions={sessions.filter(s => s.agentId === agent.id)}
+                  activeSessionId={activeSessionId}
+                  onLoadSession={loadSession}
+                  onDeleteSession={deleteSession}
+                  formatTimestamp={formatTimestamp}
+                />
+              ))}
+              {/* Orphaned sessions */}
+              {sessions.filter(s => !agents.find(a => a.id === s.agentId)).map(s => (
                 <SessionButton
                   key={s.id}
                   session={s}
                   isActive={activeSessionId === s.id}
-                  agent={agents.find(a => a.id === s.agentId)}
+                  agent={undefined}
                   onLoadSession={loadSession}
                   onDeleteSession={deleteSession}
                   formatTimestamp={formatTimestamp}

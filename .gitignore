@@ -6,5 +6,6 @@ workspace/*
 ui/dist/*
 agents/*/*.md
 agents/*/config.json
+agents/*/sessions/*
 config.json
 dist/*
