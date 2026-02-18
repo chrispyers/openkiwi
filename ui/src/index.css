@@ -177,6 +177,12 @@
   @apply mt-4 mb-2 first:mt-0;
 }
 
+/* Remove default backticks from prose inline code */
+.prose-chat :where(code):not(:where([class~="not-prose"] *))::before,
+.prose-chat :where(code):not(:where([class~="not-prose"] *))::after {
+    content: "";
+}
+
 /* Scrollbar styling */
 ::-webkit-scrollbar {
   width: 6px;
