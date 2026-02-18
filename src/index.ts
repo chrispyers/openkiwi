@@ -21,6 +21,7 @@ const wss = new WebSocketServer({ server });
 async function startServer() {
     console.log('Initializing systems...');
     await ToolManager.discoverTools();
+    await AgentManager.initializeAllMemoryManagers();
     await HeartbeatManager.start();
 
     const PORT = config.gateway.port;
@@ -232,7 +233,7 @@ wss.on('connection', (ws, req) => {
                     tools.forEach(toolDef => {
                         ToolManager.registerTool({
                             definition: toolDef,
-                            handler: async (args) => {
+                            handler: async (args: any) => {
                                 const callId = Math.random().toString(36).substring(7);
                                 return new Promise((resolve, reject) => {
                                     pendingToolCalls.set(callId, { resolve, reject });

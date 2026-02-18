@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig } from './config-manager.js';
+import { MemoryIndexManager } from './memory/manager.js';
 
 export interface Agent {
     id: string;
@@ -147,10 +148,76 @@ ${globalSystemPrompt}`.trim();
         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf-8');
     }
 
+    private static memoryManagers = new Map<string, MemoryIndexManager>();
+
     private static readFile(filePath: string): string {
         if (fs.existsSync(filePath)) {
             return fs.readFileSync(filePath, 'utf-8');
         }
         return '';
+    }
+
+    static async getMemoryManager(agentId: string): Promise<MemoryIndexManager> {
+        if (this.memoryManagers.has(agentId)) {
+            return this.memoryManagers.get(agentId)!;
+        }
+
+        const agent = this.getAgent(agentId);
+        if (!agent) {
+            throw new Error(`Agent ${agentId} not found`);
+        }
+
+        const config = loadConfig();
+        const providers = config.providers || [];
+
+        // Find provider config
+        // Agent.provider might be the description or model name. 
+        // We'll try to match description first, then model.
+        let llmProviderConfig: any = undefined;
+
+        // Use global memory configuration if enabled
+        if (config.memory?.useEmbeddings && config.memory?.embeddingsModel) {
+            let providerConfig = providers.find(p => p.description === config.memory?.embeddingsModel);
+            if (!providerConfig) {
+                providerConfig = providers.find(p => p.model === config.memory?.embeddingsModel);
+            }
+
+            if (providerConfig) {
+                llmProviderConfig = {
+                    baseUrl: providerConfig.endpoint,
+                    modelId: providerConfig.model,
+                    apiKey: providerConfig.apiKey
+                };
+            } else {
+                console.warn(`[AgentManager] Embedding provider '${config.memory?.embeddingsModel}' not found. Falling back to keyword search.`);
+            }
+        }
+
+        const manager = new MemoryIndexManager(agentId, llmProviderConfig);
+
+        // Perform initial sync
+        // We do this non-blocking usually, but for first load we might want to wait or just fire and forget
+        // Ideally we await it so the first search works.
+        try {
+            await manager.sync();
+        } catch (err) {
+            console.error(`[AgentManager] Failed to sync memory for ${agentId}:`, err);
+        }
+        this.memoryManagers.set(agentId, manager);
+        return manager;
+    }
+
+    static async initializeAllMemoryManagers(): Promise<void> {
+        const agents = this.listAgents();
+        console.log(`[AgentManager] Initializing memory for ${agents.length} agents...`);
+        for (const agentId of agents) {
+            try {
+                // Fire and forget (or await if we want to block startup)
+                // We'll await to ensure initial index is ready
+                await this.getMemoryManager(agentId);
+            } catch (err) {
+                console.error(`[AgentManager] Failed to init memory for ${agentId}:`, err);
+            }
+        }
     }
 }

@@ -50,12 +50,18 @@ export class ToolManager {
     }
 
     private static registerBuiltInTools() {
-
-
-
+        // Register built-in tools
+        import('./tools/memory_tools.js').then(module => {
+            this.registerTool(module.memory_search);
+            this.registerTool(module.memory_get);
+        }).catch(err => console.error('Failed to load memory tools', err));
     }
 
-    static registerTool(tool: Tool) {
+    static registerTool(tool: any) {
+        if (!tool || !tool.definition || !tool.definition.name) {
+            console.error('Invalid tool registration attempt', tool);
+            return;
+        }
         this.tools.set(tool.definition.name, tool);
     }
 

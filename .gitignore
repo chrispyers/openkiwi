@@ -9,3 +9,4 @@ agents/*/config.json
 agents/*/sessions/*
 config.json
 dist/*
+agents/*/memory_index.db

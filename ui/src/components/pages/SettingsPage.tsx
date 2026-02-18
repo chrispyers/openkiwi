@@ -13,6 +13,7 @@ import {
     Monitor,
     Layout
 } from 'lucide-react'
+import { toast } from 'sonner'
 import Page from './Page'
 import { useTheme } from '../../contexts/ThemeContext'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
@@ -48,6 +49,10 @@ interface Config {
         showReasoning: boolean;
         includeHistory: boolean;
         generateSummaries: boolean;
+    };
+    memory?: {
+        useEmbeddings: boolean;
+        embeddingsModel: string;
     };
     gateway: {
         port: number;
@@ -160,7 +165,67 @@ export default function SettingsPage({
                                     <Text bold={true} size="xl">General Settings</Text>
                                 </div>
 
+                                <div className="space-y-6 pt-6 border-t border-border-color">
+                                    <div className="flex items-center gap-3">
+                                        <IconBox icon={<Brain size={20} />} />
+                                        <Text bold={true} size="lg">Context & Memory</Text>
+                                    </div>
 
+                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                                        <div className="space-y-1">
+                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors">
+                                                <BrainCircuit size={14} /> Enable Vector Embeddings
+                                            </h3>
+                                            <p className="text-xs text-neutral-500">
+                                                Enhance memory recall using semantic vector search. When disabled, keyword search is used.
+                                            </p>
+                                        </div>
+                                        <Toggle
+                                            checked={config?.memory?.useEmbeddings || false}
+                                            onChange={() => setConfig(prev => prev ? {
+                                                ...prev,
+                                                memory: {
+                                                    ...(prev.memory || { embeddingsModel: "" }),
+                                                    useEmbeddings: !prev.memory?.useEmbeddings
+                                                }
+                                            } : null)}
+                                        />
+                                    </div>
+
+                                    {config?.memory?.useEmbeddings && (
+                                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 pl-1">
+                                            <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-neutral-500">
+                                                <Cpu size={14} /> Embedding Provider
+                                            </label>
+                                            <Select
+                                                width="w-full"
+                                                options={(config?.providers || []).map(p => ({
+                                                    value: p.description || p.model,
+                                                    label: p.description || p.model
+                                                }))}
+                                                value={config?.memory?.embeddingsModel || ""}
+                                                onChange={(e) => {
+                                                    const val = e.target.value;
+                                                    setConfig(prev => prev ? {
+                                                        ...prev,
+                                                        memory: {
+                                                            ...(prev.memory || { useEmbeddings: true }),
+                                                            embeddingsModel: val
+                                                        }
+                                                    } : null);
+                                                }}
+                                            />
+                                            <p className="text-xs text-neutral-500 px-1">
+                                                Select the provider to use for generating embeddings. Must support OpenAI-compatible <code>/embeddings</code> endpoint.
+                                            </p>
+                                        </div>
+                                    )}
+
+                                    <Button themed={true} className="w-full h-12 text-white" onClick={async () => {
+                                        await saveConfig();
+                                        toast.success("Memory preferences saved");
+                                    }} icon={faSave}>Save Settings</Button>
+                                </div>
                             </Card>
                         </div>
                     )}

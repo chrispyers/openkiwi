@@ -23,6 +23,10 @@ const ConfigSchema = z.object({
         model: z.string(),
         apiKey: z.string().optional(),
     })).default([]),
+    memory: z.object({
+        useEmbeddings: z.boolean().default(false),
+        embeddingsModel: z.string().default(""),
+    }).default({ useEmbeddings: false, embeddingsModel: "" }),
 });
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -63,6 +67,10 @@ export function loadConfig(): Config {
                 systemPrompt: "You are a helpful AI assistant.",
             },
             providers: [],
+            memory: {
+                useEmbeddings: false,
+                embeddingsModel: "",
+            },
         };
     }
 }

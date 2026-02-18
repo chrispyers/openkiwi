@@ -94,6 +94,10 @@ interface Config {
     endpoint: string;
     model: string;
   }[];
+  memory?: {
+    useEmbeddings: boolean;
+    embeddingsModel: string;
+  };
 }
 
 

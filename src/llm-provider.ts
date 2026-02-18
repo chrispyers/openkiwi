@@ -135,3 +135,40 @@ export async function getChatCompletion(
         usage: json.usage
     };
 }
+
+export async function createEmbedding(
+    providerConfig: LLMProviderConfig,
+    input: string | string[]
+): Promise<number[][]> {
+    const { url: chatUrl, headers } = getProviderEndpoint(providerConfig);
+    // Infer embedding URL from chat URL base
+    // If chatUrl is .../chat/completions, we want .../embeddings
+    const url = chatUrl.replace('/chat/completions', '/embeddings');
+
+    let response;
+    try {
+        response = await fetch(url, {
+            method: 'POST',
+            headers,
+            body: JSON.stringify({
+                model: providerConfig.modelId || "text-embedding-3-small", // Use configured model, default to compatible name
+                input,
+            }),
+        });
+    } catch (error) {
+        if (error instanceof Error) {
+            throw new Error(`fetch failed: ${error.message}`);
+        }
+        throw error;
+    }
+
+    if (!response.ok) {
+        // If 404, maybe the model name is wrong or endpoint is different.
+        // For local providers (LM Studio), they might not support embeddings or use a different port/path.
+        // But for standard OpenAI compat, this should work.
+        throw new Error(`Embedding API error: ${response.status} ${response.statusText}`);
+    }
+
+    const json = await response.json();
+    return json.data.map((d: any) => d.embedding);
+}

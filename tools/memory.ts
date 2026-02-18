@@ -41,6 +41,18 @@ export default {
 
             fs.appendFileSync(memoryPath, entry, 'utf-8');
 
+            // Trigger proactive sync to generate embeddings immediately
+            // This ensures the new memory is vector-searchable right away
+            try {
+                // Dynamically import AgentManager to avoid circular dependencies if any
+                const { AgentManager } = await import('../src/agent-manager.js');
+                const manager = await AgentManager.getMemoryManager(_context.agentId);
+                // Run sync in background so we don't block the tool response too long
+                manager.sync(true).catch(err => console.error(`[Tool: save_to_memory] Sync failed: ${err.message}`));
+            } catch (syncError) {
+                console.error('[Tool: save_to_memory] Failed to trigger sync:', syncError);
+            }
+
             return {
                 success: true,
                 message: `Pushed to MEMORY.md for agent ${_context.agentId}`
