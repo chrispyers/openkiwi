@@ -2,6 +2,33 @@
 export interface LLMProviderConfig {
     baseUrl: string;
     modelId: string;
+    apiKey?: string;
+}
+
+/**
+ * Determines the correct API URL and headers based on provider type.
+ * - Google Gemini: uses /v1beta/openai/chat/completions with Bearer auth
+ * - OpenAI-compatible (LM Studio): uses /v1/chat/completions with no auth
+ */
+function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; headers: Record<string, string> } {
+    const normalizedUrl = providerConfig.baseUrl.replace(/\/$/, '');
+    const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+    };
+
+    // Detect Google Gemini by apiKey presence
+    if (providerConfig.apiKey) {
+        // Google Gemini OpenAI-compatible endpoint
+        const baseUrl = normalizedUrl.endsWith('/v1beta')
+            ? normalizedUrl
+            : `${normalizedUrl}/v1beta`;
+        headers['Authorization'] = `Bearer ${providerConfig.apiKey}`;
+        return { url: `${baseUrl}/openai/chat/completions`, headers };
+    }
+
+    // Standard OpenAI-compatible (LM Studio, etc.)
+    const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+    return { url: `${baseUrl}/chat/completions`, headers };
 }
 
 export async function* streamChatCompletion(
@@ -21,16 +48,13 @@ export async function* streamChatCompletion(
         body.tool_choice = 'auto';
     }
 
-    const normalizedUrl = providerConfig.baseUrl.replace(/\/$/, '');
-    const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+    const { url, headers } = getProviderEndpoint(providerConfig);
 
     let response;
     try {
-        response = await fetch(`${baseUrl}/chat/completions`, {
+        response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify(body),
         });
     } catch (error) {
@@ -81,16 +105,13 @@ export async function getChatCompletion(
     providerConfig: LLMProviderConfig,
     messages: { role: string; content: string }[]
 ) {
-    const normalizedUrl = providerConfig.baseUrl.replace(/\/$/, '');
-    const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+    const { url, headers } = getProviderEndpoint(providerConfig);
 
     let response;
     try {
-        response = await fetch(`${baseUrl}/chat/completions`, {
+        response = await fetch(url, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-            },
+            headers,
             body: JSON.stringify({
                 model: providerConfig.modelId,
                 messages,

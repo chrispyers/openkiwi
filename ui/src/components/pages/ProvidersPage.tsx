@@ -1,11 +1,16 @@
 
+
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { faPlus } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faKey, faCube, faSave } from '@fortawesome/free-solid-svg-icons'
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Provider from '../Provider'
 import Button from '../Button'
 import Modal from '../Modal'
+import Card from '../Card'
+import Select from '../Select'
 import Page from './Page'
+
 
 
 interface Config {
@@ -26,6 +31,7 @@ interface Config {
         description: string;
         endpoint: string;
         model: string;
+        apiKey?: string;
     }[];
 }
 
@@ -47,11 +53,23 @@ export default function ProvidersPage({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newProvider, setNewProvider] = useState({ description: '', endpoint: '', model: '' });
     const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
+    const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '' });
+
+    // Available Gemini models (hardcoded)
+    const geminiModels = [
+        'gemini-3-pro-preview',
+        'gemini-3-flash-preview',
+        'gemini-2.5-pro',
+        'gemini-2.5-flash',
+        'gemini-2.5-flash-lite',
+        'gemini-2.0-flash',
+    ];
 
     useEffect(() => {
         if (!isModalOpen) {
             setSelectedProviderType(null);
             setNewProvider({ description: '', endpoint: '', model: '' });
+            setNewGeminiProvider({ apiKey: '', model: '' });
         }
     }, [isModalOpen]);
 
@@ -112,8 +130,8 @@ export default function ProvidersPage({
                             LM Studio
                         </Button>
                         <Button
-                            className={`h-12 flex-1 text-lg font-bold border-2 border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500`}
-                            onClick={() => toast.info('Google Gemini support coming soon')}
+                            className={`h-12 flex-1 text-lg font-bold border-2 transition-all ${selectedProviderType === 'google-gemini' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            onClick={() => setSelectedProviderType('google-gemini')}
                         >
                             Google Gemini
                         </Button>
@@ -156,6 +174,73 @@ export default function ProvidersPage({
                                     setNewProvider({ description: '', endpoint: '', model: '' });
                                 }}
                             />
+                        </div>
+                    )}
+
+                    {selectedProviderType === 'google-gemini' && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                            <Card className="space-y-6">
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="space-y-2">
+                                        <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
+                                            <FontAwesomeIcon icon={faKey} size="sm" /> API Key
+                                        </label>
+                                        <input
+                                            type="password"
+                                            className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
+                                            value={newGeminiProvider.apiKey}
+                                            onChange={(e) => setNewGeminiProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                                            placeholder="Enter your Google Gemini API key..."
+                                        />
+                                    </div>
+
+                                    <div className="space-y-2">
+                                        <Select
+                                            icon={faCube}
+                                            className="!mt-0"
+                                            label="Model"
+                                            value={newGeminiProvider.model}
+                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewGeminiProvider(prev => ({ ...prev, model: e.target.value }))}
+                                            options={[
+                                                { value: '', label: 'Select a model...' },
+                                                ...geminiModels.map(m => ({ value: m, label: m }))
+                                            ]}
+                                        />
+                                    </div>
+                                </div>
+
+                                <Button
+                                    themed={true}
+                                    className="w-full h-12 text-white"
+                                    onClick={async () => {
+                                        if (!config) return;
+
+                                        const providerToAdd = {
+                                            description: `Google Gemini - ${newGeminiProvider.model}`,
+                                            endpoint: 'https://generativelanguage.googleapis.com/v1beta',
+                                            model: newGeminiProvider.model,
+                                            apiKey: newGeminiProvider.apiKey
+                                        };
+
+                                        const updatedProviders = [...(config.providers || []), providerToAdd];
+
+                                        const newConfig = {
+                                            ...config,
+                                            providers: updatedProviders
+                                        };
+
+                                        setConfig(newConfig);
+                                        await saveConfig(undefined, newConfig);
+                                        toast.success("Successfully saved Google Gemini provider");
+                                        setIsModalOpen(false);
+                                        setNewGeminiProvider({ apiKey: '', model: '' });
+                                    }}
+                                    icon={faSave}
+                                >
+                                    Save Provider Configurations
+                                </Button>
+                            </Card>
                         </div>
                     )}
                 </div>

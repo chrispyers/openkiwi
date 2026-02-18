@@ -118,14 +118,23 @@ export class HeartbeatManager {
 
             const llmConfig = {
                 baseUrl: providerConfig.endpoint,
-                modelId: providerConfig.model
+                modelId: providerConfig.model,
+                apiKey: providerConfig.apiKey
             };
+
+            const now = new Date();
+            const currentTimestampUTC = now.toISOString();
+            const currentTimestampLocal = now.toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: 'full', timeStyle: 'long' });
 
             const messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[] = [
                 { role: 'system', content: agent.systemPrompt },
                 {
                     role: 'user',
                     content: `SYSTEM WAKEUP CALL: It is time to process your HEARTBEAT instructions.
+
+# CURRENT TIME
+- UTC: ${currentTimestampUTC}
+- Local: ${currentTimestampLocal}
                 
 # INSTRUCTIONS
 ${heartbeatContent}

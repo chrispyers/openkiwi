@@ -21,6 +21,7 @@ const ConfigSchema = z.object({
         description: z.string().default(""),
         endpoint: z.string().url(),
         model: z.string(),
+        apiKey: z.string().optional(),
     })).default([]),
 });
 

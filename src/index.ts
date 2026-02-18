@@ -300,7 +300,8 @@ wss.on('connection', (ws, req) => {
 
             const llmConfig = {
                 baseUrl: providerConfig.endpoint,
-                modelId: providerConfig.model
+                modelId: providerConfig.model,
+                apiKey: providerConfig.apiKey
             };
 
             if (currentConfig.chat.includeHistory) {
