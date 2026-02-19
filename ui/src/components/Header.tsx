@@ -28,7 +28,7 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick }) => {
                         <Cpu size={18} className="text-white" />
                     </div>
                     <h1 className="text-lg font-bold tracking-tight text-neutral-600 dark:text-white">
-                        BETTERCLAW LOL J/K We need a new name...  <span className="text-accent-primary ml-1 text-xs font-medium px-1.5 py-0.5 bg-accent-primary/10 rounded">BETA</span>
+                        OpenSky<span className="text-accent-primary ml-1 text-xs font-medium px-1.5 py-0.5 bg-accent-primary/10 rounded">BETA</span>
                     </h1>
                 </div>
             </div>

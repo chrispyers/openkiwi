@@ -48,6 +48,7 @@ import LogsPage from './components/pages/LogsPage'
 import GatewayPage from './components/pages/GatewayPage'
 import SettingsPage from './components/pages/SettingsPage'
 import ChatPage from './components/pages/ChatPage'
+import Sidebar from './components/Sidebar'
 import { TABLE, TH, TR, TD } from './components/Table'
 import {
   faPlus,
@@ -143,7 +144,8 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'general' | 'tools' | 'chat' | 'config'>('general');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'general' | 'tools' | 'chat' | 'config' | 'messaging'>('general');
+  const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null }>({ connected: false, qrCode: null });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, setTheme } = useTheme();
@@ -311,6 +313,8 @@ function App() {
   }, []);
 
   useEffect(() => {
+    let cancel: (() => void) | undefined;
+
     if (activeView === 'settings') {
       // Fetch data for settings page, but don't let errors break the UI
       Promise.all([
@@ -318,15 +322,23 @@ function App() {
         fetchConfig().catch(e => console.error('Failed to fetch config:', e)),
         fetchTools().catch(e => console.error('Failed to fetch tools:', e))
       ]);
+
+      if (activeSettingsSection === 'messaging') {
+        fetchWhatsAppStatus();
+        const interval = setInterval(fetchWhatsAppStatus, 3000);
+        cancel = () => clearInterval(interval);
+      }
     } else if (activeView === 'gateway') {
       fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
       const interval = setInterval(() => {
         fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
       }, 5000);
-      return () => clearInterval(interval);
+      cancel = () => clearInterval(interval);
     } else if (activeView === 'chat' && isGatewayConnected) {
       fetchAgents().catch(e => console.error('Failed to fetch agents:', e));
     }
+
+    return cancel;
   }, [activeView, activeSettingsSection, settingsAgentId, isGatewayConnected]);
 
   useEffect(() => {
@@ -478,6 +490,36 @@ function App() {
       throw error;
     }
   }
+
+  async function fetchWhatsAppStatus() {
+    try {
+      const response = await fetch(getApiUrl('/api/whatsapp/status'), {
+        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      });
+      if (!response.ok) throw new Error('Auth Failed');
+      const data = await response.json();
+      setWhatsappStatus(data);
+    } catch (error) {
+      console.error('Failed to fetch WhatsApp status:', error);
+    }
+  }
+
+  const onLogoutWhatsApp = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/whatsapp/logout'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${gatewayToken}`
+        }
+      });
+      if (!response.ok) throw new Error('Logout Failed');
+      await fetchWhatsAppStatus();
+      toast.success('Disconnected from WhatsApp');
+    } catch (error) {
+      console.error('Failed to logout from WhatsApp:', error);
+      toast.error('Failed to logout');
+    }
+  };
 
   async function fetchAgents() {
     try {
@@ -784,7 +826,7 @@ function App() {
   const activeAgentInSettings = agents.find(a => a.id === settingsAgentId);
 
   return (
-    <div className="flex flex-col h-screen w-full bg-bg-primary text-neutral-600 dark:text-white overflow-hidden">
+    <div className="flex flex-col h-screen w-full overflow-hidden">
       <Toaster
         position="top-right"
         theme="dark"
@@ -837,45 +879,11 @@ function App() {
       <Header isGatewayConnected={isGatewayConnected} onMenuClick={() => setIsNavExpanded(!isNavExpanded)} />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}
-        <nav className={`${isNavExpanded ? 'w-48' : 'w-16'} bg-bg-sidebar border-r border-border-color flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
-          {[
-            { id: 'chat', icon: faComments, label: 'Chat' },
-            { id: 'agents', icon: faRobot, label: 'Agents' },
-            { id: 'gateway', icon: faServer, label: 'Gateway' },
-            { id: 'models', icon: faCube, label: 'Models' },
-            { id: 'logs', icon: faFileLines, label: 'Logs' },
-            { id: 'settings', icon: faGear, label: 'Settings' },
-          ].map((item) => (
-            <button
-              key={item.id}
-              onClick={() => {
-                if (item.id === 'chat') createNewSession();
-                navigate('/' + item.id);
-              }}
-              className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-200 group relative flex items-center gap-4 ${activeView === item.id
-                ? 'bg-accent-primary text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
-                : 'text-neutral-500 hover:bg-white-trans hover:text-neutral-600 dark:text-white'
-                }`}
-              title={isNavExpanded ? undefined : item.label}
-            >
-              <div className={`flex-shrink-0 w-6 flex justify-center`}>
-                <FontAwesomeIcon icon={item.icon} className="text-lg" />
-              </div>
-
-              {isNavExpanded && (
-                <span className="text-sm font-semibold whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300">
-                  {item.label}
-                </span>
-              )}
-
-              {!isNavExpanded && (
-                <div className="absolute left-full ml-4 px-3 py-1.5 bg-neutral-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 whitespace-nowrap z-[100] shadow-xl border border-white/10 translate-x-1 group-hover:translate-x-0">
-                  {item.label}
-                </div>
-              )}
-            </button>
-          ))}
-        </nav>
+        <Sidebar
+          isNavExpanded={isNavExpanded}
+          activeView={activeView}
+          createNewSession={createNewSession}
+        />
 
         {/* Secondary Sidebar (Chat Sessions) */}
         {activeView === 'chat' && (
@@ -920,7 +928,7 @@ function App() {
         )}
 
         {/* Main Content */}
-        <main className="flex-1 flex flex-col relative overflow-hidden bg-bg-primary">
+        <main className="flex-1 flex flex-col relative overflow-hidden">
           {activeView === 'chat' ? (
             <ChatPage
               agents={agents}
@@ -994,6 +1002,8 @@ function App() {
               saveAgentConfig={saveAgentConfig}
               setViewingFile={setViewingFile}
               tools={tools}
+              whatsappStatus={whatsappStatus}
+              onLogoutWhatsApp={onLogoutWhatsApp}
             />
           )}
         </main>

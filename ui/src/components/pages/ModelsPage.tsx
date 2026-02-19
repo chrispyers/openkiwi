@@ -7,6 +7,7 @@ import Provider from '../Provider'
 import Button from '../Button'
 import Modal from '../Modal'
 import Card from '../Card'
+import Text from '../Text'
 import Select from '../Select'
 import Page from './Page'
 import ModelsTable from '../ModelsTable'
@@ -116,6 +117,16 @@ export default function ModelsPage({
         await fetchModels(false, { endpoint: editForm.endpoint, apiKey: editForm.apiKey });
     };
 
+    const augmentedProviders = config?.providers.map((p, i) => ({ ...p, originalIndex: i })) || [];
+    const googleModels = augmentedProviders.filter(p => p.endpoint.includes('googleapis.com'));
+    const lmStudioModels = augmentedProviders.filter(p => p.endpoint.includes(':1234'));
+    const openAIModels = augmentedProviders.filter(p => p.endpoint.includes('api.openai.com'));
+    const otherModels = augmentedProviders.filter(p =>
+        !p.endpoint.includes('googleapis.com') &&
+        !p.endpoint.includes(':1234') &&
+        !p.endpoint.includes('api.openai.com')
+    );
+
     return (
         <Page
             title="Models"
@@ -133,10 +144,54 @@ export default function ModelsPage({
         >
 
             <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-6xl">
-                <ModelsTable
-                    providers={config?.providers || []}
-                    onRowClick={handleRowClick}
-                />
+                {augmentedProviders.length === 0 ? (
+                    <ModelsTable providers={[]} onRowClick={() => { }} />
+                ) : (
+                    <div className="space-y-12">
+                        {googleModels.length > 0 && (
+                            <div className="space-y-4">
+                                <Text size="lg" bold={true}>Google</Text>
+                                <ModelsTable
+                                    providers={googleModels}
+                                    onRowClick={(i) => handleRowClick(googleModels[i].originalIndex)}
+                                />
+                            </div>
+                        )}
+
+                        {lmStudioModels.length > 0 && (
+                            <div className="space-y-4">
+                                <Text size="lg" bold={true}>LM Studio</Text>
+                                <ModelsTable
+                                    providers={lmStudioModels}
+                                    highlight={true}
+                                    onRowClick={(i) => handleRowClick(lmStudioModels[i].originalIndex)}
+                                />
+                            </div>
+                        )}
+
+                        {openAIModels.length > 0 && (
+                            <div className="space-y-4">
+                                <Text size="lg" bold={true}>OpenAI</Text>
+                                <ModelsTable
+                                    providers={openAIModels}
+                                    highlight={true}
+                                    onRowClick={(i) => handleRowClick(openAIModels[i].originalIndex)}
+                                />
+                            </div>
+                        )}
+
+                        {otherModels.length > 0 && (
+                            <div className="space-y-4">
+                                <h3 className="text-lg font-semibold text-text-primary px-1">Other</h3>
+                                <ModelsTable
+                                    providers={otherModels}
+                                    highlight={true}
+                                    onRowClick={(i) => handleRowClick(otherModels[i].originalIndex)}
+                                />
+                            </div>
+                        )}
+                    </div>
+                )}
             </div>
 
             <Modal

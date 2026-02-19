@@ -38,7 +38,9 @@ import {
     faUser,
     faSmile,
     faFolder,
-    faCube
+    faCube,
+    faComments,
+    faTrash
 } from '@fortawesome/free-solid-svg-icons'
 import { Loader2 } from 'lucide-react'
 
@@ -89,8 +91,8 @@ interface ToolDefinition {
 }
 
 interface SettingsPageProps {
-    activeSettingsSection: 'agents' | 'general' | 'tools' | 'chat' | 'config';
-    setActiveSettingsSection: (section: 'agents' | 'general' | 'tools' | 'chat' | 'config') => void;
+    activeSettingsSection: 'agents' | 'general' | 'tools' | 'chat' | 'config' | 'messaging';
+    setActiveSettingsSection: (section: 'agents' | 'general' | 'tools' | 'chat' | 'config' | 'messaging') => void;
     loading: boolean;
     theme: 'dark' | 'light' | 'system';
     setTheme: (theme: 'dark' | 'light' | 'system') => void;
@@ -108,6 +110,8 @@ interface SettingsPageProps {
     saveAgentConfig: () => Promise<void>;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     tools: ToolDefinition[];
+    whatsappStatus: { connected: boolean, qrCode: string | null };
+    onLogoutWhatsApp: () => Promise<void>;
 }
 
 export default function SettingsPage({
@@ -129,7 +133,9 @@ export default function SettingsPage({
     setAgentForm,
     saveAgentConfig,
     setViewingFile,
-    tools
+    tools,
+    whatsappStatus,
+    onLogoutWhatsApp
 }: SettingsPageProps) {
 
     return (
@@ -138,7 +144,7 @@ export default function SettingsPage({
             subtitle="Manage your gateway, providers, and agent personalities."
         >
             <nav className="flex gap-8 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
-                {['agents', 'general', 'tools', 'chat', 'config'].map(id => (
+                {['agents', 'general', 'tools', 'chat', 'messaging', 'config'].map(id => (
                     <button
                         key={id}
                         className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 relative flex items-center gap-2 ${activeSettingsSection === id ? 'text-accent-primary' : ' hover:text-neutral-600 dark:text-white'}`}
@@ -157,6 +163,85 @@ export default function SettingsPage({
                 </div>
             ) : (
                 <div className="max-w-5xl">
+                    {activeSettingsSection === 'general' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                            {/* ... General Section Content ... */}
+                        </div>
+                    )}
+
+                    {/* ... other sections ... */}
+
+                    {activeSettingsSection === 'messaging' && (
+                        <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
+                            <Card className="space-y-8">
+                                <div className="flex items-center gap-3">
+                                    <IconBox icon={<MessageSquare size={20} />} />
+                                    <Text bold={true} size="xl">Messaging Channels</Text>
+                                </div>
+
+                                <div className="bg-bg-primary border border-border-color rounded-xl p-6">
+                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
+                                        <div className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white">
+                                            <FontAwesomeIcon icon={faComments} />
+                                        </div>
+                                        WhatsApp Integration
+                                    </h3>
+
+                                    <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                                        {whatsappStatus.connected ? (
+                                            <div className="flex flex-col items-center gap-4 text-center w-full">
+                                                <div className="w-20 h-20 rounded-full bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                                                    <FontAwesomeIcon icon={faLink} size="2x" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-emerald-500">Connected</h4>
+                                                    <p className="text-sm text-neutral-500 mt-1">
+                                                        Your WhatsApp account is linked and ready to receive messages.
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    themed={true}
+                                                    className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-rose-500/20"
+                                                    onClick={onLogoutWhatsApp}
+                                                    icon={faTrash}
+                                                >
+                                                    Disconnect / Logout
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col md:flex-row gap-8 w-full items-center">
+                                                <div className="flex-1 space-y-4">
+                                                    <p className="text-sm leading-relaxed">
+                                                        Scan the QR code below with your phone to link WhatsApp.
+                                                        <br />
+                                                        1. Open WhatsApp on your phone
+                                                        <br />
+                                                        2. Go to Settings {'>'} Linked Devices
+                                                        <br />
+                                                        3. Tap "Link a Device"
+                                                        <br />
+                                                        4. Point your phone at this screen
+                                                    </p>
+                                                </div>
+
+                                                <div className="w-64 h-64 bg-white p-4 rounded-xl flex items-center justify-center border border-border-color shadow-sm">
+                                                    {whatsappStatus.qrCode ? (
+                                                        <img src={whatsappStatus.qrCode} alt="WhatsApp QR Code" className="w-full h-full object-contain" />
+                                                    ) : (
+                                                        <div className="flex flex-col items-center gap-2 text-neutral-400">
+                                                            <Loader2 className="animate-spin" />
+                                                            <span className="text-xs">Generating QR...</span>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </Card>
+                        </div>
+                    )}
+
                     {activeSettingsSection === 'general' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
@@ -371,6 +456,7 @@ export default function SettingsPage({
                     )}
                 </div>
             )}
+
         </Page >
     )
 }

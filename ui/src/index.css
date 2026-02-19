@@ -180,7 +180,7 @@
 /* Remove default backticks from prose inline code */
 .prose-chat :where(code):not(:where([class~="not-prose"] *))::before,
 .prose-chat :where(code):not(:where([class~="not-prose"] *))::after {
-    content: "";
+  content: "";
 }
 
 /* Scrollbar styling */
@@ -216,5 +216,13 @@
   .scrollbar-none {
     -ms-overflow-style: none;
     scrollbar-width: none;
+  }
+}
+
+@layer components {
+  .table-row-hover:hover {
+    background-color: var(--bg-secondary) !important;
+    /* fallback */
+    @apply bg-neutral-100 dark:bg-white/5;
   }
 }

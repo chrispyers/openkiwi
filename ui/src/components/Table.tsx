@@ -6,13 +6,11 @@ export function TABLE(props: { header?: string[], children: React.ReactNode, cla
         <table className={(props.className || "") + " w-full text-left"}>
             {props.header != null && (
                 <thead>
-                    <tr className="">
-                        {props.header.map((obj, idx) => (
-                            <TH key={idx} center={props.center}>
-                                {obj}
-                            </TH>
-                        ))}
-                    </tr>
+                    {props.header.map((obj, idx) => (
+                        <TH key={idx} center={props.center}>
+                            {obj}
+                        </TH>
+                    ))}
                 </thead>
             )}
             <tbody className="divide-y divide-border-color/50">
@@ -30,10 +28,10 @@ export function TH({ children, center }: { children: React.ReactNode, center?: b
     )
 }
 
-export function TR({ className, onClick, children }: { className?: string, onClick?: () => void, children: React.ReactNode }) {
+export function TR({ className, onClick, children, highlight = false }: { className?: string, onClick?: () => void, children: React.ReactNode, highlight?: boolean }) {
     return (
         <tr
-            className={`${className || ""} cursor-pointer hover:bg-black/5 dark:hover:bg-white/5 transition-colors group`}
+            className={`${className || ""} cursor-pointer transition-colors group ${highlight ? 'hover:bg-neutral-200 dark:hover:bg-neutral-700' : 'hover:bg-black/5 dark:hover:bg-white/5'}`}
             onClick={onClick || (() => { })}
         >
             {children}

@@ -11,6 +11,8 @@ import { SessionManager, Session } from './session-manager.js';
 import { ToolManager } from './tool-manager.js';
 import { logger } from './logger.js';
 import { HeartbeatManager } from './heartbeat-manager.js';
+import { WhatsAppManager } from './whatsapp-manager.js';
+import { WAMessage, areJidsSameUser, jidNormalizedUser } from '@whiskeysockets/baileys';
 
 
 const config = loadConfig();
@@ -23,6 +25,9 @@ async function startServer() {
     await ToolManager.discoverTools();
     await AgentManager.initializeAllMemoryManagers();
     await HeartbeatManager.start();
+
+    // Initialize WhatsApp
+    WhatsAppManager.getInstance();
 
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {
@@ -204,6 +209,253 @@ app.get('/api/logs', (req, res) => {
 app.post('/api/logs/clear', (req, res) => {
     logger.clear();
     res.json({ success: true });
+});
+
+// WhatsApp API
+app.get('/api/whatsapp/status', (req, res) => {
+    res.json(WhatsAppManager.getInstance().getStatus());
+});
+
+app.post('/api/whatsapp/logout', async (req, res) => {
+    await WhatsAppManager.getInstance().logout();
+    res.json({ success: true });
+});
+
+// Helper to extract text from various message types
+function getMessageText(msg: WAMessage): string | null {
+    if (!msg.message) return null;
+    const content = msg.message;
+
+    // Check for standard text types
+    let text = content.conversation ||
+        content.extendedTextMessage?.text ||
+        content.ephemeralMessage?.message?.extendedTextMessage?.text ||
+        content.ephemeralMessage?.message?.conversation ||
+        content.viewOnceMessage?.message?.listMessage?.description ||
+        content.viewOnceMessage?.message?.buttonsMessage?.contentText;
+
+    // Handle history sync messages if they contain conversation/text
+    // Usually history sync logic is internal, but if Baileys exposes it as a WAMessage with protocol content,
+    // we generally ignore it unless we specifically want to process history.
+    // However, the logs showed "protocolMessage" type. 
+    // If the user's message is wrapped in a way we missed, let's look deeper.
+    // But based on logs, the messages are type HISTORY_SYNC_NOTIFICATION, which are NOT user messages.
+    // User messages to self usually come as standard messages with fromMe=true.
+
+    return text || null;
+}
+
+// WhatsApp Message Handler
+WhatsAppManager.getInstance().on('message', async (msg) => {
+    try {
+        let remoteJid = msg.key.remoteJid;
+        const text = getMessageText(msg);
+
+        // Debug log to understand message structure if text is missing
+        if (!text) {
+            logger.log({
+                type: 'system',
+                level: 'debug',
+                message: `WhatsApp: Received message with no extractable text. Structure: ${JSON.stringify(msg.message).substring(0, 200)}...`
+            });
+            return;
+        }
+
+        if (!remoteJid) return;
+
+        // Fix for LID: If the message is from me (Note to Self sent via phone) and comes as LID,
+        // we should treat the chat session as being with the main phone number JID, not the LID.
+        // This ensures consistent session ID regardless of which device/ID sent it.
+        const { myJid, myLid } = WhatsAppManager.getInstance().getUserJids();
+
+        // If it's a self-message, normalize remoteJid to myJid (Phone Number) if available
+        if (msg.key.fromMe && myJid) {
+            if (areJidsSameUser(remoteJid, myJid) || (myLid && areJidsSameUser(remoteJid, myLid))) {
+                remoteJid = myJid;
+            }
+        }
+
+        logger.log({
+            type: 'system',
+            level: 'info',
+            message: `WhatsApp message from ${remoteJid}: ${text}`
+        });
+
+        const safeSessionId = `wa-${remoteJid.replace(/[^a-zA-Z0-9]/g, '_')}`;
+        const agentIds = AgentManager.listAgents();
+        let agentId = 'luna';
+
+        if (agentIds.length > 0) {
+            const preferred = agentIds.find(id => id.toLowerCase() === 'luna');
+            agentId = preferred || agentIds[0];
+        }
+
+        const agent = AgentManager.getAgent(agentId);
+        if (!agent) {
+            logger.log({ type: 'error', level: 'error', message: `WhatsApp: Could not find agent ${agentId}` });
+            return;
+        }
+
+        const currentConfig = loadConfig();
+
+        // Determine provider
+        const providerName = agent?.provider;
+        let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
+        if (!providerConfig && currentConfig.providers.length > 0) {
+            providerConfig = currentConfig.providers[0];
+            logger.log({ type: 'system', level: 'warn', message: `Using default provider ${providerConfig.model} for agent ${agentId} because configured provider ${providerName} was not found.` });
+        }
+
+        if (!providerConfig) {
+            logger.log({ type: 'error', level: 'error', message: `WhatsApp: No provider found for agent ${agentId}. Provider name: ${providerName}` });
+            await WhatsAppManager.getInstance().sendMessage(remoteJid, 'Error: No LLM provider configured.');
+            return;
+        }
+
+        const llmConfig = {
+            baseUrl: providerConfig.endpoint,
+            modelId: providerConfig.model,
+            apiKey: providerConfig.apiKey
+        };
+
+        logger.log({
+            type: 'system',
+            level: 'info',
+            message: `Processing WhatsApp message to ${agentId} using provider ${providerConfig.model}`
+        });
+
+        // Load or Create Session
+        let session = SessionManager.getSession(safeSessionId);
+        if (!session) {
+            session = {
+                id: safeSessionId,
+                agentId: agentId,
+                title: text.slice(0, 30) + '...',
+                messages: [],
+                updatedAt: Date.now()
+            };
+        }
+
+        // Add user message to session
+        const timestamp = Math.floor(Date.now() / 1000);
+        session.messages.push({
+            role: 'user',
+            content: text,
+            timestamp
+        });
+        SessionManager.saveSession(session);
+
+        // Prepare prompt payload
+        const payload: any[] = [];
+        const systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
+        if (systemPrompt) {
+            payload.push({ role: 'system', content: systemPrompt });
+        }
+
+        // Add history (filter reasoning)
+        const validMessages = session.messages.filter((msg: any) => msg.role !== 'reasoning');
+        payload.push(...validMessages);
+
+        // Tool Loop Logic (Non-streaming)
+        let toolLoop = true;
+        let finalAiResponse = '';
+        let loopCount = 0;
+        const MAX_LOOPS = 5;
+
+        const chatHistory = [...payload];
+
+        while (toolLoop && loopCount < MAX_LOOPS) {
+            loopCount++;
+            let fullContent = '';
+            let toolCalls: any[] = [];
+
+            // reusing streamChatCompletion but accumulating result
+            for await (const delta of streamChatCompletion(llmConfig, chatHistory, ToolManager.getToolDefinitions())) {
+                if (delta.content) {
+                    fullContent += delta.content;
+                }
+                if (delta.tool_calls) {
+                    for (const toolCall of delta.tool_calls) {
+                        if (!toolCalls[toolCall.index]) {
+                            toolCalls[toolCall.index] = toolCall;
+                        } else {
+                            if (toolCall.function?.arguments) {
+                                toolCalls[toolCall.index].function.arguments += toolCall.function.arguments;
+                            }
+                        }
+                    }
+                }
+            }
+
+            const actualToolCalls = toolCalls.filter(Boolean);
+
+            if (actualToolCalls.length > 0) {
+                const assistantMsg = { role: 'assistant', content: fullContent || null, tool_calls: actualToolCalls };
+                chatHistory.push(assistantMsg);
+
+                for (const toolCall of actualToolCalls) {
+                    const name = toolCall.function.name;
+                    const args = JSON.parse(toolCall.function.arguments || '{}');
+
+                    try {
+                        const result = await ToolManager.callTool(name, args, { agentId });
+                        logger.log({
+                            type: 'tool',
+                            level: 'info',
+                            agentId,
+                            sessionId: safeSessionId,
+                            message: `Tool executed: ${name}`,
+                            data: { name, args, result }
+                        });
+                        chatHistory.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            name,
+                            content: JSON.stringify(result)
+                        });
+                    } catch (err) {
+                        logger.log({
+                            type: 'error',
+                            level: 'error',
+                            agentId,
+                            sessionId: safeSessionId,
+                            message: `Tool execution failed: ${name}`,
+                            data: { name, args, error: String(err) }
+                        });
+                        chatHistory.push({
+                            role: 'tool',
+                            tool_call_id: toolCall.id,
+                            name,
+                            content: JSON.stringify({ error: String(err) })
+                        });
+                    }
+                }
+            } else {
+                finalAiResponse = fullContent;
+                toolLoop = false;
+            }
+        }
+
+        if (finalAiResponse) {
+            // Clean up thinking tags for WhatsApp
+            const cleanResponse = finalAiResponse.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
+            if (cleanResponse) {
+                await WhatsAppManager.getInstance().sendMessage(remoteJid, cleanResponse);
+            }
+
+            // Save assistant response
+            session.messages.push({
+                role: 'assistant',
+                content: finalAiResponse,
+                timestamp: Math.floor(Date.now() / 1000)
+            });
+            SessionManager.saveSession(session);
+        }
+
+    } catch (err) {
+        logger.log({ type: 'error', level: 'error', message: `WhatsApp handler error: ${err}` });
+    }
 });
 
 // WebSocket for Chat

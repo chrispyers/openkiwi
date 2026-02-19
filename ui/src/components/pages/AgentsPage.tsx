@@ -170,7 +170,7 @@ export default function AgentsPage({
                                 <Button
                                     key={a.id}
                                     themed={selectedAgentId === a.id}
-                                    className={`w-full flex items-center gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? '!bg-transparent hover:!bg-white/5' : ''}`}
+                                    className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? '!bg-transparent hover:!bg-white/5' : ''}`}
                                     onClick={() => setSelectedAgentId(a.id)}
                                 >
                                     <span className="text-xl mr-1">{a.emoji}</span>

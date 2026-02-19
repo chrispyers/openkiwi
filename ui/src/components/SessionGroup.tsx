@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import { Session, Agent } from '../types';
 import SessionButton from './SessionButton';
+import Text from './Text';
 
 interface SessionGroupProps {
     agent: Agent;
@@ -32,16 +33,16 @@ export const SessionGroup: React.FC<SessionGroupProps> = ({
             >
                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <span className="flex items-center gap-1.5">
-                    <span>{agent.emoji}</span>
-                    <span>{agent.name}</span>
-                    <span className="bg-neutral-200 dark:bg-neutral-700 px-1.5 py-0.5 rounded text-[10px]">
+                    <Text size="xs">{agent.emoji}</Text>
+                    <Text size="xs" bold={true} className="text-neutral-600 dark:text-white">{agent.name}</Text>
+                    <span className="bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-300 px-1.5 py-0.5 rounded text-[10px]">
                         {sessions.length}
                     </span>
                 </span>
             </button>
 
             {isExpanded && (
-                <div className="space-y-1 mt-1 pl-2 border-l border-neutral-200 dark:border-neutral-800 ml-2">
+                <div className="space-y-1 mt-1 pl-2 border-l border-neutral-300 dark:border-neutral-700 ml-2">
                     {sessions.map(session => (
                         <SessionButton
                             key={session.id}
