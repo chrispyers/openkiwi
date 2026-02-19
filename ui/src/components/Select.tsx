@@ -3,6 +3,7 @@ import { ThemeContext } from "../contexts/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faChevronDown } from "@fortawesome/free-solid-svg-icons";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import Text from "./Text";
 
 interface SelectProps {
   id?: string;
@@ -32,7 +33,10 @@ const Select: React.FC<SelectProps> = ({
 
   return (
     <div className={`${width != null ? width : "w-full"} ${disabled ? "opacity-50 pointer-events-none" : ""}`}>
-      {label && <label htmlFor={id} className="block mb-2 text-xs font-bold uppercase tracking-wider">{label}</label>}
+      {label && <label htmlFor={id} className="block mb-2 uppercase tracking-wider">
+        <Text size="xs" bold={true}>{label}</Text>
+      </label>
+      }
       <div className="relative flex items-center">
         {icon && <FontAwesomeIcon className="absolute ml-4 text-neutral-600 dark:text-neutral-400" icon={icon} />}
         <select

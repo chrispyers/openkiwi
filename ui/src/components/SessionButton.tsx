@@ -24,7 +24,7 @@ export const SessionButton: React.FC<SessionButtonProps> = ({
 }) => {
     return (
         <div
-            className={`group w-full p-3 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-200 ${isActive ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-white' : ' hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-600 dark:text-white'}`}
+            className={`group w-full p-2 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-100 ${isActive ? 'bg-neutral-100 dark:bg-neutral-700 text-neutral-600 dark:text-white' : ' hover:bg-neutral-100 dark:hover:bg-neutral-700 hover:text-neutral-600 dark:text-white'}`}
             onClick={() => onLoadSession(session)}
         >
             {/* <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">

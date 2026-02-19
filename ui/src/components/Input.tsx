@@ -3,6 +3,7 @@ import { ThemeContext } from "../contexts/ThemeContext";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTimesCircle } from "@fortawesome/free-solid-svg-icons";
 import { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+import Text from "./Text";
 
 interface InputProps {
   id?: string;
@@ -41,9 +42,9 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
       {label && (
         <label
           htmlFor={id}
-          className="block mb-2 text-xs font-bold uppercase tracking-wider flex items-center gap-2"
+          className="block mb-2 uppercase tracking-wider flex items-center gap-2"
         >
-          {label}
+          <Text size="xs" bold={true}>{label}</Text>
         </label>
       )}
       <div className={`relative ${label ? '' : 'mt-1'}`}>

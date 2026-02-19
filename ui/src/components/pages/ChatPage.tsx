@@ -1,35 +1,18 @@
-import { useRef, useEffect } from 'react'
+import React from 'react'
 import {
     BrainCircuit,
     Bot,
-    User,
     Loader2,
     AlertCircle
 } from 'lucide-react'
 import {
-    faRobot,
     faPaperPlane
 } from '@fortawesome/free-solid-svg-icons'
 import Button from '../Button'
 import Select from '../Select'
-import MarkdownRenderer from '../MarkdownRenderer'
-
-// Re-defining interfaces here since we don't have a shared types file yet
-interface Message {
-    role: 'user' | 'assistant' | 'reasoning' | 'system';
-    content: string;
-    timestamp?: number;
-}
-
-interface Agent {
-    id: string;
-    name: string;
-    emoji: string;
-    path: string;
-    identity: string;
-    soul: string;
-    systemPrompt: string;
-}
+import { Message, Agent } from '../../types'
+import { AgentChatBubble, UserChatBubble, StreamingChatBubble } from '../ChatBubble'
+import Text from '../Text'
 
 interface Config {
 
@@ -114,7 +97,7 @@ export default function ChatPage({
                                 className="!py-1 !text-sm !font-semibold !rounded-lg !border-transparent !bg-transparent !pl-0 !pr-8 hover:!bg-white/5 active:!bg-white/10"
                                 width="w-auto"
                                 value={selectedAgentId}
-                                onChange={(e) => setSelectedAgentId(e.target.value)}
+                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAgentId(e.target.value)}
                                 options={[
                                     { value: '', label: 'Choose an Agent' },
                                     ...agents.map(a => ({ value: a.id, label: `${a.emoji} ${a.name}` }))
@@ -142,18 +125,12 @@ export default function ChatPage({
                         <div className="w-24 h-24 bg-bg-card border border-border-color rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-sm animate-bounce-slow">
                             {currentAgent?.emoji || <Bot size={40} className="text-accent-primary" />}
                         </div>
-                        <h2 className="text-3xl font-bold text-neutral-600 dark:text-white mb-2 tracking-tight">Chat with {currentAgent?.name}</h2>
-                        <p className="max-w-sm leading-relaxed">Your personal AI assistant powered by local inference. Send a message to get started.</p>
+                        <Text size="3xl" bold={true}>Chat with {currentAgent?.name}</Text>
+                        <Text className="max-w-sm" size="md">Your personal AI assistant powered by local inference. Send a message to get started.</Text>
 
                         <div className="grid grid-cols-2 gap-3 mt-10 max-w-lg w-full">
                             {['Analyze some code', 'Write a short story', 'Help me research', 'Explain a concept'].map(hint => (
-                                <button
-                                    key={hint}
-                                    className="p-4 bg-white-trans border border-white-trans rounded-2xl text-left text-sm hover:bg-accent-primary/5 hover:border-accent-primary/20 transition-all active:scale-95"
-                                    onClick={() => setInputText(hint)}
-                                >
-                                    {hint}
-                                </button>
+                                <Button key={hint} onClick={() => setInputText(hint)}>{hint}</Button>
                             ))}
                         </div>
                     </div>
@@ -162,52 +139,28 @@ export default function ChatPage({
                 {messages.map((msg, i) => {
                     if (msg.role === 'reasoning' && !config?.chat.showReasoning) return null;
                     if (msg.role === 'system') return null;
+
+                    if (msg.role === 'user') {
+                        return (
+                            <UserChatBubble
+                                key={i}
+                                message={msg}
+                                formatTimestamp={formatTimestamp}
+                            />
+                        );
+                    }
+
                     return (
-                        <div key={i} className={`flex w-full group ${msg.role === 'user' ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-                            <div className={`flex flex-col max-w-[85%] ${msg.role === 'user' ? 'items-end' : 'items-start'}`}>
-                                <div className={`flex gap-4 items-start ${msg.role === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
-                                    <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${msg.role === 'user' ? 'bg-bg-card text-neutral-600 dark:text-white' : msg.role === 'reasoning' ? 'bg-amber-500/10 text-amber-500' : 'bg-accent-primary text-white'} shadow-sm`}>
-                                        {msg.role === 'user' ? <User size={18} /> : msg.role === 'reasoning' ? <BrainCircuit size={16} /> : (
-                                            currentAgent?.emoji ? <span>{currentAgent?.emoji}</span> : <Bot size={18} />
-                                        )}
-                                    </div>
-                                    <div className={`bubble ${msg.role === 'user' ? 'user-bubble' : msg.role === 'reasoning' ? 'reasoning-bubble' : 'ai-bubble'}`}>
-                                        {msg.role === 'reasoning' && (
-                                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-amber-500/10 text-xs font-bold uppercase tracking-widest text-amber-400">
-                                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                                Thought Process
-                                            </div>
-                                        )}
-                                        <div className="w-full">
-                                            <MarkdownRenderer
-                                                content={msg.content}
-                                                className={msg.role === 'user' ? 'prose-invert prose-chat' : 'prose dark:prose-invert prose-chat'}
-                                            />
-                                        </div>
-                                    </div>
-                                </div>
-                                {msg.timestamp && (
-                                    <div className={`mt-2 text-xs font-medium flex items-center gap-1.5 px-1 ${msg.role === 'user' ? '' : 'ml-12'}`}>
-                                        {formatTimestamp(msg.timestamp)}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    )
+                        <AgentChatBubble
+                            key={i}
+                            message={msg}
+                            agent={currentAgent}
+                            formatTimestamp={formatTimestamp}
+                        />
+                    );
                 })}
                 {isStreaming && (
-                    <div className="flex justify-start animate-in fade-in duration-300">
-                        <div className="flex gap-4 items-start">
-                            <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-accent-primary flex items-center justify-center text-lg text-white shadow-sm">
-                                {currentAgent?.emoji ? <span>{currentAgent?.emoji}</span> : <Bot size={18} />}
-                            </div>
-                            <div className="loading-dots">
-                                <span className="dot" />
-                                <span className="dot" />
-                                <span className="dot" />
-                            </div>
-                        </div>
-                    </div>
+                    <StreamingChatBubble agent={currentAgent} />
                 )}
                 <div ref={messagesEndRef} className="h-4" />
             </div>
@@ -228,8 +181,8 @@ export default function ChatPage({
                         rows={1}
                         value={inputText}
                         disabled={!isGatewayConnected || isAgentMissing || isNoAgentSelected}
-                        onChange={(e) => setInputText(e.target.value)}
-                        onKeyDown={(e) => {
+                        onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputText(e.target.value)}
+                        onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {
                             if (e.key === 'Enter' && !e.shiftKey) {
                                 e.preventDefault();
                                 handleSend(e);

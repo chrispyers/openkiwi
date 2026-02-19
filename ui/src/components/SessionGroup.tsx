@@ -29,20 +29,20 @@ export const SessionGroup: React.FC<SessionGroupProps> = ({
         <div className="mb-2">
             <button
                 onClick={() => setIsExpanded(!isExpanded)}
-                className="w-full flex items-center gap-2 px-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
+                className="w-full flex items-center gap-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
             >
                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <span className="flex items-center gap-1.5">
                     <Text size="xs">{agent.emoji}</Text>
-                    <Text size="xs" bold={true} className="text-neutral-600 dark:text-white">{agent.name}</Text>
+                    <Text size="xs" bold={true}>{agent.name}</Text>
                     <span className="bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-300 px-1.5 py-0.5 rounded text-[10px]">
-                        {sessions.length}
+                        <Text size="xs" bold={true}>{sessions.length}</Text>
                     </span>
                 </span>
             </button>
 
             {isExpanded && (
-                <div className="space-y-1 mt-1 pl-2 border-l border-neutral-300 dark:border-neutral-700 ml-2">
+                <div className="space-y-1 mt-1 pl-2 border-l border-neutral-300 dark:border-neutral-700 ml-1.5">
                     {sessions.map(session => (
                         <SessionButton
                             key={session.id}

@@ -2,6 +2,7 @@ import React from 'react';
 
 interface TextProps {
     children: React.ReactNode;
+    secondary?: boolean;
     bold?: boolean;
     code?: boolean;
     size?: 'xs' | 'sm' | 'md' | 'lg' | 'xl' | '2xl' | '3xl' | '4xl' | '5xl';
@@ -15,6 +16,7 @@ interface TextProps {
  */
 const Text: React.FC<TextProps> = ({
     children,
+    secondary = false,
     bold = false,
     code = false,
     size = 'md',
@@ -37,7 +39,7 @@ const Text: React.FC<TextProps> = ({
     const codeClass = code ? 'font-mono' : '';
 
     return (
-        <span className={`${sizeClass} ${boldClass} ${codeClass} ${className}`}>
+        <span className={`${sizeClass} ${boldClass} ${codeClass} ${colorClass} ${className} subpixel-antialiased`}>
             {children}
         </span>
     );

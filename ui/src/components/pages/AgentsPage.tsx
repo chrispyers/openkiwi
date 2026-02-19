@@ -10,6 +10,7 @@ import Modal from '../Modal'
 import Input from '../Input'
 import Toggle from '../Toggle'
 import Page from './Page'
+import Select from '../Select'
 
 interface Agent {
     id: string;
@@ -151,19 +152,9 @@ export default function AgentsPage({
                 {/* Left Column - Discovered Agents */}
                 <div className="lg:col-span-4 space-y-4">
                     <Card padding="p-4" className="space-y-1 h-min max-h-[60vh] overflow-y-auto custom-scrollbar">
-                        <div className="px-4 py-2 mb-2 flex items-center justify-between">
-                            <h3 className="text-sm font-bold uppercase">Discovered Agents</h3>
-                            <button
-                                onClick={fetchAgents}
-                                className="p-2 hover:bg-white-trans rounded-lg transition-all group"
-                                title="Refresh Agents"
-                            >
-                                <RefreshCw size={14} className="group-active:rotate-180 transition-transform duration-500" />
-                            </button>
-                        </div>
                         {agents.length === 0 ? (
                             <div className="px-4 py-8 text-center">
-                                <p className="text-sm italic opacity-60">No agents discovered yet</p>
+                                <Text secondary={true}>No agents discovered yet</Text>
                             </div>
                         ) : (
                             agents.map(a => (
@@ -175,8 +166,8 @@ export default function AgentsPage({
                                 >
                                     <span className="text-xl mr-1">{a.emoji}</span>
                                     <div className="text-left">
-                                        <div className="font-semibold text-sm">{a.name}</div>
-                                        <div className="text-xs opacity-60 font-normal">{a.provider || 'Global Default'}</div>
+                                        <div><Text bold={true}>{a.name}</Text></div>
+                                        <div><Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text></div>
                                     </div>
                                 </Button>
                             ))
@@ -284,17 +275,18 @@ export default function AgentsPage({
                                     </div>
 
                                     <div className="mb-4">
-                                        <label className="text-xs font-bold uppercase tracking-wider mb-2 block opacity-60">Model</label>
-                                        <select
-                                            className="w-full bg-bg-primary border border-border-color rounded-xl px-4 py-3 outline-none focus:border-accent-primary transition-all text-sm appearance-none"
+                                        <Select
+                                            label="Model"
                                             value={agentForm.provider || ''}
                                             onChange={(e) => setAgentForm({ ...agentForm, provider: e.target.value })}
-                                        >
-                                            <option value="">Use Global Default</option>
-                                            {providers.map((p, idx) => (
-                                                <option key={idx} value={p.description}>{p.description}</option>
-                                            ))}
-                                        </select>
+                                            options={[
+                                                { value: '', label: 'Use Global Default' },
+                                                ...providers.map(p => ({
+                                                    value: p.description,
+                                                    label: p.description
+                                                }))
+                                            ]}
+                                        />
                                     </div>
                                     <Button
                                         themed={true}
@@ -306,73 +298,70 @@ export default function AgentsPage({
                                     </Button>
                                 </div>
 
-                                <div>
-                                    <h4 className="text-xs font-bold uppercase tracking-wider mb-3 opacity-60">Agent Files</h4>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                        <Card
-                                            padding="p-5"
-                                            className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
-                                            onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
-                                                    <FileText size={24} />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold uppercase text-xs tracking-tight">IDENTITY.md</div>
-                                                    <div className="text-xs">Core instructions</div>
-                                                </div>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    <Card
+                                        padding="p-1"
+                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                        onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
+                                                <FileText size={24} />
                                             </div>
-                                        </Card>
+                                            <div>
+                                                <div className="text-xs"><Text size="xs" bold={true}>IDENTITY.md</Text></div>
+                                                <div className="text-xs"><Text size="xs" secondary={true}>Core instructions</Text></div>
+                                            </div>
+                                        </div>
+                                    </Card>
 
-                                        <Card
-                                            padding="p-5"
-                                            className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
-                                            onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-amber-400 group-hover:bg-amber-400/10 transition-all">
-                                                    <BrainCircuit size={24} />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold uppercase text-xs tracking-tight">SOUL.md</div>
-                                                    <div className="text-xs">Moral values</div>
-                                                </div>
+                                    <Card
+                                        padding="p-1"
+                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                        onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-amber-400 group-hover:bg-amber-400/10 transition-all">
+                                                <BrainCircuit size={24} />
                                             </div>
-                                        </Card>
+                                            <div>
+                                                <div className="text-xs"><Text size="xs" bold={true}>SOUL.md</Text></div>
+                                                <div className="text-xs"><Text size="xs" secondary={true}>Moral values</Text></div>
+                                            </div>
+                                        </div>
+                                    </Card>
 
-                                        <Card
-                                            padding="p-5"
-                                            className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
-                                            onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-emerald-400 group-hover:bg-emerald-400/10 transition-all">
-                                                    <History size={24} />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold uppercase text-xs tracking-tight">MEMORY.md</div>
-                                                    <div className="text-xs">Stored facts</div>
-                                                </div>
+                                    <Card
+                                        padding="p-1"
+                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                        onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-emerald-400 group-hover:bg-emerald-400/10 transition-all">
+                                                <History size={24} />
                                             </div>
-                                        </Card>
+                                            <div>
+                                                <div className="text-xs"><Text size="xs" bold={true}>MEMORY.md</Text></div>
+                                                <div className="text-xs"><Text size="xs" secondary={true}>Stored facts</Text></div>
+                                            </div>
+                                        </div>
+                                    </Card>
 
-                                        <Card
-                                            padding="p-5"
-                                            className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
-                                            onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
-                                        >
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-rose-400 group-hover:bg-rose-400/10 transition-all">
-                                                    <FontAwesomeIcon icon={faRobot} className="text-xl" />
-                                                </div>
-                                                <div>
-                                                    <div className="font-bold uppercase text-xs tracking-tight">HEARTBEAT.md</div>
-                                                    <div className="text-xs">Scheduled tasks</div>
-                                                </div>
+                                    <Card
+                                        padding="p-1"
+                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                        onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
+                                    >
+                                        <div className="flex items-center gap-4">
+                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-rose-400 group-hover:bg-rose-400/10 transition-all">
+                                                <FontAwesomeIcon icon={faRobot} className="text-xl" />
                                             </div>
-                                        </Card>
-                                    </div>
+                                            <div>
+                                                <div className="text-xs"><Text size="xs" bold={true}>HEARTBEAT.md</Text></div>
+                                                <div className="text-xs"><Text size="xs" secondary={true}>Scheduled tasks</Text></div>
+                                            </div>
+                                        </div>
+                                    </Card>
                                 </div>
                             </div>
                         </Card>
