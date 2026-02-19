@@ -10,7 +10,7 @@ export const memory_search = {
             properties: {
                 query: {
                     type: 'string',
-                    description: 'The search query.'
+                    description: 'The search query. If you want to list recent memories, use "recent" or leave empty (but better to use "recent").'
                 },
                 max_results: {
                     type: 'integer',
@@ -37,7 +37,7 @@ export const memory_search = {
             if (results.length === 0) {
                 return {
                     results: [],
-                    message: "No relevant memory found."
+                    message: "No relevant memory found in the index. However, you may still know this information from your context."
                 };
             }
 
@@ -92,6 +92,60 @@ export const memory_get = {
             };
         } catch (error: any) {
             return { error: `Memory read failed: ${error.message}` };
+        }
+    }
+};
+
+export const save_to_memory = {
+    definition: {
+        name: 'save_to_memory',
+        description: 'Save important information to the agent\'s long-term memory (MEMORY.md). Use this to remember user preferences, important facts, or context that should persist across sessions.',
+        parameters: {
+            type: 'object',
+            properties: {
+                text: {
+                    type: 'string',
+                    description: 'The information to save. Be crucial and concise.'
+                },
+                category: {
+                    type: 'string',
+                    description: 'Optional category tag (e.g., "preferences", "personal_info", "project_details"). Defaults to "general".'
+                }
+            },
+            required: ['text']
+        }
+    },
+    handler: async ({ text, category = 'general', _context }: { text: string; category?: string; _context?: { agentId: string } }) => {
+        if (!_context?.agentId) {
+            return { error: 'Agent context required' };
+        }
+
+        try {
+            const fs = await import('node:fs');
+            const path = await import('node:path');
+
+            // Construct path to MEMORY.md
+            const agentDir = path.resolve(process.cwd(), 'agents', _context.agentId);
+            const memoryFile = path.join(agentDir, 'MEMORY.md');
+
+            // Ensure directory exists (should exist if agent exists)
+            if (!fs.existsSync(agentDir)) {
+                fs.mkdirSync(agentDir, { recursive: true });
+            }
+
+            // Format the memory entry
+            const date = new Date().toISOString().split('T')[0];
+            const entry = `\n- [${date}] (${category}): ${text}`;
+
+            // Append to file
+            fs.appendFileSync(memoryFile, entry, 'utf-8');
+
+            return {
+                success: true,
+                message: `Saved to memory: ${entry.trim()}`
+            };
+        } catch (error: any) {
+            return { error: `Memory save failed: ${error.message}` };
         }
     }
 };

@@ -1,18 +1,18 @@
 import React from 'react';
-import { faAlignLeft, faCube, faLink, faSave } from '@fortawesome/free-solid-svg-icons';
+import { faAlignLeft, faLink, faSave, faCheck, faRefresh } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { Globe, RefreshCw } from 'lucide-react';
 import Button from './Button';
-import Select from './Select';
-import Text from './Text';
+import { TABLE, TR, TD } from './Table';
 import Card from './Card';
-import IconBox from './IconBox';
+import { Model } from '../types';
+import { EyeIcon, BrainIcon, ToolIcon } from './CapabilityIcons';
+import Input from './Input';
 
 interface ProviderProps {
     description: string;
     endpoint: string;
     model: string;
-    models: string[];
+    models: Model[];
     onDescriptionChange: (value: string) => void;
     onEndpointChange: (value: string) => void;
     onModelChange: (value: string) => void;
@@ -36,59 +36,83 @@ export default function Provider({
     return (
         <Card className="space-y-6">
             <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                    <FontAwesomeIcon icon={faAlignLeft} size="sm" /> Description
-                </label>
-                <input
-                    type="text"
-                    className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                    value={description}
-                    onChange={(e) => onDescriptionChange(e.target.value)}
-                    placeholder="A short description for this provider..."
-                    disabled={!isEditable}
-                />
+                <div className="flex gap-2 items-end">
+                    <Input
+                        label="Endpoint"
+                        icon={faLink}
+                        currentText={endpoint}
+                        onChange={(e) => onEndpointChange(e.target.value)}
+                        placeholder="http://localhost:1234"
+                        clearText={() => onEndpointChange("")}
+                    />
+                    <Button
+                        themed={true}
+                        className="px-6 text-white whitespace-nowrap flex items-center justify-center shrink-0 mb-1"
+                        onClick={onScan}
+                        disabled={!isEditable}
+                        icon={faRefresh}>Scan</Button>
+                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-start">
-                <div className="space-y-2">
-                    <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                        <FontAwesomeIcon icon={faLink} size="sm" /> Endpoint
-                    </label>
-                    <div className="flex gap-2">
-                        <input
-                            type="text"
-                            className="flex-1 bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                            value={endpoint}
-                            onChange={(e) => onEndpointChange(e.target.value)}
-                            placeholder="http://localhost:1234/v1"
-                            disabled={!isEditable}
-                        />
-                        <Button
-                            themed={true}
-                            className="px-6 text-white whitespace-nowrap flex items-center justify-center shrink-0"
-                            onClick={onScan}
-                            disabled={!isEditable}
-                        >
-                            <RefreshCw size={16} className="mr-2" />
-                            Scan
-                        </Button>
-                    </div>
-                </div>
+            <div className="space-y-2">
+                <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">Available Models</label>
+                <div className="bg-bg-primary border border-border-color rounded-xl overflow-hidden min-h-[150px] max-h-[300px] overflow-y-auto custom-scrollbar">
+                    {models.length === 0 ? (
+                        <div className="flex flex-col items-center justify-center h-[150px] text-neutral-400 gap-2">
+                            <p className="text-sm">No models found yet.</p>
+                            <p className="text-xs">Enter an endpoint and click Scan.</p>
+                        </div>
+                    ) : (
+                        <TABLE header={["Model Name", "Capabilities", "Status"]} className="w-full">
+                            {models.map((m) => {
+                                const isVision = m.capabilities?.vision;
+                                const isTool = m.capabilities?.trained_for_tool_use;
+                                const isReasoning = (m.id || "").toLowerCase().includes("deepseek-r1") ||
+                                    (m.id || "").toLowerCase().includes("o1") ||
+                                    (m.id || "").toLowerCase().includes("reasoning") ||
+                                    (m.display_name || "").toLowerCase().includes("deepseek-r1") ||
+                                    (m.display_name || "").toLowerCase().includes("o1") ||
+                                    (m.display_name || "").toLowerCase().includes("reasoning");
 
-                <div className="space-y-2">
-                    <Select
-                        icon={faCube}
-                        className="!mt-0"
-                        label="Model"
-                        value={model}
-                        onChange={(e) => onModelChange(e.target.value)}
-                        options={[
-                            { value: '', label: 'Select a model...' },
-                            ...models.map(m => ({ value: m, label: m }))
-                        ]}
-                        disabled={!isEditable}
-                    />
+                                return (
+                                    <TR
+                                        key={m.id}
+                                        highlight={model === m.id}
+                                        onClick={() => onModelChange(m.id)}
+                                        className={model === m.id ? "!bg-accent-primary/10" : ""}
+                                    >
+                                        <TD className="font-mono text-sm">{m.id}</TD>
+                                        <TD>
+                                            <div className="flex gap-2 justify-center">
+                                                {isVision && <EyeIcon />}
+                                                {isTool && <ToolIcon />}
+                                                {isReasoning && <BrainIcon />}
+                                            </div>
+                                        </TD>
+                                        <TD className="w-24 text-center">
+                                            {model === m.id && (
+                                                <div className="text-accent-primary flex items-center justify-center gap-2 font-bold text-xs uppercase tracking-wider">
+                                                    <FontAwesomeIcon icon={faCheck} /> Selected
+                                                </div>
+                                            )}
+                                        </TD>
+                                    </TR>
+                                );
+                            })}
+                        </TABLE>
+                    )}
                 </div>
+            </div>
+
+            <div className="space-y-2">
+                <Input
+                    label="(optional) Description"
+                    icon={faAlignLeft}
+                    currentText={description}
+                    onChange={(e) => onDescriptionChange(e.target.value)}
+                    placeholder="A short description of this model"
+                    clearText={() => onDescriptionChange("")}
+                />
             </div>
 
             <Button
@@ -96,9 +120,9 @@ export default function Provider({
                 className="w-full h-12 text-white"
                 onClick={onSave}
                 icon={faSave}
-                disabled={!isEditable}
+                disabled={!isEditable || !model}
             >
-                {isEditable ? "Save Provider Configurations" : "Update Provider"}
+                {isEditable ? "Save Model" : "Update Model"}
             </Button>
         </Card>
     );

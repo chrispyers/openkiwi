@@ -25,9 +25,17 @@
 
 /* Dark Mode Variables */
 .dark {
-  --bg-sidebar: #262626;
+
+  --bg-sidebar: rgb(38, 38, 38);
   /* neutral-800 */
-  --bg-primary: #262626;
+  --bg-sidebar: rgb(23, 23, 23);
+
+  /* neutral-900 */
+  --bg-primary: rgb(23, 23, 23);
+
+  /* neutral-800 */
+  /* --bg-primary: rgb(38, 38, 38); */
+
   /* neutral-800 */
   --bg-card: #404040;
   /* neutral-700 */

@@ -1,3 +1,4 @@
+
 export interface Message {
     role: 'user' | 'assistant' | 'reasoning' | 'system';
     content: string;
@@ -27,4 +28,29 @@ export interface Session {
     summary?: string;
     messages: Message[];
     updatedAt: number;
+}
+
+export interface Model {
+    id: string;
+    object?: string;
+    created?: number;
+    owned_by?: string;
+    capabilities?: {
+        vision?: boolean;
+        trained_for_tool_use?: boolean;
+    };
+    display_name?: string;
+    description?: string;
+    key?: string; // LM Studio
+    type?: string; // LM Studio
+    publisher?: string; // LM Studio
+    architecture?: string; // LM Studio
+    quantization?: {
+        name: string;
+        bits_per_weight: number;
+    };
+    size_bytes?: number;
+    params_string?: string;
+    max_context_length?: number;
+    format?: string;
 }

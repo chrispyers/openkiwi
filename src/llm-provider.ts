@@ -218,14 +218,11 @@ export async function createEmbedding(
 
 export async function listModels(
     providerConfig: LLMProviderConfig
-): Promise<string[]> {
+): Promise<any[]> {
     // Handling for Google Gemini Native API
-    // The OpenAI compatibility endpoint for listing models is flaky or non-standard,
-    // so we use the native Gemini API endpoint for listing models.
+    // ... (same as before but returns full object)
     if (providerConfig.baseUrl.includes('generativelanguage.googleapis.com')) {
         const nativeUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
-        // Ensure we pass the API key via query param or header (header preferred but needs x-goog-api-key for native)
-        // However, standard Bearer auth works for some google endpoints, but let's be safe and use x-goog-api-key if we have it
         const headers: Record<string, string> = {
             'Content-Type': 'application/json'
         };
@@ -243,7 +240,10 @@ export async function listModels(
                 const json = await response.json();
                 if (json.models && Array.isArray(json.models)) {
                     // Models returned as "models/gemini-1.5-flash"
-                    return json.models.map((m: any) => m.name.replace(/^models\//, ''));
+                    return json.models.map((m: any) => ({
+                        ...m,
+                        id: m.name.replace(/^models\//, '')
+                    }));
                 }
             } else {
                 console.warn(`Gemini listModels failed: ${response.status} ${response.statusText}`);
@@ -258,6 +258,41 @@ export async function listModels(
     const { url: chatUrl, headers } = getProviderEndpoint(providerConfig);
     const url = chatUrl.replace('/chat/completions', '/models');
 
+    // Attempt to fetch from LM Studio's rich metadata endpoint (/api/v1/models) first.
+    // This provides 'capabilities' like vision and tool use which are missing from the standard /v1/models endpoint.
+    try {
+        // Construct rich URL: replace /v1/models with /api/v1/models
+        // getProviderEndpoint ensures URL ends with /v1/chat/completions -> /v1/models
+        // So we can safely strip /v1/models and append /api/v1/models
+        // Or closer simply: if we have /v1/models, try /api/v1/models
+        const richUrl = url.replace(/\/v1\/models$/, '/api/v1/models');
+
+        console.log(`[listModels] Trying rich endpoint: ${richUrl}`);
+
+        // Only try if the URL was actually modified (i.e. it had /v1/models)
+        if (richUrl !== url) {
+            const response = await fetch(richUrl, { method: 'GET', headers });
+            console.log(`[listModels] Rich endpoint status: ${response.status}`);
+
+            if (response.ok) {
+                const json = await response.json();
+                console.log(`[listModels] Rich Data Found:`, !!json.data, !!json.models, Array.isArray(json));
+
+                if (json.data && Array.isArray(json.data)) {
+                    return json.data.map((m: any) => typeof m === 'string' ? { id: m } : m);
+                }
+                if (json.models && Array.isArray(json.models)) {
+                    return json.models.map((m: any) => typeof m === 'string' ? { id: m } : m);
+                }
+                if (Array.isArray(json)) {
+                    return json.map((m: any) => typeof m === 'string' ? { id: m } : m);
+                }
+            }
+        }
+    } catch (e) {
+        console.warn('[listModels] Rich endpoint failed:', e);
+    }
+
     try {
         const response = await fetch(url, {
             method: 'GET',
@@ -271,11 +306,11 @@ export async function listModels(
         const json = await response.json();
 
         if (json.data && Array.isArray(json.data)) {
-            return json.data.map((m: any) => m.id);
+            return json.data.map((m: any) => typeof m === 'string' ? { id: m } : m);
         }
 
         if (Array.isArray(json)) {
-            return json.map((m: any) => m.id || m.name || String(m));
+            return json.map((m: any) => typeof m === 'string' ? { id: m } : m);
         }
     } catch (error) {
         console.warn('Failed to list models via OpenAI compat:', error);
@@ -284,3 +319,4 @@ export async function listModels(
 
     return [];
 }
+

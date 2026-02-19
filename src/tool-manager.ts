@@ -54,6 +54,7 @@ export class ToolManager {
         import('./tools/memory_tools.js').then(module => {
             this.registerTool(module.memory_search);
             this.registerTool(module.memory_get);
+            this.registerTool(module.save_to_memory);
         }).catch(err => console.error('Failed to load memory tools', err));
     }
 

@@ -201,7 +201,7 @@ export default function SettingsPage({
                                                 </div>
                                                 <Button
                                                     themed={true}
-                                                    className="bg-rose-500/10 text-rose-500 hover:bg-rose-500/20 border-rose-500/20"
+                                                    className="bg-red-500 text-white hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800"
                                                     onClick={onLogoutWhatsApp}
                                                     icon={faTrash}
                                                 >

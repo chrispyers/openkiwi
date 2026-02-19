@@ -30,7 +30,7 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession }:
     ];
 
     return (
-        <nav className={`${isNavExpanded ? 'w-48' : 'w-16'} bg-bg-sidebar border-r border-border-color flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
+        <nav className={`${isNavExpanded ? 'w-48' : 'w-16'} bg-bg-sidebar flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
             {navItems.map((item) => (
                 <button
                     key={item.id}

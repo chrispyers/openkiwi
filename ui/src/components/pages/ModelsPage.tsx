@@ -11,6 +11,8 @@ import Text from '../Text'
 import Select from '../Select'
 import Page from './Page'
 import ModelsTable from '../ModelsTable'
+import { Model } from '../../types'
+
 
 
 
@@ -42,7 +44,8 @@ interface ModelsPageProps {
     setConfig: React.Dispatch<React.SetStateAction<Config | null>>;
     models: string[];
     saveConfig: (e?: React.FormEvent, configOverride?: Config) => Promise<void>;
-    fetchModels: (isSilent?: boolean, configOverride?: { endpoint: string, apiKey?: string }) => Promise<boolean | void>;
+    fetchModels: (isSilent?: boolean, configOverride?: { endpoint: string, apiKey?: string }, skipSetState?: boolean) => Promise<boolean | string[] | Model[] | void>;
+
 }
 
 export default function ModelsPage({
@@ -57,6 +60,7 @@ export default function ModelsPage({
     const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
     const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '' });
     const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '' });
+    const [scannedModels, setScannedModels] = useState<Model[]>([]);
 
     // Editing State
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
@@ -79,6 +83,7 @@ export default function ModelsPage({
             setNewProvider({ description: '', endpoint: '', model: '' });
             setNewGeminiProvider({ apiKey: '', model: '' });
             setNewOpenAIProvider({ apiKey: '', model: '', description: '' });
+            setScannedModels([]);
         }
     }, [isModalOpen]);
 
@@ -110,6 +115,16 @@ export default function ModelsPage({
         await saveConfig(undefined, newConfig);
         toast.success("Provider updated");
         setIsEditModalOpen(false);
+    };
+
+    const handleDeleteProvider = async (originalIndex: number) => {
+        if (!config) return;
+        const updatedProviders = [...config.providers];
+        updatedProviders.splice(originalIndex, 1);
+        const newConfig = { ...config, providers: updatedProviders };
+        setConfig(newConfig);
+        await saveConfig(undefined, newConfig);
+        toast.success("Provider deleted");
     };
 
     const handleScanInEdit = async () => {
@@ -154,6 +169,7 @@ export default function ModelsPage({
                                 <ModelsTable
                                     providers={googleModels}
                                     onRowClick={(i) => handleRowClick(googleModels[i].originalIndex)}
+                                    onDelete={(i) => handleDeleteProvider(googleModels[i].originalIndex)}
                                 />
                             </div>
                         )}
@@ -165,6 +181,7 @@ export default function ModelsPage({
                                     providers={lmStudioModels}
                                     highlight={true}
                                     onRowClick={(i) => handleRowClick(lmStudioModels[i].originalIndex)}
+                                    onDelete={(i) => handleDeleteProvider(lmStudioModels[i].originalIndex)}
                                 />
                             </div>
                         )}
@@ -176,6 +193,7 @@ export default function ModelsPage({
                                     providers={openAIModels}
                                     highlight={true}
                                     onRowClick={(i) => handleRowClick(openAIModels[i].originalIndex)}
+                                    onDelete={(i) => handleDeleteProvider(openAIModels[i].originalIndex)}
                                 />
                             </div>
                         )}
@@ -187,6 +205,7 @@ export default function ModelsPage({
                                     providers={otherModels}
                                     highlight={true}
                                     onRowClick={(i) => handleRowClick(otherModels[i].originalIndex)}
+                                    onDelete={(i) => handleDeleteProvider(otherModels[i].originalIndex)}
                                 />
                             </div>
                         )}
@@ -288,13 +307,19 @@ export default function ModelsPage({
                                 description={newProvider.description}
                                 endpoint={newProvider.endpoint}
                                 model={newProvider.model}
-                                models={models}
+                                models={scannedModels}
                                 onDescriptionChange={(val) => setNewProvider(prev => ({ ...prev, description: val }))}
                                 onEndpointChange={(val) => setNewProvider(prev => ({ ...prev, endpoint: val }))}
                                 onModelChange={(val) => setNewProvider(prev => ({ ...prev, model: val }))}
                                 onScan={async () => {
                                     // Scan with the endpoint provided in the inputs
-                                    await fetchModels(false, { endpoint: newProvider.endpoint, apiKey: '' });
+                                    const result = await fetchModels(false, { endpoint: newProvider.endpoint, apiKey: '' }, true);
+                                    if (Array.isArray(result)) {
+                                        // result can be string[] or Model[].
+                                        // If it's objects, use them. If strings, map to dummy objects.
+                                        const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
+                                        setScannedModels(models);
+                                    }
                                 }}
                                 onSave={async () => {
                                     if (!config) return;

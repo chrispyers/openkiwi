@@ -83,6 +83,7 @@ app.post('/api/config', (req, res) => {
     try {
         const newConfig = req.body as Config;
         saveConfig(newConfig);
+        AgentManager.clearMemoryManagers(); // Force reload of providers/memory settings
         res.json({ success: true });
     } catch (error) {
         res.status(400).json({ error: String(error) });
@@ -195,7 +196,7 @@ app.post('/api/models', async (req, res) => {
         });
 
         // Normalize to expected format
-        res.json({ data: models.map(m => ({ id: m })) });
+        res.json({ data: models });
     } catch (error) {
         console.error('[Models] Fetch error:', error);
         res.status(500).json({ error: String(error) });
@@ -281,14 +282,59 @@ WhatsAppManager.getInstance().on('message', async (msg) => {
             message: `WhatsApp message from ${remoteJid}: ${text}`
         });
 
-        const safeSessionId = `wa-${remoteJid.replace(/[^a-zA-Z0-9]/g, '_')}`;
-        const agentIds = AgentManager.listAgents();
-        let agentId = 'luna';
 
-        if (agentIds.length > 0) {
+        // Check for agent targeting (e.g. "@luna Hello")
+        const agentIds = AgentManager.listAgents();
+        const agents = agentIds.map(id => AgentManager.getAgent(id)).filter(a => a !== null);
+
+        let agentId = 'luna';
+        let targetFound = false;
+
+        // Sort by length desc to ensure we match "@Super Bot" before "@Super" if both exist
+        const potentialMatches = agents.flatMap(agent => [
+            { name: agent!.name, id: agent!.id, agent }
+        ]).sort((a, b) => b.name.length - a.name.length);
+
+        for (const match of potentialMatches) {
+            // Check name match
+            const nameRegex = new RegExp(`^@${match.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
+            const idRegex = new RegExp(`^@${match.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
+
+            let regexMatch = text.match(nameRegex);
+            if (!regexMatch) regexMatch = text.match(idRegex);
+
+            if (regexMatch) {
+                agentId = match.id;
+                // Strip the mention and leading/trailing whitespace
+                // We use let text in local scope to override the const text from above if we could, 
+                // but we can't re-declare. We will need to update how we use 'text' below.
+                // Actually, since 'text' is const, we need to create a new variable 'messageContent'
+                // and use that instead of 'text' in the rest of the function.
+                targetFound = true;
+                break;
+            }
+        }
+
+        let messageContent = text;
+        if (targetFound) {
+            // We need to strip the prefix. Re-run the match to get the length.
+            const agent = AgentManager.getAgent(agentId);
+            if (agent) {
+                const nameRegex = new RegExp(`^@${agent.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
+                const idRegex = new RegExp(`^@${agent.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
+                let m = text.match(nameRegex) || text.match(idRegex);
+                if (m) {
+                    messageContent = text.substring(m[0].length).trim();
+                }
+            }
+        }
+
+        if (!targetFound && agentIds.length > 0) {
             const preferred = agentIds.find(id => id.toLowerCase() === 'luna');
             agentId = preferred || agentIds[0];
         }
+
+        const safeSessionId = `wa-${remoteJid.replace(/[^a-zA-Z0-9]/g, '_')}-${agentId}`;
 
         const agent = AgentManager.getAgent(agentId);
         if (!agent) {
@@ -330,7 +376,7 @@ WhatsAppManager.getInstance().on('message', async (msg) => {
             session = {
                 id: safeSessionId,
                 agentId: agentId,
-                title: text.slice(0, 30) + '...',
+                title: messageContent.slice(0, 30) + '...',
                 messages: [],
                 updatedAt: Date.now()
             };
@@ -340,7 +386,7 @@ WhatsAppManager.getInstance().on('message', async (msg) => {
         const timestamp = Math.floor(Date.now() / 1000);
         session.messages.push({
             role: 'user',
-            content: text,
+            content: messageContent,
             timestamp
         });
         SessionManager.saveSession(session);
@@ -554,7 +600,12 @@ wss.on('connection', (ws, req) => {
             if (!userMessages) return;
 
             const currentConfig = loadConfig();
-            const agent = AgentManager.getAgent(agentId || 'clawdbot');
+            // Resolve agent ID (default to 'luna' or first available if not specified)
+            const availableAgents = AgentManager.listAgents();
+            const defaultAgentId = availableAgents.find(id => id === 'luna') || availableAgents[0];
+            const effectiveAgentId = agentId || defaultAgentId || 'luna';
+
+            const agent = AgentManager.getAgent(effectiveAgentId);
 
             const payload: any[] = [];
             const systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
@@ -598,9 +649,9 @@ wss.on('connection', (ws, req) => {
             logger.log({
                 type: 'request',
                 level: 'info',
-                agentId: agentId || 'clawdbot',
+                agentId: effectiveAgentId,
                 sessionId,
-                message: `User message to ${agentId || 'clawdbot'}`,
+                message: `User message to ${effectiveAgentId}`,
                 data: userMessages[userMessages.length - 1]?.content || 'Empty message'
             });
 
@@ -632,7 +683,7 @@ wss.on('connection', (ws, req) => {
                         logger.log({
                             type: 'usage',
                             level: 'info',
-                            agentId: agentId || 'clawdbot',
+                            agentId: effectiveAgentId,
                             sessionId,
                             message: 'Token usage report',
                             data: delta.usage
@@ -652,11 +703,11 @@ wss.on('connection', (ws, req) => {
                         const args = JSON.parse(toolCall.function.arguments || '{}');
 
                         try {
-                            const result = await ToolManager.callTool(name, args, { agentId: agentId || 'clawdbot' });
+                            const result = await ToolManager.callTool(name, args, { agentId: effectiveAgentId });
                             logger.log({
                                 type: 'tool',
                                 level: 'info',
-                                agentId: agentId || 'clawdbot',
+                                agentId: effectiveAgentId,
                                 sessionId,
                                 message: `Tool executed: ${name}`,
                                 data: { name, args, result }
@@ -671,7 +722,7 @@ wss.on('connection', (ws, req) => {
                             logger.log({
                                 type: 'error',
                                 level: 'error',
-                                agentId: agentId || 'clawdbot',
+                                agentId: effectiveAgentId,
                                 sessionId,
                                 message: `Tool execution failed: ${name}`,
                                 data: { name, args, error: String(err) }
@@ -691,9 +742,9 @@ wss.on('connection', (ws, req) => {
                     logger.log({
                         type: 'response',
                         level: 'info',
-                        agentId: agentId || 'clawdbot',
+                        agentId: effectiveAgentId,
                         sessionId,
-                        message: `Response from ${agentId || 'clawdbot'}`,
+                        message: `Response from ${effectiveAgentId}`,
                         data: finalAiResponse
                     });
                 }
@@ -706,7 +757,7 @@ wss.on('connection', (ws, req) => {
                 const timestamp = Date.now();
                 const existing = SessionManager.getSession(sessionId) || {
                     id: sessionId,
-                    agentId: agentId || 'clawdbot',
+                    agentId: effectiveAgentId,
                     title: userMessages[0].content.slice(0, 30) + '...',
                     messages: [],
                     updatedAt: timestamp
@@ -748,7 +799,7 @@ wss.on('connection', (ws, req) => {
                                 logger.log({
                                     type: 'usage',
                                     level: 'info',
-                                    agentId: agentId || 'clawdbot',
+                                    agentId: effectiveAgentId,
                                     sessionId,
                                     message: 'Summary token usage',
                                     data: completion.usage

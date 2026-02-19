@@ -74,7 +74,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
 import SessionGroup from './components/SessionGroup'
-import { Agent, Message, Session } from './types'
+import { Agent, Message, Session, Model } from './types'
 
 interface Config {
 
@@ -553,7 +553,7 @@ function App() {
     }
   }
 
-  async function fetchModels(isSilent = false, configOverride?: { endpoint: string, apiKey?: string }) {
+  async function fetchModels(isSilent = false, configOverride?: { endpoint: string, apiKey?: string }, skipSetState = false) {
     try {
       const response = await fetch(getApiUrl('/api/models'), {
         method: 'POST',
@@ -569,16 +569,28 @@ function App() {
       }
 
       const data = await response.json();
-      const modelList = data.data.map((m: any) => m.id);
-      setModels(modelList);
+      const rawModels = data.data as any[];
+
+      // Normalize to ensure ID exists (OpenAI uses .id, LM Studio uses .key)
+      const fullModels: Model[] = rawModels.map(m => ({
+        ...m,
+        id: m.id || m.key
+      }));
+
+      const modelIds = fullModels.map(m => m.id);
+
+      if (!skipSetState) {
+        setModels(modelIds);
+      }
 
       if (!isSilent) {
-        toast.success(`Success! Found ${modelList.length} model${modelList.length !== 1 ? 's' : ''}`, {
-          description: modelList.length > 0 ? `Available models: ${modelList.slice(0, 3).join(', ')}${modelList.length > 3 ? '...' : ''}` : 'No models available'
+        toast.success(`Found ${modelIds.length} model${modelIds.length !== 1 ? 's' : ''}`, {
+          // description: modelIds.length > 0 ? `Available models: ${modelIds.slice(0, 3).join(', ')}${modelIds.length > 3 ? '...' : ''}` : 'No models available'
+          description: ""
         });
       }
 
-      return true;
+      return fullModels;
     } catch (error) {
       console.error('Failed to fetch models:', error);
       if (!isSilent) {

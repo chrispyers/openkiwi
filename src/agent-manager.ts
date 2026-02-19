@@ -2,6 +2,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig } from './config-manager.js';
 import { MemoryIndexManager } from './memory/manager.js';
+import { logger } from './logger.js';
 
 export interface Agent {
     id: string;
@@ -183,13 +184,14 @@ ${globalSystemPrompt}`.trim();
             }
 
             if (providerConfig) {
+                logger.log({ type: 'system', level: 'info', message: `[AgentManager] Found embedding provider: ${providerConfig.model} for ${agentId}` });
                 llmProviderConfig = {
                     baseUrl: providerConfig.endpoint,
                     modelId: providerConfig.model,
                     apiKey: providerConfig.apiKey
                 };
             } else {
-                console.warn(`[AgentManager] Embedding provider '${config.memory?.embeddingsModel}' not found. Falling back to keyword search.`);
+                logger.log({ type: 'system', level: 'warn', message: `[AgentManager] Embedding provider '${config.memory?.embeddingsModel}' not found. Falling back to keyword search.` });
             }
         }
 
@@ -201,7 +203,7 @@ ${globalSystemPrompt}`.trim();
         try {
             await manager.sync();
         } catch (err) {
-            console.error(`[AgentManager] Failed to sync memory for ${agentId}:`, err);
+            logger.log({ type: 'error', level: 'error', message: `[AgentManager] Failed to sync memory for ${agentId}`, data: err });
         }
         this.memoryManagers.set(agentId, manager);
         return manager;
@@ -209,15 +211,20 @@ ${globalSystemPrompt}`.trim();
 
     static async initializeAllMemoryManagers(): Promise<void> {
         const agents = this.listAgents();
-        console.log(`[AgentManager] Initializing memory for ${agents.length} agents...`);
+        logger.log({ type: 'system', level: 'info', message: `[AgentManager] Initializing memory for ${agents.length} agents...` });
         for (const agentId of agents) {
             try {
                 // Fire and forget (or await if we want to block startup)
                 // We'll await to ensure initial index is ready
                 await this.getMemoryManager(agentId);
             } catch (err) {
-                console.error(`[AgentManager] Failed to init memory for ${agentId}:`, err);
+                logger.log({ type: 'error', level: 'error', message: `[AgentManager] Failed to init memory for ${agentId}`, data: err });
             }
         }
+    }
+
+    static clearMemoryManagers() {
+        this.memoryManagers.clear();
+        logger.log({ type: 'system', level: 'info', message: '[AgentManager] Cleared memory manager cache.' });
     }
 }

@@ -5,6 +5,7 @@ import Database from 'better-sqlite3';
 import { ensureMemoryIndexSchema } from './schema.js';
 import { createEmbedding, type LLMProviderConfig } from '../llm-provider.js';
 import crypto from 'node:crypto';
+import { logger } from '../logger.js';
 
 const CHUNK_SIZE_CHARS = 1000;
 const VECTOR_DIMENSIONS = 1536; // Default for text-embedding-3-small
@@ -20,7 +21,7 @@ export interface MemorySearchResult {
 }
 
 export class MemoryIndexManager {
-    private db: Database.Database;
+    private db!: Database.Database;
     private agentDir: string;
     private memoryPath: string;
     private providerConfig?: LLMProviderConfig;
@@ -31,12 +32,54 @@ export class MemoryIndexManager {
         this.agentDir = path.resolve(process.cwd(), 'agents', agentId);
         this.createAgentDir(this.agentDir);
         this.memoryPath = path.join(this.agentDir, 'MEMORY.md');
-
-        const dbPath = path.join(this.agentDir, 'memory_index.db');
-        this.db = new Database(dbPath);
         this.providerConfig = providerConfig;
 
-        ensureMemoryIndexSchema(this.db);
+        const dbPath = path.join(this.agentDir, 'memory_index.db');
+
+        try {
+            this.db = new Database(dbPath);
+            ensureMemoryIndexSchema(this.db);
+        } catch (err: any) {
+            // Check for corruption
+            const isCorrupt = (err.code === 'SQLITE_CORRUPT') ||
+                (err.message && String(err.message).includes('database disk image is malformed'));
+
+            if (isCorrupt) {
+                const errorMsg = String(err.message || err);
+                logger.log({
+                    type: 'error',
+                    level: 'error',
+                    agentId,
+                    message: `[Memory] Database corruption detected at ${dbPath}. Rebuilding index...`,
+                    data: { error: errorMsg }
+                });
+
+                try {
+                    this.db?.close();
+                } catch (e) { /* ignore */ }
+
+                if (fs.existsSync(dbPath)) {
+                    try { fs.unlinkSync(dbPath); } catch (e) { }
+                }
+
+                // Retry creation
+                this.db = new Database(dbPath);
+                ensureMemoryIndexSchema(this.db);
+
+                // Force a full re-sync immediately to repopulate
+                this.startWatcher();
+                this.sync(true).catch(e => logger.log({
+                    type: 'error',
+                    level: 'error',
+                    agentId,
+                    message: `[Memory] Failed to rebuild corrupt index`,
+                    data: { error: String(e) }
+                }));
+                return;
+            }
+            throw err;
+        }
+
         this.startWatcher();
     }
 
@@ -51,20 +94,25 @@ export class MemoryIndexManager {
             // Watch the directory to handle atomic saves (rename/replace) correctly
             this.watcher = fs.watch(this.agentDir, (eventType, filename) => {
                 if (filename === 'MEMORY.md') {
+                    logger.log({
+                        type: 'system',
+                        level: 'debug',
+                        message: `[Memory] Watcher event: ${eventType} on ${filename}`
+                    });
                     this.debouncedSync();
                 }
             });
-            // console.log(`[Memory] Watcher started for ${this.agentDir}`);
+            logger.log({ type: 'system', level: 'info', message: `[Memory] Watcher started for ${this.agentDir}` });
         } catch (err) {
-            console.error(`[Memory] Failed to start watcher: ${err}`);
+            logger.log({ type: 'error', level: 'error', message: `[Memory] Failed to start watcher: ${err}` });
         }
     }
 
     private debouncedSync() {
         if (this.syncTimeout) clearTimeout(this.syncTimeout);
         this.syncTimeout = setTimeout(() => {
-            console.log(`[Memory] Detected change in MEMORY.md, syncing...`);
-            this.sync().catch(err => console.error(`[Memory] Auto-sync failed: ${err}`));
+            logger.log({ type: 'system', level: 'info', message: `[Memory] Detected change in MEMORY.md, syncing...` });
+            this.sync().catch(err => logger.log({ type: 'error', level: 'error', message: `[Memory] Auto-sync failed: ${err}` }));
         }, 1000); // Debounce for 1 second
     }
 
@@ -99,11 +147,14 @@ export class MemoryIndexManager {
             let embedding: number[] = [];
             if (this.providerConfig) {
                 try {
+                    logger.log({ type: 'system', level: 'debug', message: `[Memory] Generating embedding for chunk`, data: { model: this.providerConfig.modelId, textLen: chunk.text.length } });
                     const vectors = await createEmbedding(this.providerConfig, chunk.text);
                     if (vectors && vectors.length > 0) embedding = vectors[0];
                 } catch (err) {
-                    console.error(`[Memory] Embedding failed for chunk: ${err}`);
+                    logger.log({ type: 'error', level: 'error', message: `[Memory] Embedding failed for chunk`, data: { error: String(err) } });
                 }
+            } else {
+                logger.log({ type: 'system', level: 'warn', message: `[Memory] No provider config for embeddings. Skipping.` });
             }
             chunksWithEmbeddings.push({ ...chunk, embedding });
         }
@@ -147,7 +198,7 @@ export class MemoryIndexManager {
         });
 
         writeTx(chunksWithEmbeddings);
-        console.log(`[Memory] Sync complete. Indexed ${chunks.length} chunks.`);
+        logger.log({ type: 'system', level: 'info', message: `[Memory] Sync complete. Indexed ${chunks.length} chunks.` });
     }
 
     private chunkFile(content: string) {
@@ -256,9 +307,27 @@ export class MemoryIndexManager {
             }
         }
 
-        return Array.from(combined.values())
+        const validResults = Array.from(combined.values())
             .sort((a, b) => b.score - a.score)
             .slice(0, limit);
+
+        if (validResults.length > 0) {
+            return validResults;
+        }
+
+        // Fallback: If no results found (and we have chunks), return the most recent ones
+        // This handles broad queries like "what do you know" or if search fails
+        const recentChunks = this.db.prepare('SELECT id, path, text, start_line, end_line, updated_at FROM chunks ORDER BY updated_at DESC LIMIT ?').all(limit) as any[];
+
+        return recentChunks.map(c => ({
+            id: c.id,
+            path: c.path,
+            text: c.text,
+            start_line: c.start_line,
+            end_line: c.end_line,
+            score: 0.1, // Low score to indicate fallback
+            snippet: c.text
+        }));
     }
 
     public async readFile(relPath: string, from?: number, lines?: number): Promise<string> {

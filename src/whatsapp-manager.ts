@@ -25,6 +25,8 @@ export class WhatsAppManager extends EventEmitter {
     private reconnectRetries: number = 0;
     private sentMessageIds = new Set<string>();
 
+    private isInitializing: boolean = false;
+
     private constructor() {
         super();
         this.initialize();
@@ -38,6 +40,9 @@ export class WhatsAppManager extends EventEmitter {
     }
 
     private async initialize() {
+        if (this.isInitializing) return;
+        this.isInitializing = true;
+
         try {
             if (!fs.existsSync(AUTH_DIR)) {
                 fs.mkdirSync(AUTH_DIR, { recursive: true });
@@ -114,8 +119,13 @@ export class WhatsAppManager extends EventEmitter {
                     }
 
                     this.isConnected = false;
-                    this.qrCode = null;
                     this.emit('status', { connected: false });
+                    // Only clear QR if we are truly stopping or logged out. 
+                    // If we are reconnecting, we might want to keep it or wait for new one.
+                    // But typically 'close' means invalid session or need new QR if not authenticated yet.
+                    if (!shouldReconnect || this.reconnectRetries >= 5) {
+                        this.qrCode = null;
+                    }
                 } else if (connection === 'open') {
                     logger.log({
                         type: 'system',
@@ -174,10 +184,24 @@ export class WhatsAppManager extends EventEmitter {
                 level: 'error',
                 message: `Failed to initialize WhatsApp: ${error}`
             });
+        } finally {
+            this.isInitializing = false;
         }
     }
 
     public getStatus() {
+        // Self-healing: If we are not connected, no QR code, and gave up retrying, 
+        // but now someone is asking for status (e.g. UI is open), let's try to wake up.
+        if (!this.isConnected && !this.qrCode && this.reconnectRetries >= 5 && !this.isInitializing) {
+            logger.log({
+                type: 'system',
+                level: 'info',
+                message: 'WhatsApp Manager waking up from dormant state due to status check.'
+            });
+            this.reconnectRetries = 0;
+            this.initialize();
+        }
+
         return {
             connected: this.isConnected,
             qrCode: this.qrCode
