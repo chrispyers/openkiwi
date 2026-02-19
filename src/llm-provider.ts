@@ -16,17 +16,20 @@ function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; 
         'Content-Type': 'application/json',
     };
 
-    // Detect Google Gemini by apiKey presence
     if (providerConfig.apiKey) {
+        headers['Authorization'] = `Bearer ${providerConfig.apiKey}`;
+    }
+
+    // Detect Google Gemini specifically
+    if (normalizedUrl.includes('generativelanguage.googleapis.com')) {
         // Google Gemini OpenAI-compatible endpoint
         const baseUrl = normalizedUrl.endsWith('/v1beta')
             ? normalizedUrl
             : `${normalizedUrl}/v1beta`;
-        headers['Authorization'] = `Bearer ${providerConfig.apiKey}`;
         return { url: `${baseUrl}/openai/chat/completions`, headers };
     }
 
-    // Standard OpenAI-compatible (LM Studio, etc.)
+    // Standard OpenAI-compatible (LM Studio, OpenAI, etc.)
     const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
     return { url: `${baseUrl}/chat/completions`, headers };
 }
@@ -65,7 +68,22 @@ export async function* streamChatCompletion(
     }
 
     if (!response.ok) {
-        throw new Error(`LLM API error: ${response.statusText}`);
+        let errorMsg = `LLM API error: ${response.status} ${response.statusText}`;
+        try {
+            const errorText = await response.text();
+            if (errorText) {
+                // Try to parse JSON if possible for cleaner error message
+                try {
+                    const json = JSON.parse(errorText);
+                    errorMsg += ` - ${JSON.stringify(json)}`;
+                } catch {
+                    errorMsg += ` - ${errorText}`;
+                }
+            }
+        } catch (e) {
+            // Ignore body read error
+        }
+        throw new Error(errorMsg);
     }
 
     const reader = response.body?.getReader();
@@ -90,11 +108,22 @@ export async function* streamChatCompletion(
                 if (data === '[DONE]') return;
                 try {
                     const json = JSON.parse(data);
-                    const delta = json.choices[0]?.delta;
+                    // DEBUG: Log first few tokens or unusual structures
+                    if (Math.random() < 0.05 || json.usage) {
+                        console.log('[LLM Stream]', JSON.stringify(json).substring(0, 200));
+                    }
+
+                    const choice = json.choices?.[0];
+                    const delta = choice?.delta;
+
                     if (delta) yield delta;
                     if (json.usage) yield { usage: json.usage };
+
+                    if (choice?.finish_reason) {
+                        console.log('[LLM Stream] Finish reason:', choice.finish_reason);
+                    }
                 } catch (e) {
-                    // Ignore parse errors for incomplete JSON
+                    console.error('[LLM Stream] Parse error:', e);
                 }
             }
         }
@@ -126,7 +155,21 @@ export async function getChatCompletion(
     }
 
     if (!response.ok) {
-        throw new Error(`LLM API error: ${response.statusText}`);
+        let errorMsg = `LLM API error: ${response.status} ${response.statusText}`;
+        try {
+            const errorText = await response.text();
+            if (errorText) {
+                try {
+                    const json = JSON.parse(errorText);
+                    errorMsg += ` - ${JSON.stringify(json)}`;
+                } catch {
+                    errorMsg += ` - ${errorText}`;
+                }
+            }
+        } catch (e) {
+            // Ignore body read error
+        }
+        throw new Error(errorMsg);
     }
 
     const json = await response.json();
@@ -171,4 +214,73 @@ export async function createEmbedding(
 
     const json = await response.json();
     return json.data.map((d: any) => d.embedding);
+}
+
+export async function listModels(
+    providerConfig: LLMProviderConfig
+): Promise<string[]> {
+    // Handling for Google Gemini Native API
+    // The OpenAI compatibility endpoint for listing models is flaky or non-standard,
+    // so we use the native Gemini API endpoint for listing models.
+    if (providerConfig.baseUrl.includes('generativelanguage.googleapis.com')) {
+        const nativeUrl = 'https://generativelanguage.googleapis.com/v1beta/models';
+        // Ensure we pass the API key via query param or header (header preferred but needs x-goog-api-key for native)
+        // However, standard Bearer auth works for some google endpoints, but let's be safe and use x-goog-api-key if we have it
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json'
+        };
+        if (providerConfig.apiKey) {
+            headers['x-goog-api-key'] = providerConfig.apiKey;
+        }
+
+        try {
+            const response = await fetch(`${nativeUrl}?pageSize=100`, {
+                method: 'GET',
+                headers
+            });
+
+            if (response.ok) {
+                const json = await response.json();
+                if (json.models && Array.isArray(json.models)) {
+                    // Models returned as "models/gemini-1.5-flash"
+                    return json.models.map((m: any) => m.name.replace(/^models\//, ''));
+                }
+            } else {
+                console.warn(`Gemini listModels failed: ${response.status} ${response.statusText}`);
+            }
+        } catch (e) {
+            console.warn(`Gemini listModels exception:`, e);
+            // Fallthrough to standard OpenAI attempt
+        }
+    }
+
+    // Standard OpenAI compatible URL construction
+    const { url: chatUrl, headers } = getProviderEndpoint(providerConfig);
+    const url = chatUrl.replace('/chat/completions', '/models');
+
+    try {
+        const response = await fetch(url, {
+            method: 'GET',
+            headers,
+        });
+
+        if (!response.ok) {
+            throw new Error(`Models API error: ${response.status} ${response.statusText}`);
+        }
+
+        const json = await response.json();
+
+        if (json.data && Array.isArray(json.data)) {
+            return json.data.map((m: any) => m.id);
+        }
+
+        if (Array.isArray(json)) {
+            return json.map((m: any) => m.id || m.name || String(m));
+        }
+    } catch (error) {
+        console.warn('Failed to list models via OpenAI compat:', error);
+        throw error;
+    }
+
+    return [];
 }

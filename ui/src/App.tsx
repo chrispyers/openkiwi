@@ -43,7 +43,7 @@ import Badge from './components/Badge'
 import Modal from './components/Modal'
 import MarkdownRenderer from './components/MarkdownRenderer'
 import AgentsPage from './components/pages/AgentsPage'
-import ProvidersPage from './components/pages/ProvidersPage'
+import ModelsPage from './components/pages/ModelsPage'
 import LogsPage from './components/pages/LogsPage'
 import GatewayPage from './components/pages/GatewayPage'
 import SettingsPage from './components/pages/SettingsPage'
@@ -511,10 +511,15 @@ function App() {
     }
   }
 
-  async function fetchModels(isSilent = false) {
+  async function fetchModels(isSilent = false, configOverride?: { endpoint: string, apiKey?: string }) {
     try {
       const response = await fetch(getApiUrl('/api/models'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${gatewayToken}`,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(configOverride || {})
       });
 
       if (!response.ok) {
@@ -837,7 +842,7 @@ function App() {
             { id: 'chat', icon: faComments, label: 'Chat' },
             { id: 'agents', icon: faRobot, label: 'Agents' },
             { id: 'gateway', icon: faServer, label: 'Gateway' },
-            { id: 'providers', icon: faCube, label: 'Providers' },
+            { id: 'models', icon: faCube, label: 'Models' },
             { id: 'logs', icon: faFileLines, label: 'Logs' },
             { id: 'settings', icon: faGear, label: 'Settings' },
           ].map((item) => (
@@ -950,8 +955,8 @@ function App() {
               providers={config?.providers || []}
               agents={agents}
             />
-          ) : activeView === 'providers' ? (
-            <ProvidersPage
+          ) : activeView === 'models' ? (
+            <ModelsPage
               config={config}
               setConfig={setConfig}
               models={models}

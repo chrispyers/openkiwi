@@ -44,7 +44,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                                 />
                             </div>
                         ) : (
-                            <code {...props} className="bg-neutral-200 dark:bg-neutral-700/50 px-1.5 py-0.5 rounded-md font-mono text-sm text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700/50">
+                            <code {...props} className="bg-neutral-200 dark:bg-neutral-800 px-1.5 py-0.5 rounded-md font-mono text-sm text-neutral-800 dark:text-neutral-200 border border-neutral-300 dark:border-neutral-700/50">
                                 {String(children).replace(/`/g, '')}
                             </code>
                         );

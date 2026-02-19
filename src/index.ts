@@ -152,25 +152,45 @@ app.get('/api/tools', (req, res) => {
     res.json(ToolManager.getToolDefinitions());
 });
 
-app.get('/api/models', async (req, res) => {
-    try {
-        const queryUrl = req.query.baseUrl as string;
-        const currentConfig = loadConfig();
-        // Use the first provider's endpoint as default if available
-        const defaultProvider = currentConfig.providers[0];
-        const rawBaseUrl = queryUrl || (defaultProvider ? defaultProvider.endpoint : '');
+import { listModels } from './llm-provider.js';
 
-        if (!rawBaseUrl) {
-            return res.json({ data: [] });
+app.post('/api/models', async (req, res) => {
+    try {
+        const { endpoint, apiKey } = req.body;
+        const currentConfig = loadConfig();
+
+        // Use provided config or fall back to default provider
+        let providerConfig;
+
+        if (endpoint) {
+            providerConfig = {
+                baseUrl: endpoint,
+                modelId: '', // Not needed for listing
+                apiKey: apiKey // Optional, for new providers
+            };
+        } else {
+            const defaultProvider = currentConfig.providers[0];
+            if (!defaultProvider) {
+                return res.json({ data: [] });
+            }
+            providerConfig = {
+                baseUrl: defaultProvider.endpoint,
+                modelId: defaultProvider.model,
+                apiKey: defaultProvider.apiKey
+            };
         }
 
-        const normalizedUrl = rawBaseUrl.replace(/\/$/, '');
-        const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+        const models = await listModels(providerConfig);
 
-        const response = await fetch(`${baseUrl}/models`);
-        if (!response.ok) throw new Error(`Failed to fetch models: ${response.statusText}`);
-        const data = await response.json();
-        res.json(data);
+        logger.log({
+            type: 'system',
+            level: 'info',
+            message: `Discovered ${models.length} models from ${providerConfig.baseUrl}`,
+            data: models
+        });
+
+        // Normalize to expected format
+        res.json({ data: models.map(m => ({ id: m })) });
     } catch (error) {
         console.error('[Models] Fetch error:', error);
         res.status(500).json({ error: String(error) });
@@ -221,6 +241,9 @@ wss.on('connection', (ws, req) => {
     });
 
     ws.on('message', async (data) => {
+        let sessionId: string | undefined;
+        let agentId: string | undefined;
+
         try {
             const parsed = JSON.parse(data.toString());
 
@@ -272,7 +295,10 @@ wss.on('connection', (ws, req) => {
             }
 
             // Assume it's a Chat Message if not a control type
-            const { sessionId, agentId, messages: userMessages, shouldSummarize } = parsed;
+            const { messages: userMessages, shouldSummarize } = parsed;
+            sessionId = parsed.sessionId;
+            agentId = parsed.agentId;
+
             if (!userMessages) return;
 
             const currentConfig = loadConfig();
@@ -512,6 +538,15 @@ wss.on('connection', (ws, req) => {
                     errorMessage = `Error communicating with LLM provider: ${error.message}`;
                 }
             }
+
+            logger.log({
+                type: 'error',
+                level: 'error',
+                agentId: agentId || 'clawdbot',
+                sessionId: sessionId,
+                message: errorMessage,
+                data: error instanceof Error ? { stack: error.stack, originalError: error.message } : { error }
+            });
 
             ws.send(JSON.stringify({ type: 'error', message: errorMessage }));
         }
