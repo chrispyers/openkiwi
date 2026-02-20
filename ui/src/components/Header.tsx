@@ -5,17 +5,19 @@ import {
     Menu
 } from 'lucide-react'
 import ThemeSelector from './ThemeSelector'
-import { faKiwiBird, faLemon } from '@fortawesome/free-solid-svg-icons';
+import { faInfoCircle, faLemon } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import Badge from './Badge';
+import Button from './Button';
 
 interface HeaderProps {
     isGatewayConnected: boolean;
     onMenuClick?: () => void;
     updateAvailable?: boolean;
+    onUpdateClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, updateAvailable }) => {
+const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, updateAvailable, onUpdateClick }) => {
     return (
         <header className="h-14 border-b border-border-color bg-bg-primary flex items-center justify-between px-6 z-[60] shadow-sm">
             <div className="flex items-center gap-4">
@@ -41,9 +43,19 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, update
 
             {updateAvailable && (
                 <div className="absolute left-1/2 -translate-x-1/2">
-                    <Badge variant="success" className="animate-pulse" size="sm">
-                        UPDATE AVAILABLE
-                    </Badge>
+                    <button
+                        onClick={onUpdateClick}
+                        className="hover:scale-105 transition-transform duration-200 active:scale-95"
+                        title="Click to see upgrade steps"
+                    >
+                        <Button
+                            icon={faInfoCircle}
+                            themed={true}
+                            className="text-green-200"
+                        >
+                            <Text className="text-green-200" bold={true}>UPDATE AVAILABLE</Text>
+                        </Button>
+                    </button>
                 </div>
             )}
 

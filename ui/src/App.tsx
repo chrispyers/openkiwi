@@ -157,6 +157,7 @@ function App() {
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'general' | 'tools' | 'chat' | 'config' | 'messaging'>('general');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null }>({ connected: false, qrCode: null });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
+  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
@@ -891,10 +892,52 @@ function App() {
         </div>
       </Modal>
 
+      <Modal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        title="Upgrade Steps"
+      >
+        <div className="flex-1 overflow-y-auto p-8 h-full space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">1</span>
+              <Text size="lg" bold={true}>
+                Update your local copy
+              </Text>
+            </h3>
+            <MarkdownRenderer content={"```bash\rgit pull\r\n```"} />
+
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">2</span>
+              <Text size="lg" bold={true}>
+                Restart the gateway
+              </Text>
+            </h3>
+            <MarkdownRenderer content={"```bash\ndocker compose down\ndocker compose up --build\n```"} />
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">3</span>
+              <Text size="lg" bold={true}>
+                Reload the UI
+              </Text>
+            </h3>
+            <p className="text-neutral-500 dark:text-neutral-400 pl-8">
+              Refresh your browser tab once the gateway is back online to see the latest changes.
+            </p>
+          </section>
+        </div>
+      </Modal>
+
       <Header
         isGatewayConnected={isGatewayConnected}
         onMenuClick={() => setIsNavExpanded(!isNavExpanded)}
         updateAvailable={!!(config?.system?.latestVersion && config?.system?.version && config.system.latestVersion > config.system.version)}
+        onUpdateClick={() => setIsUpdateModalOpen(true)}
       />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}

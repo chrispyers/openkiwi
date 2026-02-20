@@ -12,7 +12,7 @@ interface MarkdownRendererProps {
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
     return (
-        <div className={`prose dark:prose-invert max-w-none leading-relaxed select-text ${className}`}>
+        <div className={`prose-chat dark:prose-invert max-w-none leading-relaxed select-text ${className}`}>
             <ReactMarkdown
                 remarkPlugins={[remarkGfm]}
                 components={{
