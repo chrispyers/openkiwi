@@ -1,7 +1,7 @@
-
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { useTheme } from '../contexts/ThemeContext';
 import {
     faComments,
     faRobot,
@@ -19,6 +19,7 @@ interface SidebarProps {
 
 export default function Sidebar({ isNavExpanded, activeView, createNewSession }: SidebarProps) {
     const navigate = useNavigate();
+    const { theme } = useTheme();
 
     const navItems = [
         { id: 'chat', icon: faComments, label: 'Chat' },
@@ -39,7 +40,7 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession }:
                         navigate('/' + item.id);
                     }}
                     className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-100 group relative flex items-center gap-4 ${activeView === item.id
-                        ? 'bg-accent-primary dark:bg-neutral-600 text-white'
+                        ? `bg-accent-primary ${theme === 'dark' ? 'text-neutral-600' : 'text-white'}`
                         : 'text-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-800 dark:text-white'
                         }`}
                     title={isNavExpanded ? undefined : item.label}

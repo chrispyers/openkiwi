@@ -13,6 +13,9 @@ import Page from './Page'
 import ModelsTable from '../ModelsTable'
 import { Model } from '../../types'
 import Input from '../Input'
+import GoogleIcon from '../../img/google.png'
+import OpenAIIcon from '../../img/openai.svg.png'
+import AnthropicIcon from '../../img/anthropic.png'
 
 
 
@@ -401,6 +404,12 @@ export default function ModelsPage({
                 <div className="p-6">
                     <div className="flex gap-4 justify-center mb-6 overflow-x-auto">
                         <Button
+                            className="h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500 opacity-70 hover:opacity-100"
+                            onClick={() => toast.info("Anthropic support coming soon")}
+                        >
+                            <img src={AnthropicIcon} alt="Anthropic" className="h-6 dark:invert" />
+                        </Button>
+                        <Button
                             className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'lm-studio' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('lm-studio')}
                         >
@@ -410,13 +419,13 @@ export default function ModelsPage({
                             className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'google-gemini' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('google-gemini')}
                         >
-                            Google Gemini
+                            <img src={GoogleIcon} alt="Google Gemini" className="h-6" />
                         </Button>
                         <Button
                             className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'openai' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('openai')}
                         >
-                            OpenAI
+                            <img src={OpenAIIcon} alt="OpenAI" className="h-6 dark:invert" />
                         </Button>
                     </div>
 

@@ -28,7 +28,9 @@ export default function ThemeSelector() {
                         themed={theme === option.id}
                         onClick={() => setTheme(option.id)}
                         className={`ml-0.5 mr-0.5 !py-1 !px-3 !rounded-full transition-all duration-300 flex items-center justify-center
-                            ${theme === option.id ? 'shadow-sm !text-white' : '!bg-transparent'}`}
+                            ${theme === option.id
+                                ? `shadow-sm ${theme === 'dark' ? '!text-neutral-600' : '!text-white'}`
+                                : '!bg-transparent'}`}
                         icon={option.icon}
                         title={option.name}
                     />

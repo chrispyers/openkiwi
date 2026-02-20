@@ -2,21 +2,19 @@
 @tailwind components;
 @tailwind utilities;
 
-:root {
-  /* --accent-primary: #6366f1; */
-  --accent-primary: rgb(43, 43, 43);
-}
+:root {}
 
 /* Light Mode Variables */
 .light,
 :root:not(.dark) {
+  --accent-primary: rgb(43, 43, 43);
   --bg-sidebar: #fafafa;
   /* neutral-50 */
   --bg-primary: #fafafa;
   /* neutral-50 */
   --bg-card: #fafafa;
   /* white */
-  --text-primary: #e6ed0a;
+  --text-primary: rgb(38, 38, 38);
   /* neutral-900 */
   --text-secondary: #78df0a;
   /* neutral-600 */
@@ -26,6 +24,7 @@
 
 /* Dark Mode Variables */
 .dark {
+  --accent-primary: #ffffff;
 
   --bg-sidebar: rgb(38, 38, 38);
   /* neutral-800 */

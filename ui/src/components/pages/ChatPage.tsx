@@ -1,6 +1,5 @@
 import React from 'react'
 import {
-    BrainCircuit,
     Bot,
     Loader2,
     AlertCircle
@@ -90,8 +89,8 @@ export default function ChatPage({
                     </div>
                 ) : (
                     <div className="flex items-center gap-4 w-full">
-                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-accent-primary flex items-center justify-center text-xl">
-                            {currentAgent?.emoji || <BrainCircuit size={18} className="text-white" />}
+                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center text-xl">
+                            {currentAgent?.emoji || <Bot size={18} className="text-neutral-600 dark:text-neutral-200" />}
                         </div>
                         <div>
                             <Select
@@ -121,7 +120,7 @@ export default function ChatPage({
             >
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
-                        <div className="w-24 h-24 bg-bg-card border border-border-color rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-sm animate-bounce-slow">
+                        <div className="w-24 h-24 flex items-center justify-center text-4xl mb-6 animate-bounce-slow">
                             <Text>
                                 {currentAgent?.emoji || <Bot size={40} />}
                             </Text>
