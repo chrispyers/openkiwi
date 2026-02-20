@@ -1,9 +1,4 @@
 {
-  "lmStudio": {
-    "baseUrl": "http://192.168.86.38:1234",
-    "modelId": "mistralai/ministral-3-14b-reasoning",
-    "systemPrompt": "You are a helpful AI assistant."
-  },
   "chat": {
     "showReasoning": true,
     "includeHistory": true,
@@ -11,6 +6,14 @@
   },
   "gateway": {
     "port": 3808,
-    "secretToken": "4f5ae18c2932d763cf335a060d73bb0f116561bd8089cef1"
+    "secretToken": ""
+  },
+  "global": {
+    "systemPrompt": "You have access to specialized tools to interact with the user's environment. \n\n- Use 'save_to_memory' whenever the user shares personal information, preferences, or important facts you should remember across sessions.\n\nDo NOT just say you will remember it; actually call the tool.\n\n- Use 'manage_files' to help the user with their workspace.\n\n- When using 'web_browser' with action='search_images', the tool returns an 'image_results' array. ALWAYS use the URLs from 'image_results' to display images, NOT the 'url' field (which is the search page). Example: ![Description](image_results[0].url)\n\nKeep your responses concise and focused on the task at hand."
+  },
+  "providers": [],
+  "memory": {
+    "useEmbeddings": true,
+    "embeddingsModel": ""
   }
 }
