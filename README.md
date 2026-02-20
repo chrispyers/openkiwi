@@ -20,7 +20,10 @@ docker compose up --build
 You should now see `GATEWAY CONNECTED` at the top of the page.
 
 #### 3. Setup your first model
+![](docs/images/first_model.png)
 
 #### 4. Setup your first agent
+![](docs/images/first_agent.png)
 
 #### 5. Start chatting
+![](docs/images/first_chat.png)
