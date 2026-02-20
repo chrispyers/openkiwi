@@ -14,6 +14,7 @@ services:
       - ./tools:/app/tools
       - ./workspace:/app/workspace
       - ./logs:/app/logs
+      - ./LATEST_RELEASE.txt:/app/LATEST_RELEASE.txt
     restart: unless-stopped
 
   gateway-ui:
