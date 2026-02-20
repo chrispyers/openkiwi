@@ -38,9 +38,12 @@ export interface Model {
     capabilities?: {
         vision?: boolean;
         trained_for_tool_use?: boolean;
+        reasoning?: boolean;
     };
     display_name?: string;
+    displayName?: string; // Google Gemini camelCase
     description?: string;
+    thinking?: boolean; // Google Gemini
     key?: string; // LM Studio
     type?: string; // LM Studio
     publisher?: string; // LM Studio

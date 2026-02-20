@@ -13,6 +13,7 @@ interface ButtonProps {
     children?: React.ReactNode;
     title?: string;
     size?: "sm" | "md" | "lg";
+    variant?: "default" | "danger";
 }
 
 export default function Button(props: ButtonProps) {
@@ -31,9 +32,14 @@ export default function Button(props: ButtonProps) {
 
     const themedClasses = props.themed === true ? getThemeButtonClasses() : "";
 
-    const defaultClasses = (props.themed !== true && !hasCustomBg)
-        ? "bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600"
-        : "";
+    const variantClasses = {
+        default: (props.themed !== true && !hasCustomBg)
+            ? "bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-100"
+            : "",
+        danger: "bg-red-600 hover:bg-red-700 text-white"
+    };
+
+    const activeVariantClasses = variantClasses[props.variant || "default"];
 
     const sizeClasses = {
         sm: "px-3 py-1",
@@ -43,19 +49,19 @@ export default function Button(props: ButtonProps) {
 
     return (
         <button
-            className={`${baseClasses} ${sizeClasses[props.size || "md"]} ${themedClasses} ${defaultClasses} ${props.className || ""}`}
+            className={`${baseClasses} ${sizeClasses[props.size || "md"]} ${themedClasses} ${activeVariantClasses} ${props.className || ""}`}
             disabled={props.disabled}
             onClick={props.onClick || (() => { })}
             title={props.title}
         >
             {props.icon &&
-                props.themed ?
+                (props.themed || props.variant === "danger") ?
                 <FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} />
                 :
                 <Text className={props.children ? "h-auto" : "h-full"}><FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} /></Text>
             }
 
-            {props.themed ? props.children :
+            {props.themed || props.variant === "danger" ? props.children :
                 <Text className={`font-semibold`} size={props.size || "md"}>
                     {props.children}
                 </Text>

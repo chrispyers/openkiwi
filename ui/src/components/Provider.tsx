@@ -1,6 +1,7 @@
 import React from 'react';
 import { faAlignLeft, faLink, faSave, faCheck, faRefresh } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import Button from './Button';
 import { TABLE, TR, TD } from './Table';
 import Card from './Card';
@@ -12,6 +13,9 @@ import Text from './Text';
 interface ProviderProps {
     description: string;
     endpoint: string;
+    inputLabel?: string;
+    inputIcon?: IconDefinition;
+    inputPlaceholder?: string;
     model: string;
     models: Model[];
     onDescriptionChange: (value: string) => void;
@@ -25,6 +29,9 @@ interface ProviderProps {
 export default function Provider({
     description,
     endpoint,
+    inputLabel = "Endpoint",
+    inputIcon = faLink,
+    inputPlaceholder = "http://localhost:1234",
     model,
     models,
     onDescriptionChange,
@@ -39,11 +46,11 @@ export default function Provider({
             <div className="space-y-2">
                 <div className="flex gap-2 items-end">
                     <Input
-                        label="Endpoint"
-                        icon={faLink}
+                        label={inputLabel}
+                        icon={inputIcon}
                         currentText={endpoint}
-                        onChange={(e) => onEndpointChange(e.target.value)}
-                        placeholder="http://localhost:1234"
+                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onEndpointChange(e.target.value)}
+                        placeholder={inputPlaceholder}
                         clearText={() => onEndpointChange("")}
                     />
                     <Button
@@ -68,7 +75,7 @@ export default function Provider({
                                 <></>
                             </TABLE>
                             <Text secondary={true}>No models found yet.</Text>
-                            <Text secondary={true}>Enter an endpoint and click Scan.</Text>
+                            <Text secondary={true}>Enter a {inputLabel.toLowerCase()} and click Scan.</Text>
                         </div>
                     ) : (
                         <TABLE header={[
@@ -77,16 +84,40 @@ export default function Provider({
                             { name: "Status", alignment: "center" }
                         ]} className="w-full">
                             {models.map((m) => {
-                                const isVision = m.capabilities?.vision;
-                                const isTool = m.capabilities?.trained_for_tool_use;
-                                const isReasoning = (m.id || "").toLowerCase().includes("deepseek-r1") ||
-                                    (m.id || "").toLowerCase().includes("o1") ||
-                                    (m.id || "").toLowerCase().includes("reasoning") ||
-                                    (m.id || "").toLowerCase().includes("thinking") ||
-                                    (m.display_name || "").toLowerCase().includes("deepseek-r1") ||
-                                    (m.display_name || "").toLowerCase().includes("o1") ||
-                                    (m.display_name || "").toLowerCase().includes("reasoning") ||
-                                    (m.display_name || "").toLowerCase().includes("thinking");
+                                const modelId = (m.id || "").toLowerCase();
+                                const displayName = (m.displayName || m.display_name || "").toLowerCase();
+                                const description = (m.description || "").toLowerCase();
+
+                                // Vision detection
+                                const isVision = m.capabilities?.vision ||
+                                    modelId.includes("vision") ||
+                                    modelId.includes("flash") ||
+                                    modelId.includes("pro") ||
+                                    displayName.includes("vision") ||
+                                    displayName.includes("flash") ||
+                                    displayName.includes("pro");
+
+                                // Tool detection
+                                const isTool = m.capabilities?.trained_for_tool_use ||
+                                    modelId.includes("tool") ||
+                                    modelId.includes("flash") ||
+                                    modelId.includes("pro") ||
+                                    displayName.includes("tool") ||
+                                    displayName.includes("flash") ||
+                                    displayName.includes("pro") ||
+                                    description.includes("tool");
+
+                                // Reasoning detection
+                                const isReasoning = m.capabilities?.reasoning ||
+                                    m.thinking === true ||
+                                    modelId.includes("deepseek-r1") ||
+                                    modelId.includes("o1") ||
+                                    modelId.includes("reasoning") ||
+                                    modelId.includes("thinking") ||
+                                    displayName.includes("deepseek-r1") ||
+                                    displayName.includes("o1") ||
+                                    displayName.includes("reasoning") ||
+                                    displayName.includes("thinking");
 
                                 return (
                                     <TR

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { faRobot, faPlus, faUser, faSmile, faSave, faClock, faFileText, faBrain, faMicrochip } from '@fortawesome/free-solid-svg-icons'
+import { faRobot, faPlus, faUser, faSmile, faSave, faClock, faFileText, faBrain, faMicrochip, faHeartPulse } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
 import Card from '../Card'
@@ -9,6 +9,7 @@ import Input from '../Input'
 import Toggle from '../Toggle'
 import Page from './Page'
 import Select from '../Select'
+import AgentFileButton from '../AgentFileButton'
 
 interface Agent {
     id: string;
@@ -156,7 +157,7 @@ export default function AgentsPage({
                                     onClick={() => setSelectedAgentId(a.id)}
                                 >
                                     <div className="text-left">
-                                        <div><Text bold={true}>{a.name}</Text></div>
+                                        <div>{a.name}</div>
                                         <div><Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text></div>
                                     </div>
                                 </Button>
@@ -289,70 +290,38 @@ export default function AgentsPage({
                                     </Button>
                                 </div>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                    <Card
-                                        padding="p-1"
-                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                                    <AgentFileButton
+                                        title="IDENTITY.md"
+                                        description="Core instructions"
+                                        icon={faFileText}
+                                        // iconColorClass="group-hover:text-accent-primary group-hover:bg-accent-primary/10"
                                         onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
-                                                <Text size="2xl"><FontAwesomeIcon icon={faFileText} /></Text>
-                                            </div>
-                                            <div>
-                                                <div className="text-xs"><Text size="xs" bold={true}>IDENTITY.md</Text></div>
-                                                <div className="text-xs"><Text size="xs" secondary={true}>Core instructions</Text></div>
-                                            </div>
-                                        </div>
-                                    </Card>
+                                    />
 
-                                    <Card
-                                        padding="p-1"
-                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                    <AgentFileButton
+                                        title="SOUL.md"
+                                        description="Moral values"
+                                        icon={faMicrochip}
+                                        // iconColorClass="group-hover:text-amber-400 group-hover:bg-amber-400/10"
                                         onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-amber-400 group-hover:bg-amber-400/10 transition-all">
-                                                <Text size="2xl"><FontAwesomeIcon icon={faMicrochip} /></Text>
-                                            </div>
-                                            <div>
-                                                <div className="text-xs"><Text size="xs" bold={true}>SOUL.md</Text></div>
-                                                <div className="text-xs"><Text size="xs" secondary={true}>Moral values</Text></div>
-                                            </div>
-                                        </div>
-                                    </Card>
+                                    />
 
-                                    <Card
-                                        padding="p-1"
-                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                    <AgentFileButton
+                                        title="MEMORY.md"
+                                        description="Stored facts"
+                                        icon={faBrain}
+                                        // iconColorClass="group-hover:text-emerald-400 group-hover:bg-emerald-400/10"
                                         onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-emerald-400 group-hover:bg-emerald-400/10 transition-all">
-                                                <Text size="2xl"><FontAwesomeIcon icon={faBrain} /></Text>
-                                            </div>
-                                            <div>
-                                                <div className="text-xs"><Text size="xs" bold={true}>MEMORY.md</Text></div>
-                                                <div className="text-xs"><Text size="xs" secondary={true}>Stored facts</Text></div>
-                                            </div>
-                                        </div>
-                                    </Card>
+                                    />
 
-                                    <Card
-                                        padding="p-1"
-                                        className="group flex justify-between items-center hover:border-accent-primary hover:bg-accent-primary/5 transition-all cursor-pointer"
+                                    <AgentFileButton
+                                        title="HEARTBEAT.md"
+                                        description="Scheduled tasks"
+                                        icon={faHeartPulse}
+                                        // iconColorClass="group-hover:text-rose-400 group-hover:bg-rose-400/10"
                                         onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
-                                    >
-                                        <div className="flex items-center gap-4">
-                                            <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-rose-400 group-hover:bg-rose-400/10 transition-all">
-                                                <Text size="2xl"><FontAwesomeIcon icon={faRobot} /></Text>
-                                            </div>
-                                            <div>
-                                                <div className="text-xs"><Text size="xs" bold={true}>HEARTBEAT.md</Text></div>
-                                                <div className="text-xs"><Text size="xs" secondary={true}>Scheduled tasks</Text></div>
-                                            </div>
-                                        </div>
-                                    </Card>
+                                    />
                                 </div>
                             </div>
                         </Card>

@@ -107,7 +107,7 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
                     <div className="flex justify-end gap-3">
                         <Button onClick={() => setIsDeleteModalOpen(false)}>Cancel</Button>
                         <Button
-                            className="bg-rose-500 hover:bg-rose-600 text-white dark:bg-rose-600 dark:hover:bg-rose-700"
+                            variant="danger"
                             onClick={confirmDelete}
                         >
                             Delete

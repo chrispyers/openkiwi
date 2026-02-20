@@ -42,7 +42,7 @@ export default function LogsPage({ logs, onClear }: LogsPageProps) {
             subtitle="Real-time inspection of WebSocket communication and system events."
             headerAction={
                 <Button
-                    className="bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 flex items-center gap-2"
+                    variant="danger"
                     icon={faTrash}
                     onClick={onClear}>Clear Logs</Button>
             }>

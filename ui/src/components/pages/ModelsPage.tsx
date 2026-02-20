@@ -63,8 +63,8 @@ export default function ModelsPage({
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newProvider, setNewProvider] = useState<{ description: string; endpoint: string; model: string; capabilities?: { vision?: boolean; reasoning?: boolean; trained_for_tool_use?: boolean } }>({ description: '', endpoint: '', model: '' });
     const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
-    const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '' });
-    const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '' });
+    const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
+    const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [scannedModels, setScannedModels] = useState<Model[]>([]);
 
     // Editing State
@@ -86,8 +86,8 @@ export default function ModelsPage({
         if (!isModalOpen) {
             setSelectedProviderType(null);
             setNewProvider({ description: '', endpoint: '', model: '' });
-            setNewGeminiProvider({ apiKey: '', model: '' });
-            setNewOpenAIProvider({ apiKey: '', model: '', description: '' });
+            setNewGeminiProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+            setNewOpenAIProvider({ apiKey: '', model: '', description: '', capabilities: {} });
             setScannedModels([]);
         }
     }, [isModalOpen]);
@@ -135,9 +135,127 @@ export default function ModelsPage({
         toast.success("Model deleted");
     };
 
+    const detectCapabilities = (model: Model) => {
+        const modelId = (model.id || "").toLowerCase();
+        const displayName = (model.displayName || model.display_name || "").toLowerCase();
+        const description = (model.description || "").toLowerCase();
+
+        const isReasoning = model.capabilities?.reasoning ||
+            model.thinking === true ||
+            modelId.includes("deepseek-r1") ||
+            modelId.includes("o1") ||
+            modelId.includes("reasoning") ||
+            modelId.includes("thinking") ||
+            displayName.includes("deepseek-r1") ||
+            displayName.includes("o1") ||
+            displayName.includes("reasoning") ||
+            displayName.includes("thinking");
+
+        const isVision = model.capabilities?.vision ||
+            modelId.includes("vision") ||
+            modelId.includes("flash") ||
+            modelId.includes("pro") ||
+            displayName.includes("vision") ||
+            displayName.includes("flash") ||
+            displayName.includes("pro");
+
+        const isTool = model.capabilities?.trained_for_tool_use ||
+            modelId.includes("tool") ||
+            modelId.includes("flash") ||
+            modelId.includes("pro") ||
+            displayName.includes("tool") ||
+            displayName.includes("flash") ||
+            displayName.includes("pro") ||
+            description.includes("tool");
+
+        return {
+            reasoning: isReasoning || false,
+            vision: isVision || false,
+            trained_for_tool_use: isTool || false
+        };
+    };
+
     const handleScanInEdit = async () => {
         if (!editForm.endpoint) return;
         await fetchModels(false, { endpoint: editForm.endpoint, apiKey: editForm.apiKey });
+    };
+
+    const handleGeminiScan = async () => {
+        if (!newGeminiProvider.apiKey) {
+            toast.error("Please enter an API Key first");
+            return;
+        }
+        const result = await fetchModels(false, {
+            endpoint: 'https://generativelanguage.googleapis.com/v1beta',
+            apiKey: newGeminiProvider.apiKey
+        }, true);
+        if (Array.isArray(result)) {
+            const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
+            setScannedModels(models);
+        }
+    };
+
+    const handleGeminiSave = async () => {
+        if (!config || !newGeminiProvider.apiKey || !newGeminiProvider.model) {
+            toast.error("Please provide at least an API Key and select a Model");
+            return;
+        }
+
+        const providerToAdd = {
+            description: newGeminiProvider.description.trim() || `Google Gemini - ${newGeminiProvider.model}`,
+            endpoint: 'https://generativelanguage.googleapis.com/v1beta',
+            model: newGeminiProvider.model,
+            apiKey: newGeminiProvider.apiKey,
+            capabilities: newGeminiProvider.capabilities
+        };
+
+        const updatedProviders = [...(config.providers || []), providerToAdd];
+        const newConfig = { ...config, providers: updatedProviders };
+        setConfig(newConfig);
+        await saveConfig(undefined, newConfig);
+        toast.success("Successfully saved Google Gemini provider");
+        setIsModalOpen(false);
+        setNewGeminiProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+    };
+
+    const handleOpenAIScan = async () => {
+        if (!newOpenAIProvider.apiKey) {
+            toast.error("Please enter an API Key first");
+            return;
+        }
+        const result = await fetchModels(false, {
+            endpoint: 'https://api.openai.com/v1',
+            apiKey: newOpenAIProvider.apiKey
+        }, true);
+        if (Array.isArray(result)) {
+            const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
+            setScannedModels(models);
+        }
+    };
+
+    const handleOpenAISave = async () => {
+        if (!config || !newOpenAIProvider.apiKey || !newOpenAIProvider.model) {
+            toast.error("Please provide at least an API Key and select a Model");
+            return;
+        }
+
+        const description = newOpenAIProvider.description.trim() || `OpenAI - ${newOpenAIProvider.model}`;
+
+        const providerToAdd = {
+            description: description,
+            endpoint: 'https://api.openai.com/v1',
+            model: newOpenAIProvider.model,
+            apiKey: newOpenAIProvider.apiKey,
+            capabilities: newOpenAIProvider.capabilities
+        };
+
+        const updatedProviders = [...(config.providers || []), providerToAdd];
+        const newConfig = { ...config, providers: updatedProviders };
+        setConfig(newConfig);
+        await saveConfig(undefined, newConfig);
+        toast.success("Successfully saved OpenAI provider");
+        setIsModalOpen(false);
+        setNewOpenAIProvider({ apiKey: '', model: '', description: '', capabilities: {} });
     };
 
     const augmentedProviders = config?.providers.map((p, i) => ({ ...p, originalIndex: i })) || [];
@@ -312,25 +430,8 @@ export default function ModelsPage({
                                 onDescriptionChange={(val) => setNewProvider(prev => ({ ...prev, description: val }))}
                                 onEndpointChange={(val) => setNewProvider(prev => ({ ...prev, endpoint: val }))}
                                 onModelChange={(val) => {
-                                    // Find the full model object to extract capabilities
                                     const selectedModel = scannedModels.find(m => m.id === val);
-                                    let capabilities = {};
-                                    if (selectedModel) {
-                                        const isReasoning = (selectedModel.id || "").toLowerCase().includes("deepseek-r1") ||
-                                            (selectedModel.id || "").toLowerCase().includes("o1") ||
-                                            (selectedModel.id || "").toLowerCase().includes("reasoning") ||
-                                            (selectedModel.id || "").toLowerCase().includes("thinking") ||
-                                            (selectedModel.display_name || "").toLowerCase().includes("deepseek-r1") ||
-                                            (selectedModel.display_name || "").toLowerCase().includes("o1") ||
-                                            (selectedModel.display_name || "").toLowerCase().includes("reasoning") ||
-                                            (selectedModel.display_name || "").toLowerCase().includes("thinking");
-
-                                        capabilities = {
-                                            vision: selectedModel.capabilities?.vision || false,
-                                            trained_for_tool_use: selectedModel.capabilities?.trained_for_tool_use || false,
-                                            reasoning: isReasoning || false
-                                        };
-                                    }
+                                    const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
                                     setNewProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
                                 }}
                                 onScan={async () => {
@@ -372,177 +473,46 @@ export default function ModelsPage({
 
                     {selectedProviderType === 'google-gemini' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                            <Card className="space-y-6">
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Input
-                                            label="API KEY"
-                                            icon={faKey}
-                                            currentText={newGeminiProvider.apiKey}
-                                            onChange={(e) => setNewGeminiProvider(prev => ({ ...prev, apiKey: e.target.value }))}
-                                            placeholder="Enter your Google Gemini API key"
-                                            clearText={() => setNewGeminiProvider(prev => ({ ...prev, apiKey: '' }))}
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <Button
-                                                themed={true}
-                                                icon={faRefresh}
-                                                onClick={() => {
-                                                    if (!newGeminiProvider.apiKey) {
-                                                        toast.error("Please enter an API Key first");
-                                                        return;
-                                                    }
-                                                    fetchModels(false, {
-                                                        endpoint: 'https://generativelanguage.googleapis.com/v1beta',
-                                                        apiKey: newGeminiProvider.apiKey
-                                                    });
-                                                }}
-                                            >Scan</Button>
-                                        </div>
-                                        <Select
-                                            icon={faCube}
-                                            label="model"
-                                            value={newGeminiProvider.model}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewGeminiProvider(prev => ({ ...prev, model: e.target.value }))}
-                                            options={[
-                                                { value: '', label: 'Select a model...' },
-                                                ...geminiModels.map(m => ({ value: m, label: m })),
-                                                // Include scanned models if they aren't already in the list
-                                                ...models.filter(m => !geminiModels.includes(m)).map(m => ({ value: m, label: m }))
-                                            ]}
-                                        />
-                                    </div>
-                                </div>
-
-                                <Button
-                                    themed={true}
-                                    className="w-full h-12 text-white"
-                                    onClick={async () => {
-                                        if (!config) return;
-
-                                        const providerToAdd = {
-                                            description: `Google Gemini - ${newGeminiProvider.model}`,
-                                            endpoint: 'https://generativelanguage.googleapis.com/v1beta',
-                                            model: newGeminiProvider.model,
-                                            apiKey: newGeminiProvider.apiKey,
-                                            // Gemini models generally have vision and tool use, could enhance with specific map if needed
-                                            capabilities: {
-                                                vision: true,
-                                                trained_for_tool_use: true,
-                                                reasoning: newGeminiProvider.model.includes('thinking') || newGeminiProvider.model.includes('reasoning')
-                                            }
-                                        };
-
-                                        const updatedProviders = [...(config.providers || []), providerToAdd];
-
-                                        const newConfig = {
-                                            ...config,
-                                            providers: updatedProviders
-                                        };
-
-                                        setConfig(newConfig);
-                                        await saveConfig(undefined, newConfig);
-                                        toast.success("Successfully saved Google Gemini provider");
-                                        setIsModalOpen(false);
-                                        setNewGeminiProvider({ apiKey: '', model: '' });
-                                    }}
-                                    icon={faSave}
-                                >Save Model</Button>
-                            </Card>
+                            <Provider
+                                inputLabel="API KEY"
+                                inputIcon={faKey}
+                                inputPlaceholder="Enter your Google Gemini API key"
+                                description={newGeminiProvider.description}
+                                endpoint={newGeminiProvider.apiKey}
+                                model={newGeminiProvider.model}
+                                models={scannedModels}
+                                onDescriptionChange={(val) => setNewGeminiProvider(prev => ({ ...prev, description: val }))}
+                                onEndpointChange={(val) => setNewGeminiProvider(prev => ({ ...prev, apiKey: val }))}
+                                onModelChange={(val) => {
+                                    const selectedModel = scannedModels.find(m => m.id === val);
+                                    const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
+                                    setNewGeminiProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                }}
+                                onScan={handleGeminiScan}
+                                onSave={handleGeminiSave}
+                            />
                         </div>
                     )}
                     {selectedProviderType === 'openai' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
-                            <Card className="space-y-6">
-                                <div className="space-y-2">
-                                    <Input
-                                        icon={faAlignLeft}
-                                        label="(optional) Description"
-                                        currentText={newOpenAIProvider.description}
-                                        onChange={(e) => setNewOpenAIProvider(prev => ({ ...prev, description: e.target.value }))}
-                                        placeholder="A short description of this model"
-                                    />
-                                </div>
-
-                                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="space-y-2">
-                                        <Input
-                                            icon={faKey}
-                                            label="API Key"
-                                            currentText={newOpenAIProvider.apiKey}
-                                            onChange={(e) => setNewOpenAIProvider(prev => ({ ...prev, apiKey: e.target.value }))}
-                                            placeholder="sk-..."
-                                        />
-                                    </div>
-
-                                    <div className="space-y-2">
-                                        <div className="flex justify-between items-center mb-2">
-                                            <Button
-                                                themed={true}
-                                                icon={faRefresh}
-                                                onClick={() => {
-                                                    if (!newOpenAIProvider.apiKey) {
-                                                        toast.error("Please enter an API Key first");
-                                                        return;
-                                                    }
-                                                    fetchModels(false, {
-                                                        endpoint: 'https://api.openai.com/v1',
-                                                        apiKey: newOpenAIProvider.apiKey
-                                                    });
-                                                }}>Scan</Button>
-                                        </div>
-                                        <Select
-                                            icon={faCube}
-                                            className="!mt-0"
-                                            label=""
-                                            value={newOpenAIProvider.model}
-                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewOpenAIProvider(prev => ({ ...prev, model: e.target.value }))}
-                                            options={[
-                                                { value: '', label: 'Select a model...' },
-                                                ...models.map(m => ({ value: m, label: m }))
-                                            ]}
-                                        />
-                                    </div>
-                                </div>
-
-                                <Button
-                                    themed={true}
-                                    className="w-full h-12 text-white"
-                                    onClick={async () => {
-                                        if (!config || !newOpenAIProvider.apiKey || !newOpenAIProvider.model) {
-                                            toast.error("Please provide at least an API Key and select a Model");
-                                            return;
-                                        }
-
-                                        const description = newOpenAIProvider.description.trim() || `OpenAI - ${newOpenAIProvider.model}`;
-
-                                        const providerToAdd = {
-                                            description: description,
-                                            endpoint: 'https://api.openai.com/v1',
-                                            model: newOpenAIProvider.model,
-                                            apiKey: newOpenAIProvider.apiKey
-                                        };
-
-                                        const updatedProviders = [...(config.providers || []), providerToAdd];
-
-                                        const newConfig = {
-                                            ...config,
-                                            providers: updatedProviders
-                                        };
-
-                                        setConfig(newConfig);
-                                        await saveConfig(undefined, newConfig);
-                                        toast.success("Successfully saved OpenAI provider");
-                                        setIsModalOpen(false);
-                                        setNewOpenAIProvider({ apiKey: '', model: '', description: '' });
-                                    }}
-                                    icon={faSave}
-                                >Save Model</Button>
-                            </Card>
+                            <Provider
+                                inputLabel="API KEY"
+                                inputIcon={faKey}
+                                inputPlaceholder="sk-..."
+                                description={newOpenAIProvider.description}
+                                endpoint={newOpenAIProvider.apiKey}
+                                model={newOpenAIProvider.model}
+                                models={scannedModels}
+                                onDescriptionChange={(val) => setNewOpenAIProvider(prev => ({ ...prev, description: val }))}
+                                onEndpointChange={(val) => setNewOpenAIProvider(prev => ({ ...prev, apiKey: val }))}
+                                onModelChange={(val) => {
+                                    const selectedModel = scannedModels.find(m => m.id === val);
+                                    const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
+                                    setNewOpenAIProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                }}
+                                onScan={handleOpenAIScan}
+                                onSave={handleOpenAISave}
+                            />
                         </div>
                     )}
                 </div>
