@@ -1,4 +1,4 @@
-# 🤖 MyBot Gateway & Control UI
+# OpenKIWI
 
 A powerful local AI assistant platform designed for extensibility, personalization, and high-performance local inference.
 
