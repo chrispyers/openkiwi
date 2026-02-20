@@ -5,6 +5,9 @@ import {
     Menu
 } from 'lucide-react'
 import ThemeSelector from './ThemeSelector'
+import { faKiwiBird, faLemon } from '@fortawesome/free-solid-svg-icons';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import Badge from './Badge';
 
 interface HeaderProps {
     isGatewayConnected: boolean;
@@ -18,19 +21,19 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick }) => {
                 {onMenuClick && (
                     <button
                         onClick={onMenuClick}
-                        className="p-2 -ml-2 rounded-lg text-neutral-500 hover:text-accent-primary hover:bg-white-trans transition-all duration-200"
+                        className="p-2 -ml-2 rounded-lg text-neutral-500 hover:text-accent-primary hover:bg-white-trans transition-all duration-100"
                         title="Toggle Navigation"
                     >
                         <Menu size={20} />
                     </button>
                 )}
                 <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center shadow-[0_0_15px_rgba(99,102,241,0.3)]">
-                        <Cpu size={18} className="text-white" />
+                    <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center">
+                        <FontAwesomeIcon icon={faLemon} className="text-white" />
                     </div>
                     <h1 className="text-lg font-bold tracking-tight text-neutral-600 dark:text-white">
-                        <Text bold={true} size="lg">OpenSky</Text>
-                        <span className="text-accent-primary ml-1 text-xs font-medium px-1.5 py-0.5 bg-accent-primary/10 rounded">BETA</span>
+                        <Text bold={true} size="lg">OpenKIWI</Text>
+                        <Badge className="ml-2 uppercase" size="xs">beta</Badge>
                     </h1>
                 </div>
             </div>

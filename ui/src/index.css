@@ -3,7 +3,8 @@
 @tailwind utilities;
 
 :root {
-  --accent-primary: #6366f1;
+  /* --accent-primary: #6366f1; */
+  --accent-primary: rgb(43, 43, 43);
 }
 
 /* Light Mode Variables */
@@ -13,11 +14,11 @@
   /* neutral-50 */
   --bg-primary: #fafafa;
   /* neutral-50 */
-  --bg-card: #ffffff;
+  --bg-card: #fafafa;
   /* white */
-  --text-primary: #171717;
+  --text-primary: #e6ed0a;
   /* neutral-900 */
-  --text-secondary: #525252;
+  --text-secondary: #78df0a;
   /* neutral-600 */
   --border-color: #e5e5e5;
   /* neutral-200 */
@@ -49,7 +50,7 @@
 
 @layer base {
   body {
-    @apply bg-bg-primary text-text-primary overflow-hidden antialiased;
+    @apply bg-bg-primary overflow-hidden antialiased;
     font-family: 'Outfit', system-ui, -apple-system, sans-serif;
   }
 }
@@ -58,12 +59,12 @@
 
   /* Message bubbles with top corners */
   .bubble {
-    @apply p-4 rounded-2xl max-w-[85%] relative break-words shadow-sm transition-all duration-200 font-medium;
+    @apply p-4 rounded-3xl max-w-[85%] relative break-words shadow-sm transition-all duration-200;
   }
 
   .user-bubble {
-    @apply bg-accent-primary text-white rounded-tr-[4px];
-    box-shadow: 0 4px 15px rgba(99, 102, 241, 0.2);
+    @apply bg-accent-primary rounded-tr-[8px];
+    /* box-shadow: 0 4px 15px rgba(43, 43, 43, 0.2); */
   }
 
   .user-bubble * {
@@ -71,16 +72,17 @@
   }
 
   .ai-bubble {
-    @apply bg-neutral-100 dark:bg-bg-card text-text-primary border border-border-color rounded-tl-[4px];
+    @apply bg-neutral-100 dark:bg-neutral-50/5 rounded-tl-[8px];
+    /* box-shadow: 0 4px 15px rgba(43, 43, 43, 0.2); */
   }
 
   .reasoning-bubble {
-    @apply bg-amber-500/5 border border-amber-500/20 text-amber-500 italic text-[0.85rem] rounded-tl-[4px];
+    @apply bg-amber-500/5 border border-amber-500/20 text-amber-500 italic text-[0.85rem] rounded-tl-[6px];
   }
 
   .nav-button-active {
     @apply bg-accent-primary text-white border-accent-primary;
-    box-shadow: 0 0 15px rgba(99, 102, 241, 0.3);
+    /* box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); */
   }
 
   .chat-welcome {
@@ -89,7 +91,7 @@
 
   .welcome-icon {
     @apply w-24 h-24 bg-accent-primary/10 rounded-3xl flex items-center justify-center text-accent-primary mb-6 animate-bounce;
-    box-shadow: 0 0 30px rgba(99, 102, 241, 0.15);
+    /* box-shadow: 0 0 30px rgba(99, 102, 241, 0.15); */
   }
 
   /* Loading dots */
@@ -125,7 +127,7 @@
   /* neutral-700 */
   --tw-prose-headings: #171717;
   /* neutral-900 */
-  --tw-prose-links: #6366f1;
+  --tw-prose-links: #008cff;
   --tw-prose-bold: #171717;
   --tw-prose-counters: #737373;
   /* neutral-500 */
@@ -146,7 +148,7 @@
 
 /* Condensed Prose for Chat */
 .prose-chat {
-  @apply max-w-none text-sm;
+  @apply max-w-none;
 }
 
 .prose-chat p {
@@ -163,15 +165,25 @@
 
 .prose-chat ul,
 .prose-chat ol {
-  @apply my-1;
+  @apply my-2 pl-4 !important;
 }
 
 .prose-chat li {
-  @apply my-0;
+  @apply my-0.5 !important;
 }
 
-.prose-chat li p {
-  @apply my-0 inline;
+.prose-chat li>p {
+  @apply my-0 inline !important;
+}
+
+.prose-chat ul>li:first-child,
+.prose-chat ol>li:first-child {
+  @apply mt-0 !important;
+}
+
+.prose-chat ul>li:last-child,
+.prose-chat ol>li:last-child {
+  @apply mb-0 !important;
 }
 
 .prose-chat pre {

@@ -2,6 +2,7 @@ import React from 'react';
 import { useTheme } from '../contexts/ThemeContext';
 import Button from './Button';
 import { faSun, faMoon, faDesktop } from '@fortawesome/free-solid-svg-icons';
+import Text from './Text';
 
 /**
  * ThemeSelector Component
@@ -19,23 +20,20 @@ export default function ThemeSelector() {
     ] as const;
 
     return (
-        <div className="inline-flex bg-neutral-100 dark:bg-neutral-800/50 p-1 rounded-full border border-border-color shadow-sm w-fit">
-            {options.map((option) => (
-                <Button
-                    key={option.id}
-                    themed={theme === option.id}
-                    onClick={() => setTheme(option.id)}
-                    className={`
-            !py-1.5 !px-2.5 !rounded-full transition-all duration-300 flex items-center justify-center
-            ${theme === option.id
-                            ? 'shadow-sm'
-                            : '!bg-transparent !text-neutral-500 hover:!text-neutral-700 dark:hover:!text-neutral-300'
-                        }
-          `}
-                    icon={option.icon}
-                    title={option.name}
-                />
-            ))}
-        </div>
+        <Text>
+            <div className="inline-flex bg-neutral-100 dark:bg-neutral-800/50 p-1 rounded-full border border-border-color shadow-sm w-fit">
+                {options.map((option) => (
+                    <Button
+                        key={option.id}
+                        themed={theme === option.id}
+                        onClick={() => setTheme(option.id)}
+                        className={`ml-0.5 mr-0.5 !py-1 !px-3 !rounded-full transition-all duration-300 flex items-center justify-center
+                            ${theme === option.id ? 'shadow-sm !text-white' : '!bg-transparent'}`}
+                        icon={option.icon}
+                        title={option.name}
+                    />
+                ))}
+            </div>
+        </Text>
     );
 }

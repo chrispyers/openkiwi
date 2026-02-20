@@ -10,7 +10,7 @@ interface PageProps {
 
 export default function Page({ title, subtitle, headerAction, children }: PageProps) {
     return (
-        <div className="flex-1 p-8 lg:p-12 overflow-y-auto h-full box-border bg-white dark:bg-neutral-800 m-6 rounded-xl shadow-sm">
+        <div className="flex-1 p-8 lg:p-12 overflow-y-auto h-full box-border bg-white dark:bg-neutral-900/5 m-6 rounded-xl shadow-sm">
             <header className="mb-10 animate-fade-in-up flex items-center justify-between">
                 <div>
                     <Text size="3xl" bold={true}>{title}</Text>

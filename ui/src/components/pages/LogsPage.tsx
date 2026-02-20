@@ -1,5 +1,6 @@
 import { TABLE, TR, TD } from '../Table'
 import Page from './Page'
+import Text from '../Text'
 
 interface LogEntry {
     id: number;
@@ -32,7 +33,7 @@ const LevelBadge = ({ level }: { level: LogEntry['level'] }) => {
 }
 
 import Button from '../Button'
-import { Trash2 } from 'lucide-react'
+import { faTrash } from '@fortawesome/free-solid-svg-icons';
 
 export default function LogsPage({ logs, onClear }: LogsPageProps) {
     return (
@@ -41,44 +42,47 @@ export default function LogsPage({ logs, onClear }: LogsPageProps) {
             subtitle="Real-time inspection of WebSocket communication and system events."
             headerAction={
                 <Button
-                    onClick={onClear}
                     className="bg-red-100 text-red-600 hover:bg-red-200 dark:bg-red-900/30 dark:text-red-400 dark:hover:bg-red-900/50 flex items-center gap-2"
-                >
-                    <Trash2 size={16} />
-                    Clear Logs
-                </Button>
-            }
-        >
+                    icon={faTrash}
+                    onClick={onClear}>Clear Logs</Button>
+            }>
             {/* <div className="border border-border-color rounded-2xl bg-bg-card shadow-sm overflow-hidden"> */}
             <TABLE header={['Timestamp', 'Level', 'Type', 'Message', 'Data']}>
                 {logs.length === 0 ? (
                     <TR>
-                        <TD colSpan={5} className="text-center py-12 text-neutral-400 italic">No logs recorded yet. Start a conversation to see data.</TD>
+                        <TD colSpan={5} className="text-center py-12">
+                            <Text>No logs recorded yet. Start a conversation to see data.</Text></TD>
                     </TR>
                 ) : (
                     logs.map((log) => (
                         <TR key={log.id || Math.random()}>
-                            <TD className="whitespace-nowrap font-mono text-xs text-neutral-500 w-32 align-top">
-                                {new Date(log.timestamp).toLocaleTimeString()}
+                            <TD className="whitespace-nowrap w-32 align-top">
+                                <Text size="xs" className="font-mono">
+                                    {new Date(log.timestamp).toLocaleTimeString()}
+                                </Text>
                             </TD>
                             <TD className="w-20 align-top">
                                 <LevelBadge level={log.level} />
                             </TD>
-                            <TD className="whitespace-nowrap font-mono text-xs text-neutral-600 dark:text-neutral-400 w-24 align-top uppercase">
-                                {log.type}
+                            <TD className="whitespace-nowrap w-24 align-top uppercase">
+                                <Text size="xs" className="font-mono">{log.type}</Text>
                             </TD>
                             <TD className="text-sm text-neutral-700 dark:text-neutral-200 w-64 align-top">
-                                {log.message}
+                                <Text size="xs">{log.message}</Text>
                             </TD>
-                            <TD className="font-mono text-xs text-neutral-600 dark:text-neutral-300 align-top">
+                            <TD className="align-top">
                                 <div className="max-h-32 overflow-y-auto custom-scrollbar">
                                     {log.data !== undefined && log.data !== null && (
                                         typeof log.data === 'object' ? (
-                                            <pre className="whitespace-pre-wrap word-break-all">
-                                                {JSON.stringify(log.data, null, 2)}
-                                            </pre>
+                                            <Text size="xs">
+                                                <pre className="whitespace-pre-wrap word-break-all">
+                                                    {JSON.stringify(log.data, null, 2)}
+                                                </pre>
+                                            </Text>
                                         ) : (
-                                            <span className="break-all">{String(log.data)}</span>
+                                            <Text size="xs">
+                                                <span className="break-all">{String(log.data)}</span>
+                                            </Text>
                                         )
                                     )}
                                 </div>

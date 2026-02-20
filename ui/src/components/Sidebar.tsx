@@ -30,7 +30,7 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession }:
     ];
 
     return (
-        <nav className={`${isNavExpanded ? 'w-48' : 'w-16'} bg-bg-sidebar flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
+        <nav className={`${isNavExpanded ? 'w-44' : 'w-16'} bg-bg-sidebar flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>
             {navItems.map((item) => (
                 <button
                     key={item.id}
@@ -38,9 +38,9 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession }:
                         if (item.id === 'chat') createNewSession();
                         navigate('/' + item.id);
                     }}
-                    className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-200 group relative flex items-center gap-4 ${activeView === item.id
-                        ? 'bg-accent-primary text-white shadow-[0_0_15px_rgba(99,102,241,0.3)]'
-                        : 'text-neutral-500 hover:bg-white-trans hover:text-neutral-600 dark:text-white'
+                    className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-100 group relative flex items-center gap-4 ${activeView === item.id
+                        ? 'bg-accent-primary dark:bg-neutral-600 text-white'
+                        : 'text-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-800 dark:text-white'
                         }`}
                     title={isNavExpanded ? undefined : item.label}
                 >
@@ -56,7 +56,7 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession }:
 
 
                     {!isNavExpanded && (
-                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-neutral-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-200 whitespace-nowrap z-[100] shadow-xl border border-white/10 translate-x-1 group-hover:translate-x-0">
+                        <div className="absolute left-full ml-4 px-3 py-1.5 bg-neutral-800 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 pointer-events-none transition-all duration-100 whitespace-nowrap z-[100] shadow-xl border border-white/10 translate-x-1 group-hover:translate-x-0">
                             {item.label}
                         </div>
                     )}

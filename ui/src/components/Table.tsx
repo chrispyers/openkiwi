@@ -1,16 +1,36 @@
 import React from 'react'
-import { useTheme } from '../contexts/ThemeContext'
+import Text from './Text'
 
-export function TABLE(props: { header?: string[], children: React.ReactNode, className?: string, center?: boolean }) {
+export type TableAlignment = 'left' | 'center' | 'right';
+
+export interface HeaderObject {
+    name: string;
+    alignment?: TableAlignment;
+}
+
+export type HeaderItem = string | HeaderObject;
+
+export function TABLE(props: { header?: HeaderItem[], children: React.ReactNode, className?: string, center?: boolean }) {
     return (
         <table className={(props.className || "") + " w-full text-left"}>
             {props.header != null && (
                 <thead>
-                    {props.header.map((obj, idx) => (
-                        <TH key={idx} center={props.center}>
-                            {obj}
-                        </TH>
-                    ))}
+                    <tr>
+                        {props.header.map((item, idx) => {
+                            const name = typeof item === 'string' ? item : item.name;
+                            let alignment: TableAlignment = props.center ? 'center' : 'left';
+
+                            if (typeof item !== 'string') {
+                                alignment = item.alignment || 'center';
+                            }
+
+                            return (
+                                <TH key={idx} alignment={alignment}>
+                                    {name}
+                                </TH>
+                            );
+                        })}
+                    </tr>
                 </thead>
             )}
             <tbody className="divide-y divide-border-color/50">
@@ -20,10 +40,13 @@ export function TABLE(props: { header?: string[], children: React.ReactNode, cla
     )
 }
 
-export function TH({ children, center }: { children: React.ReactNode, center?: boolean }) {
+export function TH({ children, alignment = 'left' }: { children: React.ReactNode, alignment?: TableAlignment }) {
+    const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
     return (
-        <th className={`py-4 px-6 text-xs text-neutral-500 dark:text-white uppercase tracking-[0.1em] ${center ? 'text-center' : ''}`}>
-            {children}
+        <th className={`py-4 px-6 text-xs text-neutral-500 dark:text-white uppercase tracking-wider ${alignmentClass}`}>
+            <Text size="xs" bold={true}>
+                {children}
+            </Text>
         </th>
     )
 }

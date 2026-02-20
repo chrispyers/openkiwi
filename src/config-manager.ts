@@ -8,26 +8,31 @@ const ConfigSchema = z.object({
         showReasoning: z.boolean(),
         includeHistory: z.boolean(),
         generateSummaries: z.boolean(),
-    }),
+    }).passthrough(),
     gateway: z.object({
         port: z.number().int().positive(),
         secretToken: z.string().default(""),
         endpoint: z.string().url().default("http://localhost:3808"),
-    }),
+    }).passthrough(),
     global: z.object({
         systemPrompt: z.string().default("You are a helpful AI assistant."),
-    }).optional(),
+    }).passthrough().optional(),
     providers: z.array(z.object({
         description: z.string().default(""),
         endpoint: z.string().url(),
         model: z.string(),
         apiKey: z.string().optional(),
-    })).default([]),
+        capabilities: z.object({
+            vision: z.boolean().optional(),
+            reasoning: z.boolean().optional(),
+            trained_for_tool_use: z.boolean().optional(),
+        }).passthrough().optional(),
+    }).passthrough()).default([]),
     memory: z.object({
         useEmbeddings: z.boolean().default(false),
         embeddingsModel: z.string().default(""),
-    }).default({ useEmbeddings: false, embeddingsModel: "" }),
-});
+    }).passthrough().default({ useEmbeddings: false, embeddingsModel: "" }),
+}).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
 

@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { faPlus, faKey, faCube, faSave } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faKey, faCube, faSave, faRefresh, faAlignLeft } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Provider from '../Provider'
 import Button from '../Button'
@@ -12,7 +12,7 @@ import Select from '../Select'
 import Page from './Page'
 import ModelsTable from '../ModelsTable'
 import { Model } from '../../types'
-
+import Input from '../Input'
 
 
 
@@ -35,6 +35,11 @@ interface Config {
         endpoint: string;
         model: string;
         apiKey?: string;
+        capabilities?: {
+            vision?: boolean;
+            reasoning?: boolean;
+            trained_for_tool_use?: boolean;
+        }
     }[];
 }
 
@@ -56,7 +61,7 @@ export default function ModelsPage({
     fetchModels
 }: ModelsPageProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newProvider, setNewProvider] = useState({ description: '', endpoint: '', model: '' });
+    const [newProvider, setNewProvider] = useState<{ description: string; endpoint: string; model: string; capabilities?: { vision?: boolean; reasoning?: boolean; trained_for_tool_use?: boolean } }>({ description: '', endpoint: '', model: '' });
     const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
     const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '' });
     const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '' });
@@ -64,7 +69,7 @@ export default function ModelsPage({
 
     // Editing State
     const [editingIndex, setEditingIndex] = useState<number | null>(null);
-    const [editForm, setEditForm] = useState<{ description: string; model: string; endpoint: string; apiKey?: string }>({ description: '', model: '', endpoint: '' });
+    const [editForm, setEditForm] = useState<{ description: string; model: string; endpoint: string; apiKey?: string; capabilities?: { vision?: boolean; reasoning?: boolean; trained_for_tool_use?: boolean } }>({ description: '', model: '', endpoint: '' });
     const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
     // Available Gemini models (hardcoded defaults + dynamic)
@@ -95,7 +100,8 @@ export default function ModelsPage({
             description: provider.description,
             model: provider.model,
             endpoint: provider.endpoint,
-            apiKey: provider.apiKey
+            apiKey: provider.apiKey,
+            capabilities: provider.capabilities
         });
         setIsEditModalOpen(true);
     };
@@ -108,6 +114,8 @@ export default function ModelsPage({
             ...updatedProviders[editingIndex],
             description: editForm.description,
             model: editForm.model,
+            // Preserve capabilities if not explicitly edited (logic could be expanded if we allowed editing capabilities)
+            capabilities: updatedProviders[editingIndex].capabilities
         };
 
         const newConfig = { ...config, providers: updatedProviders };
@@ -124,7 +132,7 @@ export default function ModelsPage({
         const newConfig = { ...config, providers: updatedProviders };
         setConfig(newConfig);
         await saveConfig(undefined, newConfig);
-        toast.success("Provider deleted");
+        toast.success("Model deleted");
     };
 
     const handleScanInEdit = async () => {
@@ -147,14 +155,7 @@ export default function ModelsPage({
             title="Models"
             subtitle="Configure your AI models."
             headerAction={
-                <Button
-                    themed={true}
-                    className="text-white px-4 py-2 h-10"
-                    icon={faPlus}
-                    onClick={() => setIsModalOpen(true)}
-                >
-                    Add Model
-                </Button>
+                <Button themed={true} icon={faPlus} onClick={() => setIsModalOpen(true)}>Add Model</Button>
             }
         >
 
@@ -200,7 +201,7 @@ export default function ModelsPage({
 
                         {otherModels.length > 0 && (
                             <div className="space-y-4">
-                                <h3 className="text-lg font-semibold text-text-primary px-1">Other</h3>
+                                <h3 className="text-lg font-semibold px-1">Other</h3>
                                 <ModelsTable
                                     providers={otherModels}
                                     highlight={true}
@@ -310,7 +311,28 @@ export default function ModelsPage({
                                 models={scannedModels}
                                 onDescriptionChange={(val) => setNewProvider(prev => ({ ...prev, description: val }))}
                                 onEndpointChange={(val) => setNewProvider(prev => ({ ...prev, endpoint: val }))}
-                                onModelChange={(val) => setNewProvider(prev => ({ ...prev, model: val }))}
+                                onModelChange={(val) => {
+                                    // Find the full model object to extract capabilities
+                                    const selectedModel = scannedModels.find(m => m.id === val);
+                                    let capabilities = {};
+                                    if (selectedModel) {
+                                        const isReasoning = (selectedModel.id || "").toLowerCase().includes("deepseek-r1") ||
+                                            (selectedModel.id || "").toLowerCase().includes("o1") ||
+                                            (selectedModel.id || "").toLowerCase().includes("reasoning") ||
+                                            (selectedModel.id || "").toLowerCase().includes("thinking") ||
+                                            (selectedModel.display_name || "").toLowerCase().includes("deepseek-r1") ||
+                                            (selectedModel.display_name || "").toLowerCase().includes("o1") ||
+                                            (selectedModel.display_name || "").toLowerCase().includes("reasoning") ||
+                                            (selectedModel.display_name || "").toLowerCase().includes("thinking");
+
+                                        capabilities = {
+                                            vision: selectedModel.capabilities?.vision || false,
+                                            trained_for_tool_use: selectedModel.capabilities?.trained_for_tool_use || false,
+                                            reasoning: isReasoning || false
+                                        };
+                                    }
+                                    setNewProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                }}
                                 onScan={async () => {
                                     // Scan with the endpoint provided in the inputs
                                     const result = await fetchModels(false, { endpoint: newProvider.endpoint, apiKey: '' }, true);
@@ -327,7 +349,8 @@ export default function ModelsPage({
                                     const providerToAdd = {
                                         description: newProvider.description,
                                         endpoint: newProvider.endpoint,
-                                        model: newProvider.model
+                                        model: newProvider.model,
+                                        capabilities: newProvider.capabilities
                                     };
 
                                     const updatedProviders = [...(config.providers || []), providerToAdd];
@@ -353,24 +376,21 @@ export default function ModelsPage({
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                            <FontAwesomeIcon icon={faKey} size="sm" /> API Key
-                                        </label>
-                                        <input
-                                            type="password"
-                                            className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                                            value={newGeminiProvider.apiKey}
+                                        <Input
+                                            label="API KEY"
+                                            icon={faKey}
+                                            currentText={newGeminiProvider.apiKey}
                                             onChange={(e) => setNewGeminiProvider(prev => ({ ...prev, apiKey: e.target.value }))}
-                                            placeholder="Enter your Google Gemini API key..."
+                                            placeholder="Enter your Google Gemini API key"
+                                            clearText={() => setNewGeminiProvider(prev => ({ ...prev, apiKey: '' }))}
                                         />
                                     </div>
 
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                                <FontAwesomeIcon icon={faCube} size="sm" /> Model
-                                            </label>
-                                            <button
+                                            <Button
+                                                themed={true}
+                                                icon={faRefresh}
                                                 onClick={() => {
                                                     if (!newGeminiProvider.apiKey) {
                                                         toast.error("Please enter an API Key first");
@@ -381,15 +401,11 @@ export default function ModelsPage({
                                                         apiKey: newGeminiProvider.apiKey
                                                     });
                                                 }}
-                                                className="text-xs text-accent-primary hover:underline font-bold"
-                                            >
-                                                Scan Available
-                                            </button>
+                                            >Scan</Button>
                                         </div>
                                         <Select
                                             icon={faCube}
-                                            className="!mt-0"
-                                            label=""
+                                            label="model"
                                             value={newGeminiProvider.model}
                                             onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setNewGeminiProvider(prev => ({ ...prev, model: e.target.value }))}
                                             options={[
@@ -412,7 +428,13 @@ export default function ModelsPage({
                                             description: `Google Gemini - ${newGeminiProvider.model}`,
                                             endpoint: 'https://generativelanguage.googleapis.com/v1beta',
                                             model: newGeminiProvider.model,
-                                            apiKey: newGeminiProvider.apiKey
+                                            apiKey: newGeminiProvider.apiKey,
+                                            // Gemini models generally have vision and tool use, could enhance with specific map if needed
+                                            capabilities: {
+                                                vision: true,
+                                                trained_for_tool_use: true,
+                                                reasoning: newGeminiProvider.model.includes('thinking') || newGeminiProvider.model.includes('reasoning')
+                                            }
                                         };
 
                                         const updatedProviders = [...(config.providers || []), providerToAdd];
@@ -429,9 +451,7 @@ export default function ModelsPage({
                                         setNewGeminiProvider({ apiKey: '', model: '' });
                                     }}
                                     icon={faSave}
-                                >
-                                    Save Provider Configurations
-                                </Button>
+                                >Save Model</Button>
                             </Card>
                         </div>
                     )}
@@ -439,27 +459,21 @@ export default function ModelsPage({
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Card className="space-y-6">
                                 <div className="space-y-2">
-                                    <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                        Optional Description
-                                    </label>
-                                    <input
-                                        type="text"
-                                        className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                                        value={newOpenAIProvider.description}
+                                    <Input
+                                        icon={faAlignLeft}
+                                        label="(optional) Description"
+                                        currentText={newOpenAIProvider.description}
                                         onChange={(e) => setNewOpenAIProvider(prev => ({ ...prev, description: e.target.value }))}
-                                        placeholder="e.g. My OpenAI Account (defaults to OpenAI - ModelName)"
+                                        placeholder="A short description of this model"
                                     />
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                                     <div className="space-y-2">
-                                        <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                            <FontAwesomeIcon icon={faKey} size="sm" /> API Key
-                                        </label>
-                                        <input
-                                            type="password"
-                                            className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                                            value={newOpenAIProvider.apiKey}
+                                        <Input
+                                            icon={faKey}
+                                            label="API Key"
+                                            currentText={newOpenAIProvider.apiKey}
                                             onChange={(e) => setNewOpenAIProvider(prev => ({ ...prev, apiKey: e.target.value }))}
                                             placeholder="sk-..."
                                         />
@@ -467,10 +481,9 @@ export default function ModelsPage({
 
                                     <div className="space-y-2">
                                         <div className="flex justify-between items-center mb-2">
-                                            <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                                <FontAwesomeIcon icon={faCube} size="sm" /> Model
-                                            </label>
-                                            <button
+                                            <Button
+                                                themed={true}
+                                                icon={faRefresh}
                                                 onClick={() => {
                                                     if (!newOpenAIProvider.apiKey) {
                                                         toast.error("Please enter an API Key first");
@@ -480,11 +493,7 @@ export default function ModelsPage({
                                                         endpoint: 'https://api.openai.com/v1',
                                                         apiKey: newOpenAIProvider.apiKey
                                                     });
-                                                }}
-                                                className="text-xs text-accent-primary hover:underline font-bold"
-                                            >
-                                                Scan Available
-                                            </button>
+                                                }}>Scan</Button>
                                         </div>
                                         <Select
                                             icon={faCube}
@@ -532,9 +541,7 @@ export default function ModelsPage({
                                         setNewOpenAIProvider({ apiKey: '', model: '', description: '' });
                                     }}
                                     icon={faSave}
-                                >
-                                    Save Provider Configurations
-                                </Button>
+                                >Save Model</Button>
                             </Card>
                         </div>
                     )}

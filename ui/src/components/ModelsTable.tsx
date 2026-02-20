@@ -3,12 +3,19 @@ import { TABLE, TR, TD, TH } from "./Table";
 import DeleteButton from "./DeleteButton";
 import Modal from "./Modal";
 import Button from "./Button";
+import { EyeIcon, BrainIcon, ToolIcon } from './CapabilityIcons';
+import Text from './Text';
 
 interface Provider {
     description: string;
     endpoint: string;
     model: string;
     apiKey?: string;
+    capabilities?: {
+        vision?: boolean;
+        reasoning?: boolean;
+        trained_for_tool_use?: boolean;
+    };
 }
 
 interface ModelsTableProps {
@@ -53,19 +60,32 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
 
     return (
         <>
-            <TABLE header={["Model", "Description", "Capabilities", ""]} className="w-full text-left text-sm">
+            <TABLE header={[
+                { name: "Model", alignment: "left" },
+                { name: "Description", alignment: "left" },
+                { name: "Capabilities", alignment: "center" },
+                { name: "" }
+            ]}>
                 {providers.map((provider, idx) => (
                     <TR key={idx} highlight={highlight} onClick={() => onRowClick(idx)}>
-                        <TD className="px-6 py-4 font-mono text-accent-primary">
-                            {provider.model}
+                        <TD className="w-1/3">
+                            <Text className="font-mono" size="sm">
+                                {provider.model}
+                            </Text>
                         </TD>
-                        <TD className="px-6 py-4 text-text-secondary">
-                            {provider.description}
+                        <TD className="w-1/3">
+                            <Text>
+                                {provider.description}
+                            </Text>
                         </TD>
-                        <TD className="px-6 py-4 text-text-secondary">
-                            {/* {provider.capabilities} */}
+                        <TD>
+                            <div className="flex justify-center gap-2">
+                                {provider.capabilities?.vision && <EyeIcon />}
+                                {provider.capabilities?.trained_for_tool_use && <ToolIcon />}
+                                {provider.capabilities?.reasoning && <BrainIcon />}
+                            </div>
                         </TD>
-                        <TD className="px-2 py-4 w-10 text-center">
+                        <TD className="w-10 text-center">
                             {onDelete && (
                                 <DeleteButton onClick={(e) => handleDeleteClick(e, idx)} />
                             )}

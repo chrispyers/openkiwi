@@ -42,47 +42,49 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
       {label && (
         <label
           htmlFor={id}
-          className="block mb-2 uppercase tracking-wider flex items-center gap-2"
+          className="block uppercase mb-1 tracking-wider flex items-center gap-2"
         >
           <Text size="xs" bold={true}>{label}</Text>
         </label>
       )}
-      <div className={`relative ${label ? '' : 'mt-1'}`}>
-        {icon && (
-          <FontAwesomeIcon
-            className="absolute mt-3.5 ml-4 text-neutral-600 dark:text-neutral-400"
-            icon={icon}
-          />
-        )}
+      <div className="relative">
+        <Text>
+          {icon && (
+            <FontAwesomeIcon
+              className="absolute mt-3.5 ml-3"
+              icon={icon}
+            />
+          )}
 
-        <input
-          id={id}
-          type="text"
-          ref={ref}
-          readOnly={readOnly}
-          className={`border-2 py-2 pl-10 pr-10 rounded-2xl transition-all outline-none w-full
+          <input
+            id={id}
+            type="text"
+            ref={ref}
+            readOnly={readOnly}
+            className={`border-2 py-2 pl-10 pr-10 rounded-2xl transition-all outline-none w-full
             placeholder-neutral-300 dark:placeholder-neutral-500
             dark:bg-neutral-800 border-neutral-100 dark:border-neutral-700
             hover:border-neutral-200 dark:hover:border-neutral-600
             ${getThemeInputClasses()} ${inputClassName || ""}`}
-          value={currentText}
-          placeholder={placeholder}
-          onChange={onChange || (() => { })}
-        />
+            value={currentText}
+            placeholder={placeholder}
+            onChange={onChange || (() => { })}
+          />
 
-        {/* a little"X"button to clear the text */}
-        {currentText && clearText && (
-          <button
-            onClick={clearText}
-            className="text-lg absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 dark:text-neutral-500 hover:text-neutral-400 dark:hover:text-neutral-400 focus:outline-none transition-all"
-          >
-            <FontAwesomeIcon icon={faTimesCircle} />
-          </button>
-        )}
+          {/* a little"X"button to clear the text */}
+          {currentText && clearText && (
+            <button
+              onClick={clearText}
+              className="text-lg absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 dark:text-neutral-500 hover:text-neutral-400 dark:hover:text-neutral-400 focus:outline-none transition-all"
+            >
+              <FontAwesomeIcon icon={faTimesCircle} />
+            </button>
+          )}
 
-        {children}
+          {children}
+        </Text>
       </div>
-    </div>
+    </div >
   );
 });
 

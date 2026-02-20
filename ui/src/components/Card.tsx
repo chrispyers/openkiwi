@@ -18,7 +18,7 @@ const Card: React.FC<CardProps> = ({
     return (
         <div
             onClick={onClick}
-            className={`bg-bg-card border border-border-color rounded-3xl ${padding} ${className} ${onClick ? 'cursor-pointer' : ''}`}
+            className={`bg-bg-card rounded-3xl ${padding} ${className} ${onClick ? 'cursor-pointer' : ''}`}
             title={title}
         >
             {children}

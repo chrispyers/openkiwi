@@ -1,30 +1,15 @@
-import { useState } from 'react'
-import {
-    MessageSquare,
-    Cpu,
-    History,
-    Terminal,
-    Globe,
-    Brain,
-    BrainCircuit,
-    FileText,
-    Wrench,
-    RefreshCw,
-    Monitor,
-    Layout
-} from 'lucide-react'
 import { toast } from 'sonner'
 import Page from './Page'
-import { useTheme } from '../../contexts/ThemeContext'
+import { faHistory, faMicrochip, faWrench } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
-import Input from '../Input'
 import Select from '../Select'
 import Toggle from '../Toggle'
 import Text from '../Text'
 import Card from '../Card'
-import IconBox from '../IconBox'
 import Badge from '../Badge'
+import TextArea from '../TextArea'
+import Code from '../Code'
 import {
     faPlus,
     faPlug,
@@ -40,7 +25,10 @@ import {
     faFolder,
     faCube,
     faComments,
-    faTrash
+    faTrash,
+    faBrain,
+    faFileText,
+    faFileCode
 } from '@fortawesome/free-solid-svg-icons'
 import { Loader2 } from 'lucide-react'
 
@@ -143,18 +131,30 @@ export default function SettingsPage({
             title="Settings"
             subtitle="Manage your gateway, providers, and agent personalities."
         >
-            <nav className="flex gap-8 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
+            <nav className="flex gap-6 border-b border-border-color mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
                 {['agents', 'general', 'tools', 'chat', 'messaging', 'config'].map(id => (
                     <button
                         key={id}
-                        className={`pb-4 text-sm font-bold uppercase tracking-widest transition-all duration-300 relative flex items-center gap-2 ${activeSettingsSection === id ? 'text-accent-primary' : ' hover:text-neutral-600 dark:text-white'}`}
+                        className="pb-3 relative flex items-center gap-2"
                         onClick={() => setActiveSettingsSection(id as any)}
                     >
-                        {id}
-                        {activeSettingsSection === id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-primary shadow-[0_0_10px_rgba(99,102,241,0.5)]" />}
+                        <Text secondary={activeSettingsSection !== id} size="sm" bold={true} className="uppercase tracking-wide">{id}</Text>
+                        {activeSettingsSection === id && <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-accent-primary" />}
                     </button>
                 ))}
             </nav>
+
+            {/* <nav className="flex gap-2 mb-10 overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
+                {['agents', 'general', 'tools', 'chat', 'messaging', 'config'].map(id => (
+                    <Button
+                        size="sm"
+                        key={id}
+                        className={`uppercase`}
+                        onClick={() => setActiveSettingsSection(id as any)}
+                        themed={activeSettingsSection === id ? true : false}
+                    >{id}</Button>
+                ))}
+            </nav> */}
 
             {loading ? (
                 <div className="py-20 flex flex-col items-center justify-center gap-4">
@@ -174,18 +174,13 @@ export default function SettingsPage({
                     {activeSettingsSection === 'messaging' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
-                                <div className="flex items-center gap-3">
-                                    <IconBox icon={<MessageSquare size={20} />} />
-                                    <Text bold={true} size="xl">Messaging Channels</Text>
-                                </div>
-
-                                <div className="bg-bg-primary border border-border-color rounded-xl p-6">
-                                    <h3 className="text-lg font-bold mb-4 flex items-center gap-2">
-                                        <div className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white">
+                                <div className="bg-bg-primary">
+                                    <Text bold={true} size="lg">
+                                        <span className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white">
                                             <FontAwesomeIcon icon={faComments} />
-                                        </div>
+                                        </span>
                                         WhatsApp Integration
-                                    </h3>
+                                    </Text>
 
                                     <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
                                         {whatsappStatus.connected ? (
@@ -210,8 +205,8 @@ export default function SettingsPage({
                                             </div>
                                         ) : (
                                             <div className="flex flex-col md:flex-row gap-8 w-full items-center">
-                                                <div className="flex-1 space-y-4">
-                                                    <p className="text-sm leading-relaxed">
+                                                <div className="flex-1">
+                                                    <Text>
                                                         Scan the QR code below with your phone to link WhatsApp.
                                                         <br />
                                                         1. Open WhatsApp on your phone
@@ -221,7 +216,7 @@ export default function SettingsPage({
                                                         3. Tap "Link a Device"
                                                         <br />
                                                         4. Point your phone at this screen
-                                                    </p>
+                                                    </Text>
                                                 </div>
 
                                                 <div className="w-64 h-64 bg-white p-4 rounded-xl flex items-center justify-center border border-border-color shadow-sm">
@@ -245,66 +240,62 @@ export default function SettingsPage({
                     {activeSettingsSection === 'general' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
-                                <div className="flex items-center gap-3">
-                                    <IconBox icon={<Layout size={20} />} />
-                                    <Text bold={true} size="xl">General Settings</Text>
-                                </div>
 
-                                <div className="space-y-6 pt-6 border-t border-border-color">
-                                    <div className="flex items-center gap-3">
-                                        <IconBox icon={<Brain size={20} />} />
-                                        <Text bold={true} size="lg">Context & Memory</Text>
-                                    </div>
+                                <div className="space-y-6">
 
-                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
-                                        <div className="space-y-1">
-                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors">
-                                                <BrainCircuit size={14} /> Enable Vector Embeddings
-                                            </h3>
-                                            <p className="text-xs text-neutral-500">
-                                                Enhance memory recall using semantic vector search. When disabled, keyword search is used.
-                                            </p>
-                                        </div>
-                                        <Toggle
-                                            checked={config?.memory?.useEmbeddings || false}
-                                            onChange={() => setConfig(prev => prev ? {
-                                                ...prev,
-                                                memory: {
-                                                    ...(prev.memory || { embeddingsModel: "" }),
-                                                    useEmbeddings: !prev.memory?.useEmbeddings
-                                                }
-                                            } : null)}
-                                        />
-                                    </div>
-
-                                    {config?.memory?.useEmbeddings && (
-                                        <div className="space-y-4 animate-in fade-in slide-in-from-top-2 duration-300 pl-1">
-                                            <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2 text-neutral-500">
-                                                <Cpu size={14} /> Embedding Provider
-                                            </label>
-                                            <Select
-                                                width="w-full"
-                                                options={(config?.providers || []).map(p => ({
-                                                    value: p.description || p.model,
-                                                    label: p.description || p.model
-                                                }))}
-                                                value={config?.memory?.embeddingsModel || ""}
-                                                onChange={(e) => {
-                                                    const val = e.target.value;
-                                                    setConfig(prev => prev ? {
-                                                        ...prev,
-                                                        memory: {
-                                                            ...(prev.memory || { useEmbeddings: true }),
-                                                            embeddingsModel: val
-                                                        }
-                                                    } : null);
-                                                }}
+                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 group transition-all space-y-4">
+                                        <div className="flex justify-between items-center">
+                                            <div className="space-y-1">
+                                                <Text bold={true} className="flex items-center gap-2">
+                                                    <FontAwesomeIcon icon={faBrain} />
+                                                    Enable Vector Embeddings
+                                                </Text>
+                                                <Text size="sm" secondary={true} className="block">
+                                                    Enhance memory recall using semantic vector search. When disabled, keyword search is used.
+                                                </Text>
+                                            </div>
+                                            <Toggle
+                                                checked={config?.memory?.useEmbeddings || false}
+                                                onChange={() => setConfig(prev => prev ? {
+                                                    ...prev,
+                                                    memory: {
+                                                        ...(prev.memory || { embeddingsModel: "" }),
+                                                        useEmbeddings: !prev.memory?.useEmbeddings
+                                                    }
+                                                } : null)}
                                             />
-                                            <p className="text-xs text-neutral-500 px-1">
-                                                Select the provider to use for generating embeddings. Must support OpenAI-compatible <code>/embeddings</code> endpoint.
-                                            </p>
                                         </div>
-                                    )}
+
+                                        {config?.memory?.useEmbeddings && (
+                                            <div className="pt-4 border-t border-border-color animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="space-y-4">
+                                                    <Select
+                                                        label="Embedding Provider"
+                                                        icon={faMicrochip}
+                                                        width="w-full"
+                                                        options={(config?.providers || []).map(p => ({
+                                                            value: p.description || p.model,
+                                                            label: p.description || p.model
+                                                        }))}
+                                                        value={config?.memory?.embeddingsModel || ""}
+                                                        onChange={(e) => {
+                                                            const val = e.target.value;
+                                                            setConfig(prev => prev ? {
+                                                                ...prev,
+                                                                memory: {
+                                                                    ...(prev.memory || { useEmbeddings: true }),
+                                                                    embeddingsModel: val
+                                                                }
+                                                            } : null);
+                                                        }}
+                                                    />
+                                                    <Text size="sm" secondary={true}>
+                                                        Select the provider to use for generating embeddings. Must support OpenAI-compatible <code>/embeddings</code> endpoint.
+                                                    </Text>
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
 
                                     <Button themed={true} className="w-full h-12 text-white" onClick={async () => {
                                         await saveConfig();
@@ -318,20 +309,13 @@ export default function SettingsPage({
                     {activeSettingsSection === 'agents' && (
                         <form onSubmit={saveConfig} className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-6">
-                                <div className="flex items-center gap-3 mb-2">
-                                    <IconBox icon={<BrainCircuit size={20} />} />
-                                    <Text bold={true} size="xl">Agent Configuration</Text>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2"><Terminal size={14} /> Global System Prompt</label>
-                                    <textarea
-                                        className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-4 outline-none focus:border-accent-primary transition-all text-sm h-32 custom-scrollbar resize-none"
-                                        value={config?.global?.systemPrompt || ''}
-                                        onChange={(e) => setConfig(prev => prev ? { ...prev, global: { ...(prev.global || {}), systemPrompt: e.target.value } } : null)}
-                                        placeholder="Describe how the AI should behave globally..."
-                                    />
-                                </div>
+                                <TextArea
+                                    label="Global System Prompt"
+                                    currentText={config?.global?.systemPrompt || ''}
+                                    onChange={(e) => setConfig(prev => prev ? { ...prev, global: { ...(prev.global || {}), systemPrompt: e.target.value } } : null)}
+                                    placeholder=""
+                                    rows={12}
+                                />
                                 <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Agent Configurations</Button>
                             </Card>
                         </form>
@@ -343,29 +327,31 @@ export default function SettingsPage({
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-6">
                                 <div className="flex items-center gap-3">
-                                    <IconBox icon={<Wrench size={20} />} />
-                                    <h2 className="text-xl font-bold">Available Skills & Tools</h2>
+                                    <Text>
+                                        <FontAwesomeIcon icon={faWrench} />
+                                    </Text>
+                                    <Text bold={true} size="lg">Available Skills & Tools</Text>
                                 </div>
 
-                                <p className="text-sm leading-relaxed max-w-2xl text-left">
+                                <Text secondary={true} size="sm">
                                     These are the capabilities currently discovered by the Gateway. Agents can autonomously choose use these tools to interact with your environment.
-                                </p>
+                                </Text>
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4 text-left">
                                     {tools.map(tool => (
                                         <div key={tool.name} className="p-6 bg-bg-primary border border-border-color rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all">
                                             <div className="flex justify-between items-start">
-                                                <h3 className="font-bold group-hover:text-accent-primary transition-colors">{tool.name}</h3>
+                                                <Text bold={true} size="lg">{tool.name}</Text>
                                                 <Badge>Plugin</Badge>
                                             </div>
-                                            <p className="text-sm leading-relaxed line-clamp-2">{tool.description}</p>
+                                            <Text size="sm" secondary={true}>{tool.description}</Text>
                                             <div className="pt-2">
-                                                <div className="text-xs font-bold uppercase tracking-tighter text-neutral-600 dark:text-white/40 mb-2">Parameters</div>
+                                                <Text className="uppercase" size="xs" bold={true}>Parameters</Text>
                                                 <div className="flex flex-wrap gap-2">
                                                     {Object.keys(tool.parameters.properties).map(prop => (
-                                                        <Badge key={prop} variant="accent" className="font-mono">
+                                                        <Badge key={prop} className="font-mono">
                                                             {prop}
-                                                            {tool.parameters.required?.includes(prop) && <span className="text-rose-500 ml-0.5">*</span>}
+                                                            {tool.parameters.required?.includes(prop) && <span className="text-red-500 ml-1">*</span>}
                                                         </Badge>
                                                     ))}
                                                 </div>
@@ -380,17 +366,14 @@ export default function SettingsPage({
                     {activeSettingsSection === 'chat' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
-                                <div className="flex items-center gap-3">
-                                    <IconBox icon={<MessageSquare size={20} />} />
-                                    <Text bold={true} size="xl">Chat Settings</Text>
-                                </div>
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                                    <div className="border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
-                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors">
-                                                <Brain size={14} /> Show Thought Process
-                                            </h3>
-                                            <p className="text-xs">Display reasoning blocks if available</p>
+                                            <Text bold={true} className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faBrain} />
+                                                Show Thought Process
+                                            </Text>
+                                            <Text size="sm" secondary={true}>Display reasoning blocks if available</Text>
                                         </div>
                                         <Toggle
                                             checked={config?.chat.showReasoning || false}
@@ -400,8 +383,11 @@ export default function SettingsPage({
 
                                     <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
-                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors"><History size={14} /> Stateful Conversations</h3>
-                                            <p className="text-xs">Preserve context across multiple message turns</p>
+                                            <Text bold={true} className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faHistory} />
+                                                Stateful Conversations
+                                            </Text>
+                                            <Text size="sm" secondary={true}>Preserve context across multiple message turns</Text>
                                         </div>
                                         <Toggle
                                             checked={config?.chat.includeHistory || false}
@@ -411,10 +397,11 @@ export default function SettingsPage({
 
                                     <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
-                                            <h3 className="text-sm font-bold text-neutral-600 dark:text-white flex items-center gap-2 group-hover:text-accent-primary transition-colors">
-                                                <FileText size={14} /> Generate Chat Summaries
-                                            </h3>
-                                            <p className="text-xs">Summarize long conversations for better context retention</p>
+                                            <Text bold={true} className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faFileText} />
+                                                Generate Chat Summaries
+                                            </Text>
+                                            <Text size="sm" secondary={true}>Summarize long conversations for better context retention</Text>
                                         </div>
                                         <Toggle
                                             checked={config?.chat.generateSummaries || false}
@@ -440,15 +427,19 @@ export default function SettingsPage({
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
                                 <div className="flex items-center gap-3">
-                                    <IconBox icon={<FileText size={20} />} />
-                                    <Text bold={true} size="xl">config.json</Text>
+                                    <Text size="2xl">
+                                        <FontAwesomeIcon icon={faFileCode} />
+                                        <Text bold={true} size="xl" className="ml-2">config.json</Text>
+                                    </Text>
                                 </div>
                                 <div className="space-y-4">
-                                    <p className="text-sm">
+                                    <Text>
                                         Raw configuration file contents. Changes made through the UI are saved to this file.
-                                    </p>
+                                    </Text>
                                     <pre className="bg-bg-primary border border-border-color rounded-xl p-6 overflow-x-auto text-sm font-mono leading-relaxed">
-                                        <code>{JSON.stringify(config, null, 2)}</code>
+                                        <Text size="sm">
+                                            <code>{JSON.stringify(config, null, 2)}</code>
+                                        </Text>
                                     </pre>
                                 </div>
                             </Card>

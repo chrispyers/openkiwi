@@ -1,10 +1,8 @@
 import { useState, useEffect } from 'react'
-import { faRobot, faPlus, faUser, faSmile, faSave } from '@fortawesome/free-solid-svg-icons'
+import { faRobot, faPlus, faUser, faSmile, faSave, faClock, faFileText, faBrain, faMicrochip } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { BrainCircuit, RefreshCw, FileText, History } from 'lucide-react'
 import Button from '../Button'
 import Card from '../Card'
-import IconBox from '../IconBox'
 import Text from '../Text'
 import Modal from '../Modal'
 import Input from '../Input'
@@ -127,7 +125,6 @@ export default function AgentsPage({
     if (loading) {
         return (
             <div className="flex-1 flex flex-col items-center justify-center p-12">
-                <RefreshCw className="animate-spin text-accent-primary mb-4" size={40} />
                 <p className="font-medium">Loading agents...</p>
             </div>
         )
@@ -138,14 +135,7 @@ export default function AgentsPage({
             title="Agents"
             subtitle="Manage your AI agent personalities and configurations."
             headerAction={
-                <Button
-                    themed={true}
-                    className="h-10 px-4 py-2 text-white"
-                    onClick={() => setIsModalOpen(true)}
-                    icon={faPlus}
-                >
-                    Add Agent
-                </Button>
+                <Button themed={true} onClick={() => setIsModalOpen(true)} icon={faPlus}>Add Agent</Button>
             }
         >
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 max-w-5xl">
@@ -159,12 +149,12 @@ export default function AgentsPage({
                         ) : (
                             agents.map(a => (
                                 <Button
+                                    size="md"
                                     key={a.id}
                                     themed={selectedAgentId === a.id}
-                                    className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? '!bg-transparent hover:!bg-white/5' : ''}`}
+                                    className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? '!bg-transparent hover:!bg-neutral-100 dark:hover:!bg-neutral-800' : ''}`}
                                     onClick={() => setSelectedAgentId(a.id)}
                                 >
-                                    <span className="text-xl mr-1">{a.emoji}</span>
                                     <div className="text-left">
                                         <div><Text bold={true}>{a.name}</Text></div>
                                         <div><Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text></div>
@@ -208,12 +198,12 @@ export default function AgentsPage({
                                         />
                                     </div>
                                     <div className="mb-4 bg-bg-primary/50 border border-border-color rounded-xl p-4">
-                                        <div className="flex justify-between items-center mb-4">
+                                        <div className="flex justify-between items-center">
                                             <div>
-                                                <h4 className="text-xs font-bold uppercase tracking-wider mb-1 flex items-center gap-2">
-                                                    <FontAwesomeIcon icon={faRobot} /> Proactive Heartbeat
-                                                </h4>
-                                                <p className="text-xs opacity-60">Allows the agent to wake up on a schedule</p>
+                                                <Text bold={true}><FontAwesomeIcon icon={faRobot} /> Proactive Heartbeat</Text>
+                                                <div className="mb-2">
+                                                    <Text size="sm" secondary={true}>Allows the agent to wake up on a schedule</Text>
+                                                </div>
                                             </div>
                                             <Toggle
                                                 checked={agentForm.heartbeat?.enabled || false}
@@ -231,6 +221,7 @@ export default function AgentsPage({
                                             <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
                                                 <Input
                                                     label="Cron Schedule"
+                                                    icon={faClock}
                                                     currentText={agentForm.heartbeat?.schedule || ''}
                                                     onChange={e => setAgentForm({
                                                         ...agentForm,
@@ -255,7 +246,8 @@ export default function AgentsPage({
                                                         { label: 'Hourly', val: '0 * * * *' },
                                                         { label: 'Daily', val: '0 0 * * *' }
                                                     ].map(opt => (
-                                                        <button
+                                                        <Button
+                                                            size="sm"
                                                             key={opt.label}
                                                             onClick={() => setAgentForm({
                                                                 ...agentForm,
@@ -264,10 +256,9 @@ export default function AgentsPage({
                                                                     schedule: opt.val
                                                                 }
                                                             })}
-                                                            className="px-3 py-1.5 bg-bg-primary border border-border-color rounded-lg text-xs font-medium hover:bg-white-trans transition-colors text-left"
                                                         >
                                                             {opt.label}
-                                                        </button>
+                                                        </Button>
                                                     ))}
                                                 </div>
                                             </div>
@@ -290,11 +281,11 @@ export default function AgentsPage({
                                     </div>
                                     <Button
                                         themed={true}
-                                        className="w-full h-12 text-white"
+                                        className="w-full"
                                         onClick={saveAgentConfig}
                                         icon={faSave}
                                     >
-                                        Update Agent Meta Profile
+                                        Update Agent Profile
                                     </Button>
                                 </div>
 
@@ -306,7 +297,7 @@ export default function AgentsPage({
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
-                                                <FileText size={24} />
+                                                <Text size="2xl"><FontAwesomeIcon icon={faFileText} /></Text>
                                             </div>
                                             <div>
                                                 <div className="text-xs"><Text size="xs" bold={true}>IDENTITY.md</Text></div>
@@ -322,7 +313,7 @@ export default function AgentsPage({
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-amber-400 group-hover:bg-amber-400/10 transition-all">
-                                                <BrainCircuit size={24} />
+                                                <Text size="2xl"><FontAwesomeIcon icon={faMicrochip} /></Text>
                                             </div>
                                             <div>
                                                 <div className="text-xs"><Text size="xs" bold={true}>SOUL.md</Text></div>
@@ -338,7 +329,7 @@ export default function AgentsPage({
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-emerald-400 group-hover:bg-emerald-400/10 transition-all">
-                                                <History size={24} />
+                                                <Text size="2xl"><FontAwesomeIcon icon={faBrain} /></Text>
                                             </div>
                                             <div>
                                                 <div className="text-xs"><Text size="xs" bold={true}>MEMORY.md</Text></div>
@@ -354,7 +345,7 @@ export default function AgentsPage({
                                     >
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 rounded-2xl bg-white-trans flex items-center justify-center group-hover:text-rose-400 group-hover:bg-rose-400/10 transition-all">
-                                                <FontAwesomeIcon icon={faRobot} className="text-xl" />
+                                                <Text size="2xl"><FontAwesomeIcon icon={faRobot} /></Text>
                                             </div>
                                             <div>
                                                 <div className="text-xs"><Text size="xs" bold={true}>HEARTBEAT.md</Text></div>
@@ -366,9 +357,8 @@ export default function AgentsPage({
                             </div>
                         </Card>
                     ) : (
-                        <div className="flex-1 flex flex-col items-center justify-center py-20 bg-bg-card rounded-3xl border border-dashed border-border-color">
-                            <BrainCircuit size={40} className="text-border-color mb-4" />
-                            <p className="font-medium italic">Select an agent from the left to view details</p>
+                        <div className="flex-1 flex flex-col items-center justify-center py-20 bg-bg-card rounded-3xl">
+                            <Text secondary={true}>Select an agent from the left to view details</Text>
                         </div>
                     )}
                 </div>
@@ -414,7 +404,7 @@ export default function AgentsPage({
                     <div className="flex gap-3">
                         <Button
                             themed={false}
-                            className="flex-1 h-12"
+                            className="flex-1"
                             onClick={() => {
                                 setIsModalOpen(false)
                                 setNewAgentName('')
@@ -426,14 +416,14 @@ export default function AgentsPage({
                         </Button>
                         <Button
                             themed={true}
-                            className="flex-1 h-12 text-white"
+                            className="flex-1"
                             onClick={createAgent}
                             disabled={creating || !newAgentName.trim()}
                             icon={creating ? undefined : faPlus}
                         >
                             {creating ? (
                                 <div className="flex items-center gap-2">
-                                    <RefreshCw size={16} className="animate-spin" />
+                                    {/* <RefreshCw size={16} className="animate-spin" /> */}
                                     Creating...
                                 </div>
                             ) : (

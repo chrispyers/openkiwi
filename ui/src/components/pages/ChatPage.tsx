@@ -13,6 +13,7 @@ import Select from '../Select'
 import { Message, Agent } from '../../types'
 import { AgentChatBubble, UserChatBubble, StreamingChatBubble } from '../ChatBubble'
 import Text from '../Text'
+import Badge from '../Badge'
 
 interface Config {
 
@@ -89,13 +90,11 @@ export default function ChatPage({
                     </div>
                 ) : (
                     <div className="flex items-center gap-4 w-full">
-                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-accent-primary flex items-center justify-center text-xl shadow-[0_4px_15px_rgba(99,102,241,0.3)]">
+                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-accent-primary flex items-center justify-center text-xl">
                             {currentAgent?.emoji || <BrainCircuit size={18} className="text-white" />}
                         </div>
                         <div>
                             <Select
-                                className="!py-1 !text-sm !font-semibold !rounded-lg !border-transparent !bg-transparent !pl-0 !pr-8 hover:!bg-white/5 active:!bg-white/10"
-                                width="w-auto"
                                 value={selectedAgentId}
                                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAgentId(e.target.value)}
                                 options={[
@@ -104,9 +103,9 @@ export default function ChatPage({
                                 ]}
                             />
                             {currentAgent && (
-                                <div className="flex items-center gap-1.5 mt-0.5 ml-0.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_5px_rgba(16,185,129,0.5)]" />
-                                    <span className="text-xs uppercase font-bold tracking-wider opacity-60">Ready to assist</span>
+                                <div className="flex items-center gap-1.5 mt-.5 ml-0.5">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+                                    <Text size="sm" bold={true} className="uppercase tracking-wide opacity-60">Ready to assist</Text>
                                 </div>
                             )}
                         </div>
@@ -123,7 +122,9 @@ export default function ChatPage({
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div className="w-24 h-24 bg-bg-card border border-border-color rounded-3xl flex items-center justify-center text-4xl mb-6 shadow-sm animate-bounce-slow">
-                            {currentAgent?.emoji || <Bot size={40} className="text-accent-primary" />}
+                            <Text>
+                                {currentAgent?.emoji || <Bot size={40} />}
+                            </Text>
                         </div>
                         <Text size="3xl" bold={true}>Chat with {currentAgent?.name}</Text>
                         <Text className="max-w-sm" size="md">Your personal AI assistant powered by local inference. Send a message to get started.</Text>
@@ -200,7 +201,11 @@ export default function ChatPage({
                     </Button>
                 </form>
                 <div className="mt-2 text-xs text-center flex items-center justify-center gap-1">
-                    Press <span className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-600 rounded mx-1 text-neutral-600 dark:text-white">Enter</span> to send, <span className="px-1.5 py-0.5 bg-neutral-200 dark:bg-neutral-600 rounded mx-1 text-neutral-600 dark:text-white">Shift + Enter</span> for new line
+                    <Text secondary={true} size="xs">Press</Text>
+                    <Badge><Text secondary={true} size="xs" bold={true}>Enter</Text></Badge>
+                    <Text secondary={true} size="xs">to send,</Text>
+                    <Badge><Text secondary={true} size="xs" bold={true}>Shift + Enter</Text></Badge>
+                    <Text secondary={true} size="xs">for a new line</Text>
                 </div>
             </div>
         </div>

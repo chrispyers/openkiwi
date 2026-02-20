@@ -1,5 +1,8 @@
 import React, { useEffect } from 'react';
-import { X } from 'lucide-react';
+import Text from './Text';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faX } from '@fortawesome/free-solid-svg-icons';
+import Button from './Button';
 
 interface ModalProps {
     isOpen: boolean;
@@ -34,26 +37,22 @@ const Modal: React.FC<ModalProps> = ({
 
     return (
         <div
-            className="fixed inset-0 bg-black/80 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-200"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-100"
             onClick={onClose}
         >
             <div
-                className={`bg-bg-card w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-200 shadow-2xl ${className}`}
+                className={`bg-bg-card w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-100 shadow-2xl ${className}`}
                 onClick={e => e.stopPropagation()}
             >
-                <div className="p-6 border-b border-border-color flex justify-between items-center bg-bg-sidebar/50 backdrop-blur-md">
+                <div className="p-6 border-b border-border-color flex justify-between items-center bg-bg-sidebar/50">
                     <div className="flex items-center gap-3">
-                        {title && <h2 className="text-xl font-semibold flex items-center gap-2">{title}</h2>}
+                        {title && <div className="flex items-center gap-2"><Text size="xl" className="font-semibold">{title}</Text></div>}
+                    </div>
+                    <div className="flex-1 flex items-center justify-center">
+                        {headerActions}
                     </div>
                     <div className="flex gap-2">
-                        {headerActions}
-                        <button
-                            className="h-10 w-10 rounded-lg hover:bg-white/10 hover:text-white flex items-center justify-center transition-all duration-200"
-                            onClick={onClose}
-                            title="Close"
-                        >
-                            <X size={24} />
-                        </button>
+                        <Button onClick={onClose}>Close</Button>
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-0">

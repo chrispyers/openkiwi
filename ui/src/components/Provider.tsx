@@ -7,6 +7,7 @@ import Card from './Card';
 import { Model } from '../types';
 import { EyeIcon, BrainIcon, ToolIcon } from './CapabilityIcons';
 import Input from './Input';
+import Text from './Text';
 
 interface ProviderProps {
     description: string;
@@ -55,24 +56,37 @@ export default function Provider({
             </div>
 
             <div className="space-y-2">
-                <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">Available Models</label>
-                <div className="bg-bg-primary border border-border-color rounded-xl overflow-hidden min-h-[150px] max-h-[300px] overflow-y-auto custom-scrollbar">
+                <Text className="uppercase" bold={true}>Available models</Text>
+                <div className="rounded-xl overflow-hidden min-h-[150px] max-h-[300px] overflow-y-auto custom-scrollbar">
                     {models.length === 0 ? (
-                        <div className="flex flex-col items-center justify-center h-[150px] text-neutral-400 gap-2">
-                            <p className="text-sm">No models found yet.</p>
-                            <p className="text-xs">Enter an endpoint and click Scan.</p>
+                        <div className="flex flex-col items-center justify-center h-[150px] gap-2">
+                            <TABLE header={[
+                                { name: "Model Name", alignment: "left" },
+                                { name: "Capabilities", alignment: "center" },
+                                { name: "Status", alignment: "center" }
+                            ]} className="w-full">
+                                <></>
+                            </TABLE>
+                            <Text secondary={true}>No models found yet.</Text>
+                            <Text secondary={true}>Enter an endpoint and click Scan.</Text>
                         </div>
                     ) : (
-                        <TABLE header={["Model Name", "Capabilities", "Status"]} className="w-full">
+                        <TABLE header={[
+                            { name: "Model Name", alignment: "left" },
+                            { name: "Capabilities", alignment: "center" },
+                            { name: "Status", alignment: "center" }
+                        ]} className="w-full">
                             {models.map((m) => {
                                 const isVision = m.capabilities?.vision;
                                 const isTool = m.capabilities?.trained_for_tool_use;
                                 const isReasoning = (m.id || "").toLowerCase().includes("deepseek-r1") ||
                                     (m.id || "").toLowerCase().includes("o1") ||
                                     (m.id || "").toLowerCase().includes("reasoning") ||
+                                    (m.id || "").toLowerCase().includes("thinking") ||
                                     (m.display_name || "").toLowerCase().includes("deepseek-r1") ||
                                     (m.display_name || "").toLowerCase().includes("o1") ||
-                                    (m.display_name || "").toLowerCase().includes("reasoning");
+                                    (m.display_name || "").toLowerCase().includes("reasoning") ||
+                                    (m.display_name || "").toLowerCase().includes("thinking");
 
                                 return (
                                     <TR
@@ -81,7 +95,11 @@ export default function Provider({
                                         onClick={() => onModelChange(m.id)}
                                         className={model === m.id ? "!bg-accent-primary/10" : ""}
                                     >
-                                        <TD className="font-mono text-sm">{m.id}</TD>
+                                        <TD>
+                                            <Text className="font-mono" size="sm">
+                                                {m.id}
+                                            </Text>
+                                        </TD>
                                         <TD>
                                             <div className="flex gap-2 justify-center">
                                                 {isVision && <EyeIcon />}

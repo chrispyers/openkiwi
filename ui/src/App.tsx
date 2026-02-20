@@ -94,6 +94,12 @@ interface Config {
     description: string;
     endpoint: string;
     model: string;
+    apiKey?: string;
+    capabilities?: {
+      vision?: boolean;
+      reasoning?: boolean;
+      trained_for_tool_use?: boolean;
+    };
   }[];
   memory?: {
     useEmbeddings: boolean;
@@ -858,20 +864,13 @@ function App() {
         isOpen={!!viewingFile}
         onClose={() => setViewingFile(null)}
         title={viewingFile && (
-          <>
-            <FileText size={20} className="text-accent-primary" />
-            <span>{viewingFile.title}</span>
-          </>
+          <span>{viewingFile.title}</span>
         )}
         headerActions={viewingFile && (
           !viewingFile.isEditing ? (
-            <button className="h-10 px-5 rounded-lg bg-transparent border border-white/10 hover:bg-white/5 hover:text-white flex items-center justify-center transition-all duration-200" onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>
-              <Edit2 size={18} />
-            </button>
+            <Button onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>edit</Button>
           ) : (
-            <button className="h-10 px-5 rounded-lg bg-accent-primary text-white border border-accent-primary shadow-[0_0_15px_rgba(99,102,241,0.3)] flex items-center justify-center transition-all duration-200" onClick={saveAgentFile}>
-              <Save size={18} />
-            </button>
+            <Button onClick={saveAgentFile}>save</Button>
           )
         )}
       >
@@ -902,7 +901,8 @@ function App() {
           <nav className="w-72 bg-bg-sidebar border-r border-border-color flex flex-col z-50 transition-all duration-300">
             <div className="p-5">
               <Button
-                className="w-full bg-neutral-200 dark:bg-neutral-700 hover:bg-neutral-300 dark:hover:bg-neutral-600 border border-border-color transition-colors text-neutral-600 dark:text-white"
+                className="w-full"
+                themed={true}
                 icon={faPlus}
                 onClick={createNewSession}
                 disabled={!isGatewayConnected}

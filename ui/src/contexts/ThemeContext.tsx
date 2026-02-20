@@ -28,7 +28,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     }, [theme]);
 
     const getThemeButtonClasses = () => {
-        return "bg-accent-primary text-white hover:opacity-90 shadow-md";
+        return "bg-accent-primary dark:bg-neutral-600 text-white hover:opacity-90 shadow-md";
     };
 
     const getThemeInputClasses = () => {

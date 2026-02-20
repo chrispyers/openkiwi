@@ -37,9 +37,10 @@ const Text: React.FC<TextProps> = ({
     const sizeClass = sizeMap[size] || 'text-base';
     const boldClass = bold ? 'font-bold' : 'font-normal';
     const codeClass = code ? 'font-mono' : '';
+    const colorClass = secondary ? "text-neutral-400 dark:text-neutral-400" : "text-neutral-600 dark:text-neutral-100";
 
     return (
-        <span className={`${sizeClass} ${boldClass} ${codeClass} ${colorClass} ${className} subpixel-antialiased`}>
+        <span className={`${sizeClass} ${boldClass} ${codeClass} ${colorClass} ${className} antialiased`}>
             {children}
         </span>
     );

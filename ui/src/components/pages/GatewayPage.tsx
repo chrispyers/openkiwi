@@ -1,11 +1,11 @@
-import { Cpu, Globe, Lock, Monitor, RefreshCw } from 'lucide-react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faGlobe, faLock, faPlug, faDesktop } from '@fortawesome/free-solid-svg-icons'
+import { faGlobe, faLock, faPlug, faDesktop, faGlobeAmericas } from '@fortawesome/free-solid-svg-icons'
 import Page from './Page'
 import Card from '../Card'
-import IconBox from '../IconBox'
 import Input from '../Input'
 import Button from '../Button'
+import Text from '../Text'
+import Code from '../Code'
 
 interface GatewayPageProps {
     gatewayAddr: string;
@@ -35,10 +35,14 @@ export default function GatewayPage({
                 <Card className="space-y-6">
                     <div className="">
                         <div className="w-full">
-                            <div className="space-y-6">
-                                <p className="text-md leading-relaxed">
-                                    Specify the address of your gateway. For local development, use <code className="text-accent-primary">http://localhost:3808</code>.
-                                </p>
+                            <div className="space-y-1">
+                                <div><Text>Specify the address of your gateway.</Text></div>
+
+                                <div className="flex gap-1">
+                                    <Text secondary={true} size="sm">For local development use</Text>
+                                    <Text secondary={true} size="sm" bold={true}><Code>http://localhost:3808</Code></Text>
+                                </div>
+
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <Input
@@ -61,10 +65,11 @@ export default function GatewayPage({
                                     />
                                 </div>
 
-
-                                <p className="text-xs text-neutral-500 dark:text-neutral-400 italic">
-                                    Changes to endpoint or token will only take effect after clicking "Connect to Gateway"
-                                </p>
+                                <div className="">
+                                    <Text secondary={true} size="sm">
+                                        Changes to endpoint or token will only take effect after clicking "Connect to Gateway"
+                                    </Text>
+                                </div>
 
                                 <Button
                                     themed={true}
@@ -81,41 +86,38 @@ export default function GatewayPage({
 
                     <div className="pt-8 border-t border-border-color space-y-6">
                         <div className="flex items-center justify-between">
-                            <label className="text-xs font-bold uppercase tracking-wider flex items-center gap-2">
-                                <FontAwesomeIcon icon={faDesktop} /> Connected Computers ({connectedClients.length})
-                            </label>
-                            <button
+                            <Text bold={true} className="uppercase">Connected Computers ({connectedClients.length})</Text>
+                            {/* <button
                                 onClick={(e) => { e.preventDefault(); fetchConnectedClients(); }}
                                 className="text-xs font-bold uppercase tracking-widest text-accent-primary hover:text-accent-primary/80 flex items-center gap-1 transition-colors"
                             >
                                 <RefreshCw size={10} /> Refresh List
-                            </button>
+                            </button> */}
                         </div>
 
                         <div className="grid grid-cols-1 gap-3">
                             {connectedClients.length === 0 ? (
                                 <div className="p-8 bg-bg-primary/50 border border-dashed border-border-color rounded-2xl text-center">
-                                    <p className="text-xs italic">No other computers currently connected to this gateway.</p>
+                                    <Text>No other computers currently connected to this gateway.</Text>
                                 </div>
                             ) : (
                                 connectedClients.map((client, idx) => (
                                     <div key={idx} className="bg-bg-primary border border-border-color rounded-2xl p-4 flex items-center justify-between group hover:border-accent-primary/50 transition-all">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
-                                                <Monitor size={20} />
+                                                <Text size="lg">
+                                                    <FontAwesomeIcon icon={faDesktop} />
+                                                </Text>
                                             </div>
                                             <div className="text-left">
-                                                <div className="font-bold text-sm">{client.hostname}</div>
-                                                <div className="text-xs font-mono flex items-center gap-2">
-                                                    <Globe size={10} /> {client.ip}
-                                                </div>
+                                                <div><Text size="sm" bold={true}>{client.hostname}</Text></div>
+                                                <Text size="xs" secondary={true}><FontAwesomeIcon icon={faGlobeAmericas} /> {client.id}</Text>
+                                                <Text size="xs" bold={true} secondary={true}><Code>{client.ip}</Code></Text>
                                             </div>
                                         </div>
                                         <div className="text-right">
-                                            <div className="text-xs font-bold uppercase tracking-tighter text-neutral-600 dark:text-white/40 mb-1">Connected Since</div>
-                                            <div className="text-xs font-medium">
-                                                {new Date(client.connectedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}
-                                            </div>
+                                            <div><Text size="xs" bold={true} className="uppercase">Connected Since</Text></div>
+                                            <Text size="xs" bold={true} secondary={true}><Code>{new Date(client.connectedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}</Code></Text>
                                         </div>
                                     </div>
                                 ))
