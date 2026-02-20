@@ -852,13 +852,13 @@ function App() {
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <Toaster
         position="top-right"
-        theme="dark"
+        theme={theme === 'light' ? 'dark' : 'light'}
         richColors
         toastOptions={{
           style: {
-            background: 'var(--bg-card)',
-            border: '1px solid var(--border-color)',
-            color: 'var(--text-primary)',
+            background: theme === 'light' ? '#262626' : '#f5f5f5',
+            border: `1px solid ${theme === 'light' ? '#404040' : '#e5e5e5'}`,
+            color: theme === 'light' ? '#fafafa' : '#171717',
             fontFamily: 'Outfit, sans-serif'
           }
         }}
