@@ -68,7 +68,10 @@ async function startServer() {
     await ToolManager.discoverTools();
     await AgentManager.initializeAllMemoryManagers();
     await HeartbeatManager.start();
+
+    // Check for updates on startup and then every hour
     await checkForUpdates();
+    setInterval(checkForUpdates, 3600000); // 3,600,000 ms = 1 hour
 
     // Initialize WhatsApp
     WhatsAppManager.getInstance();
