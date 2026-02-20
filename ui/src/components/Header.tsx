@@ -41,8 +41,7 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, update
 
             {updateAvailable && (
                 <div className="absolute left-1/2 -translate-x-1/2">
-                    <Badge variant="success" className="animate-pulse shadow-lg shadow-emerald-500/20 px-4 py-1.5 border-emerald-500/50">
-                        <span className="mr-2">✨</span>
+                    <Badge variant="success" className="animate-pulse" size="sm">
                         UPDATE AVAILABLE
                     </Badge>
                 </div>
