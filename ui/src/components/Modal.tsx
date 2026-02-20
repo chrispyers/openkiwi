@@ -44,7 +44,7 @@ const Modal: React.FC<ModalProps> = ({
                 className={`bg-bg-card w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-100 shadow-2xl ${className}`}
                 onClick={e => e.stopPropagation()}
             >
-                <div className="p-6 border-b border-border-color flex justify-between items-center bg-bg-sidebar/50">
+                <div className="p-6 border-b border-border-color flex justify-between items-center">
                     <div className="flex items-center gap-3">
                         {title && <div className="flex items-center gap-2"><Text size="xl" className="font-semibold">{title}</Text></div>}
                     </div>

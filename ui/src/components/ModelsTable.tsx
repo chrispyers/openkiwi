@@ -52,8 +52,10 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
 
     if (!providers || providers.length === 0) {
         return (
-            <div className="text-center py-20 opacity-50">
-                <p>No providers configured yet. Click "Add Provider" to get started.</p>
+            <div className="text-center py-20">
+                <Text secondary={true}>
+                    No models configured yet. Click "Add Model" to get started.
+                </Text>
             </div>
         );
     }

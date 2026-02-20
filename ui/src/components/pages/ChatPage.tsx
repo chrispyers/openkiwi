@@ -13,6 +13,7 @@ import { Message, Agent } from '../../types'
 import { AgentChatBubble, UserChatBubble, StreamingChatBubble } from '../ChatBubble'
 import Text from '../Text'
 import Badge from '../Badge'
+import TextArea from '../TextArea'
 
 interface Config {
 
@@ -174,12 +175,12 @@ export default function ChatPage({
                     </div>
                 )}
                 <form onSubmit={handleSend} className="relative group max-w-4xl mx-auto">
-                    <textarea
+                    <TextArea
                         ref={textareaRef}
-                        className="w-full bg-neutral-100 dark:bg-neutral-800/50 border-2 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-white rounded-3xl py-4 pl-6 pr-14 outline-none hover:border-neutral-300 dark:hover:border-neutral-700 focus:border-accent-primary transition-all scrollbar-none resize-none text-base leading-relaxed disabled:opacity-50 disabled:cursor-not-allowed"
+                        className={`w-full bg-neutral-100 dark:bg-neutral-800/50 border-2 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-white rounded-3xl py-4 pl-6 pr-14 outline-none transition-all scrollbar-none resize-none text-base leading-relaxed ${(!isGatewayConnected || isAgentMissing || isNoAgentSelected) ? 'opacity-50 cursor-not-allowed' : 'hover:border-neutral-400 dark:hover:border-neutral-600'}`}
                         placeholder={isAgentMissing ? "Agent not found" : isNoAgentSelected ? "Select an agent to start chatting..." : isGatewayConnected ? `Message ${currentAgent?.name}...` : "Gateway Offline - Check Settings"}
                         rows={1}
-                        value={inputText}
+                        currentText={inputText}
                         disabled={!isGatewayConnected || isAgentMissing || isNoAgentSelected}
                         onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => setInputText(e.target.value)}
                         onKeyDown={(e: React.KeyboardEvent<HTMLTextAreaElement>) => {

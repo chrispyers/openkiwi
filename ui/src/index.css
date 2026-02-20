@@ -9,17 +9,11 @@
 :root:not(.dark) {
   --accent-primary: rgb(43, 43, 43);
   --bg-sidebar: #fafafa;
-  /* neutral-50 */
   --bg-primary: #fafafa;
-  /* neutral-50 */
   --bg-card: #fafafa;
-  /* white */
   --text-primary: rgb(38, 38, 38);
-  /* neutral-900 */
   --text-secondary: #78df0a;
-  /* neutral-600 */
   --border-color: #e5e5e5;
-  /* neutral-200 */
 }
 
 /* Dark Mode Variables */
@@ -27,24 +21,19 @@
   --accent-primary: #ffffff;
 
   --bg-sidebar: rgb(38, 38, 38);
-  /* neutral-800 */
+
+  /* neutral-900 */
   --bg-sidebar: rgb(23, 23, 23);
 
   /* neutral-900 */
   --bg-primary: rgb(23, 23, 23);
 
   /* neutral-800 */
-  /* --bg-primary: rgb(38, 38, 38); */
+  --bg-card: rgb(29, 29, 29);
 
-  /* neutral-800 */
-  --bg-card: #404040;
-  /* neutral-700 */
   --text-primary: #fafafa;
-  /* neutral-50 */
   --text-secondary: #a3a3a3;
-  /* neutral-400 */
   --border-color: #525252;
-  /* neutral-600 */
 }
 
 @layer base {
@@ -65,6 +54,10 @@
     @apply bg-accent-primary rounded-tr-[8px];
     /* box-shadow: 0 4px 15px rgba(43, 43, 43, 0.2); */
   }
+
+  /* .user-bubble .dark {
+    @apply bg-accent-primary;
+  } */
 
   .user-bubble * {
     @apply text-white !important;

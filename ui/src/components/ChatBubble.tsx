@@ -52,7 +52,7 @@ export const ChatBubble = ({
                     </div>
                 </div>
                 {timestamp && (
-                    <div className={`mt-2 text-xs font-medium flex items-center gap-1.5 px-1 ${isUser ? '' : 'ml-12'}`}>
+                    <div className={`mt-2 flex items-center gap-1.5 px-1 ${isUser ? '' : 'ml-12'}`}>
                         <Text size="xs" secondary={true} bold={true}>
                             {formatTimestamp(timestamp)}
                         </Text>

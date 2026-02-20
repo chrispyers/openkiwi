@@ -243,7 +243,7 @@ export default function SettingsPage({
 
                                 <div className="space-y-6">
 
-                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 group transition-all space-y-4">
+                                    <div className="bg-bg-primary rounded-xl p-4 group transition-all space-y-4">
                                         <div className="flex justify-between items-center">
                                             <div className="space-y-1">
                                                 <Text bold={true} className="flex items-center gap-2">
@@ -367,7 +367,7 @@ export default function SettingsPage({
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                                    <div className="bg-bg-primary rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
                                             <Text bold={true} className="flex items-center gap-2">
                                                 <FontAwesomeIcon icon={faBrain} />
@@ -381,7 +381,7 @@ export default function SettingsPage({
                                         />
                                     </div>
 
-                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                                    <div className="bg-bg-primary rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
                                             <Text bold={true} className="flex items-center gap-2">
                                                 <FontAwesomeIcon icon={faHistory} />
@@ -395,7 +395,7 @@ export default function SettingsPage({
                                         />
                                     </div>
 
-                                    <div className="bg-bg-primary border border-border-color rounded-xl p-4 flex justify-between items-center group transition-all">
+                                    <div className="bg-bg-primary rounded-xl p-4 flex justify-between items-center group transition-all">
                                         <div className="space-y-1">
                                             <Text bold={true} className="flex items-center gap-2">
                                                 <FontAwesomeIcon icon={faFileText} />
@@ -409,7 +409,7 @@ export default function SettingsPage({
                                         />
                                     </div>
                                 </div>
-                                <div className="pt-4 border-t border-border-color">
+                                <div className="pt-4">
                                     <Button
                                         themed={true}
                                         className="w-full h-12 text-white"
