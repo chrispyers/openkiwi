@@ -41,6 +41,7 @@ const ConfigSchema = z.object({
 export type Config = z.infer<typeof ConfigSchema>;
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'config.json');
+let hasLoggedToken = false;
 
 export function loadConfig(): Config {
     try {
@@ -55,6 +56,10 @@ export function loadConfig(): Config {
             config.gateway.secretToken = crypto.randomBytes(24).toString('hex');
             saveConfig(config);
             console.log('Generated new secure Gateway Token:', config.gateway.secretToken);
+            hasLoggedToken = true;
+        } else if (!hasLoggedToken) {
+            console.log('Starting gateway with token:', config.gateway.secretToken);
+            hasLoggedToken = true;
         }
 
         return config;

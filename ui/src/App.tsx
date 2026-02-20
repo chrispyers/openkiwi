@@ -929,6 +929,7 @@ function App() {
             <p className="text-neutral-500 dark:text-neutral-400 pl-8">
               Refresh your browser tab once the gateway is back online to see the latest changes.
             </p>
+            <p className="text-center text-4xl">🎉</p>
           </section>
         </div>
       </Modal>
