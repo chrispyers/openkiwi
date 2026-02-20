@@ -13,7 +13,10 @@
   },
   "providers": [],
   "memory": {
-    "useEmbeddings": true,
-    "embeddingsModel": ""
+    "useEmbeddings": false,
+  },
+  "system": {
+    "version": "2026-02-20",
+    "latestVersion": ""
   }
 }

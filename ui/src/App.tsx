@@ -105,6 +105,10 @@ interface Config {
     useEmbeddings: boolean;
     embeddingsModel: string;
   };
+  system?: {
+    version: string;
+    latestVersion: string;
+  };
 }
 
 
@@ -887,7 +891,11 @@ function App() {
         </div>
       </Modal>
 
-      <Header isGatewayConnected={isGatewayConnected} onMenuClick={() => setIsNavExpanded(!isNavExpanded)} />
+      <Header
+        isGatewayConnected={isGatewayConnected}
+        onMenuClick={() => setIsNavExpanded(!isNavExpanded)}
+        updateAvailable={!!(config?.system?.latestVersion && config?.system?.version && config.system.latestVersion > config.system.version)}
+      />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}
         <Sidebar

@@ -12,9 +12,10 @@ import Badge from './Badge';
 interface HeaderProps {
     isGatewayConnected: boolean;
     onMenuClick?: () => void;
+    updateAvailable?: boolean;
 }
 
-const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick }) => {
+const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, updateAvailable }) => {
     return (
         <header className="h-14 border-b border-border-color bg-bg-primary flex items-center justify-between px-6 z-[60] shadow-sm">
             <div className="flex items-center gap-4">
@@ -37,6 +38,15 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick }) => {
                     </h1>
                 </div>
             </div>
+
+            {updateAvailable && (
+                <div className="absolute left-1/2 -translate-x-1/2">
+                    <Badge variant="success" className="animate-pulse shadow-lg shadow-emerald-500/20 px-4 py-1.5 border-emerald-500/50">
+                        <span className="mr-2">✨</span>
+                        UPDATE AVAILABLE
+                    </Badge>
+                </div>
+            )}
 
             <div className="flex items-center gap-4">
                 {/* Connection Status */}

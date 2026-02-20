@@ -32,6 +32,10 @@ const ConfigSchema = z.object({
         useEmbeddings: z.boolean().default(false),
         embeddingsModel: z.string().default(""),
     }).passthrough().default({ useEmbeddings: false, embeddingsModel: "" }),
+    system: z.object({
+        version: z.string().default("2026-02-18"),
+        latestVersion: z.string().default(""),
+    }).passthrough().default({ version: "2026-02-18", latestVersion: "" }),
 }).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -76,6 +80,10 @@ export function loadConfig(): Config {
                 useEmbeddings: false,
                 embeddingsModel: "",
             },
+            system: {
+                version: "2026-02-18",
+                latestVersion: "",
+            }
         };
     }
 }

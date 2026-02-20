@@ -15,16 +15,42 @@ import { WhatsAppManager } from './whatsapp-manager.js';
 import { WAMessage, areJidsSameUser, jidNormalizedUser } from '@whiskeysockets/baileys';
 
 
+
 const config = loadConfig();
 const app = express();
 const server = createServer(app);
 const wss = new WebSocketServer({ server });
+
+async function checkForUpdates() {
+    try {
+        const url = 'https://raw.githubusercontent.com/chrispyers/openkiwi/refs/heads/main/LATEST_RELEASE.txt';
+        const response = await fetch(url);
+        if (response.ok) {
+            const latestVersion = (await response.text()).trim();
+            const currentConfig = loadConfig();
+
+            // Initialize system config if it doesn't exist
+            if (!currentConfig.system) {
+                currentConfig.system = { version: "2026-02-18", latestVersion: "" };
+            }
+
+            if (currentConfig.system.latestVersion !== latestVersion) {
+                currentConfig.system.latestVersion = latestVersion;
+                saveConfig(currentConfig);
+                console.log(`[Update] New version detected: ${latestVersion}`);
+            }
+        }
+    } catch (error) {
+        console.error('[Update] Failed to check for updates:', error);
+    }
+}
 
 async function startServer() {
     console.log('Initializing systems...');
     await ToolManager.discoverTools();
     await AgentManager.initializeAllMemoryManagers();
     await HeartbeatManager.start();
+    await checkForUpdates();
 
     // Initialize WhatsApp
     WhatsAppManager.getInstance();
