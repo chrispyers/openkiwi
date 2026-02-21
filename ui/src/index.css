@@ -33,7 +33,8 @@
   --border-color: #e5e5e5;
   --user-chat-bubble-bg: rgb(43, 43, 43);
   --modal-bg: #ffffff;
-  --table-header-bg: #f9fafb;
+  --table-header-bg: rgb(65, 65, 65);
+  --table-header-text: white;
   --table-body-bg: #ffffff;
 }
 
@@ -58,6 +59,8 @@
   --user-chat-bubble-bg: rgb(56, 59, 61);
   --modal-bg: rgb(26, 26, 26);
   --table-header-bg: rgb(26, 26, 26);
+  /* --table-header-text: rgb(23, 23, 23); */
+  --table-header-text: white;
   --table-body-bg: rgb(30, 30, 30);
 }
 

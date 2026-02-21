@@ -43,8 +43,8 @@ export function TABLE(props: { header?: HeaderItem[], children: React.ReactNode,
 export function TH({ children, alignment = 'left' }: { children: React.ReactNode, alignment?: TableAlignment }) {
     const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
     return (
-        <th className={`py-4 px-6 text-xs text-neutral-500 dark:text-white uppercase tracking-wider ${alignmentClass}`}>
-            <Text size="xs" bold={true}>
+        <th className={`py-4 px-6 text-xs uppercase tracking-wider ${alignmentClass}`}>
+            <Text size="xs" bold={true} className="!text-[var(--table-header-text)]">
                 {children}
             </Text>
         </th>

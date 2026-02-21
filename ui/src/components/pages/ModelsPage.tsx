@@ -67,6 +67,7 @@ export default function ModelsPage({
     const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
     const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
+    const [newAnthropicProvider, setNewAnthropicProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [scannedModels, setScannedModels] = useState<Model[]>([]);
 
     // Editing State
@@ -90,6 +91,7 @@ export default function ModelsPage({
             setNewProvider({ description: '', endpoint: '', model: '' });
             setNewGeminiProvider({ apiKey: '', model: '', description: '', capabilities: {} });
             setNewOpenAIProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+            setNewAnthropicProvider({ apiKey: '', model: '', description: '', capabilities: {} });
             setScannedModels([]);
         }
     }, [isModalOpen]);
@@ -148,27 +150,33 @@ export default function ModelsPage({
             modelId.includes("o1") ||
             modelId.includes("reasoning") ||
             modelId.includes("thinking") ||
+            modelId.includes("claude-3-7") ||
             displayName.includes("deepseek-r1") ||
             displayName.includes("o1") ||
             displayName.includes("reasoning") ||
-            displayName.includes("thinking");
+            displayName.includes("thinking") ||
+            displayName.includes("claude-3.7");
 
         const isVision = model.capabilities?.vision ||
             modelId.includes("vision") ||
             modelId.includes("flash") ||
             modelId.includes("pro") ||
+            modelId.includes("claude-3") ||
             displayName.includes("vision") ||
             displayName.includes("flash") ||
-            displayName.includes("pro");
+            displayName.includes("pro") ||
+            displayName.includes("claude-3");
 
         const isTool = model.capabilities?.trained_for_tool_use ||
             modelId.includes("tool") ||
             modelId.includes("flash") ||
             modelId.includes("pro") ||
+            modelId.includes("claude-3") ||
             displayName.includes("tool") ||
             displayName.includes("flash") ||
             displayName.includes("pro") ||
-            description.includes("tool");
+            description.includes("tool") ||
+            description.includes("claude-3");
 
         return {
             reasoning: isReasoning || false,
@@ -260,11 +268,53 @@ export default function ModelsPage({
         setNewOpenAIProvider({ apiKey: '', model: '', description: '', capabilities: {} });
     };
 
+    const handleAnthropicScan = async () => {
+        if (!newAnthropicProvider.apiKey) {
+            toast.error("Please enter an API Key first");
+            return;
+        }
+        const result = await fetchModels(false, {
+            endpoint: 'https://api.anthropic.com/v1',
+            apiKey: newAnthropicProvider.apiKey
+        }, true);
+        if (Array.isArray(result)) {
+            const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
+            setScannedModels(models);
+        }
+    };
+
+    const handleAnthropicSave = async () => {
+        if (!config || !newAnthropicProvider.apiKey || !newAnthropicProvider.model) {
+            toast.error("Please provide at least an API Key and select a Model");
+            return;
+        }
+
+        const description = newAnthropicProvider.description.trim() || `Anthropic - ${newAnthropicProvider.model}`;
+
+        const providerToAdd = {
+            description: description,
+            endpoint: 'https://api.anthropic.com/v1',
+            model: newAnthropicProvider.model,
+            apiKey: newAnthropicProvider.apiKey,
+            capabilities: newAnthropicProvider.capabilities
+        };
+
+        const updatedProviders = [...(config.providers || []), providerToAdd];
+        const newConfig = { ...config, providers: updatedProviders };
+        setConfig(newConfig);
+        await saveConfig(undefined, newConfig);
+        toast.success("Successfully saved Anthropic provider");
+        setIsModalOpen(false);
+        setNewAnthropicProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+    };
+
     const augmentedProviders = config?.providers.map((p, i) => ({ ...p, originalIndex: i })) || [];
+    const anthropicModels = augmentedProviders.filter(p => p.endpoint.includes('anthropic.com'));
     const googleModels = augmentedProviders.filter(p => p.endpoint.includes('googleapis.com'));
     const lmStudioModels = augmentedProviders.filter(p => p.endpoint.includes(':1234'));
     const openAIModels = augmentedProviders.filter(p => p.endpoint.includes('api.openai.com'));
     const otherModels = augmentedProviders.filter(p =>
+        !p.endpoint.includes('anthropic.com') &&
         !p.endpoint.includes('googleapis.com') &&
         !p.endpoint.includes(':1234') &&
         !p.endpoint.includes('api.openai.com')
@@ -284,6 +334,17 @@ export default function ModelsPage({
                         <ModelsTable providers={[]} onRowClick={() => { }} />
                     ) : (
                         <div className="space-y-12">
+                            {anthropicModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <Text size="lg" bold={true}>Anthropic</Text>
+                                    <ModelsTable
+                                        providers={anthropicModels}
+                                        onRowClick={(i) => handleRowClick(anthropicModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(anthropicModels[i].originalIndex)}
+                                    />
+                                </div>
+                            )}
+
                             {googleModels.length > 0 && (
                                 <div className="space-y-4">
                                     <Text size="lg" bold={true}>Google</Text>
@@ -401,8 +462,8 @@ export default function ModelsPage({
                 <div className="p-6">
                     <div className="flex gap-4 justify-center mb-6 overflow-x-auto">
                         <Button
-                            className="h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500 opacity-70 hover:opacity-100"
-                            onClick={() => toast.info("Anthropic support coming soon")}
+                            className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'anthropic' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            onClick={() => setSelectedProviderType('anthropic')}
                         >
                             <img src={AnthropicIcon} alt="Anthropic" className="h-6 dark:invert" />
                         </Button>
@@ -425,6 +486,36 @@ export default function ModelsPage({
                             <img src={OpenAIIcon} alt="OpenAI" className="h-6 dark:invert" />
                         </Button>
                     </div>
+
+                    {selectedProviderType === 'anthropic' && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                            <Provider
+                                inputLabel="API KEY"
+                                inputIcon={faKey}
+                                inputPlaceholder="ant-api-..."
+                                description={newAnthropicProvider.description}
+                                endpoint={newAnthropicProvider.apiKey}
+                                model={newAnthropicProvider.model}
+                                models={scannedModels}
+                                onDescriptionChange={(val) => setNewAnthropicProvider(prev => ({ ...prev, description: val }))}
+                                onEndpointChange={(val) => setNewAnthropicProvider(prev => ({ ...prev, apiKey: val }))}
+                                onModelChange={(val) => {
+                                    const selectedModel = scannedModels.find(m => m.id === val);
+                                    const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
+                                    setNewAnthropicProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                }}
+                                onScan={handleAnthropicScan}
+                                onSave={handleAnthropicSave}
+                                footer={
+                                    <div className="text-center">
+                                        <Text size="sm" secondary={true}>
+                                            Don't have an API key? Get one at <a href="https://console.anthropic.com/" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-bold">console.anthropic.com</a>
+                                        </Text>
+                                    </div>
+                                }
+                            />
+                        </div>
+                    )}
 
                     {selectedProviderType === 'lm-studio' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
@@ -496,6 +587,13 @@ export default function ModelsPage({
                                 }}
                                 onScan={handleGeminiScan}
                                 onSave={handleGeminiSave}
+                                footer={
+                                    <div className="text-center">
+                                        <Text size="sm" secondary={true}>
+                                            Don't have an API key? Get one at <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-bold">aistudio.google.com</a>
+                                        </Text>
+                                    </div>
+                                }
                             />
                         </div>
                     )}
@@ -518,6 +616,13 @@ export default function ModelsPage({
                                 }}
                                 onScan={handleOpenAIScan}
                                 onSave={handleOpenAISave}
+                                footer={
+                                    <div className="text-center">
+                                        <Text size="sm" secondary={true}>
+                                            Don't have an API key? Get one at <a href="https://platform.openai.com/api-keys" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-bold">platform.openai.com</a>
+                                        </Text>
+                                    </div>
+                                }
                             />
                         </div>
                     )}

@@ -24,6 +24,7 @@ interface ProviderProps {
     onScan: () => Promise<void>;
     onSave: () => Promise<void>;
     isEditable?: boolean;
+    footer?: React.ReactNode;
 }
 
 export default function Provider({
@@ -39,7 +40,8 @@ export default function Provider({
     onModelChange,
     onScan,
     onSave,
-    isEditable = true
+    isEditable = true,
+    footer
 }: ProviderProps) {
     return (
         <Card className="space-y-6">
@@ -173,6 +175,11 @@ export default function Provider({
             >
                 {isEditable ? "Save Model" : "Update Model"}
             </Button>
+            {footer && (
+                <div className="pt-2 border-t border-border-color border-dashed">
+                    {footer}
+                </div>
+            )}
         </Card>
     );
 }

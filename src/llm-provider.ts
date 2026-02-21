@@ -29,6 +29,14 @@ function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; 
         return { url: `${baseUrl}/openai/chat/completions`, headers };
     }
 
+    // Detect Anthropic
+    if (normalizedUrl.includes('api.anthropic.com')) {
+        headers['x-api-key'] = providerConfig.apiKey || '';
+        headers['anthropic-version'] = '2023-06-01';
+        // Anthropic uses /v1/messages for chat-like completions
+        return { url: `${normalizedUrl}/messages`, headers };
+    }
+
     // Standard OpenAI-compatible (LM Studio, OpenAI, etc.)
     const baseUrl = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
     return { url: `${baseUrl}/chat/completions`, headers };
@@ -39,19 +47,92 @@ export async function* streamChatCompletion(
     messages: { role: string; content: string | { type: string; text?: string; image_url?: { url: string } }[] | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[],
     tools?: any[]
 ) {
-    const body: any = {
-        model: providerConfig.modelId,
-        messages,
-        stream: true,
-        stream_options: { include_usage: true },
-    };
-
-    if (tools && tools.length > 0) {
-        body.tools = tools.map(t => ({ type: 'function', function: t }));
-        body.tool_choice = 'auto';
-    }
-
+    const isAnthropic = providerConfig.baseUrl.includes('api.anthropic.com');
     const { url, headers } = getProviderEndpoint(providerConfig);
+
+    let body: any;
+
+    if (isAnthropic) {
+        // Transform to Anthropic format
+        const systemMessage = messages.find(m => m.role === 'system');
+        const otherMessages = messages.filter(m => m.role !== 'system');
+
+        // Anthropic requires alternating user/assistant roles.
+        // We'll merge consecutive messages of the same role.
+        const normalizedMessages: any[] = [];
+        otherMessages.forEach(m => {
+            const role = m.role === 'assistant' ? 'assistant' : 'user';
+            const last = normalizedMessages[normalizedMessages.length - 1];
+
+            let content: any = m.content;
+            if (m.role === 'tool') {
+                content = [
+                    {
+                        type: 'tool_result',
+                        tool_use_id: m.tool_call_id,
+                        content: m.content
+                    }
+                ];
+            } else if (m.role === 'assistant' && m.tool_calls) {
+                const assistantContent: any[] = [];
+                if (m.content) assistantContent.push({ type: 'text', text: m.content });
+                m.tool_calls.forEach(tc => {
+                    assistantContent.push({
+                        type: 'tool_use',
+                        id: tc.id,
+                        name: tc.function.name,
+                        input: JSON.parse(tc.function.arguments || '{}')
+                    });
+                });
+                content = assistantContent;
+            }
+
+            if (last && last.role === role) {
+                // Merge content
+                if (Array.isArray(last.content) && Array.isArray(content)) {
+                    last.content.push(...content);
+                } else if (Array.isArray(last.content)) {
+                    last.content.push({ type: 'text', text: String(content) });
+                } else if (Array.isArray(content)) {
+                    last.content = [{ type: 'text', text: String(last.content) }, ...content];
+                } else {
+                    last.content = String(last.content) + '\n\n' + String(content);
+                }
+            } else {
+                normalizedMessages.push({ role, content });
+            }
+        });
+
+        body = {
+            model: providerConfig.modelId,
+            system: typeof systemMessage?.content === 'string' ? systemMessage.content : undefined,
+            messages: normalizedMessages,
+            max_tokens: 4096,
+            stream: true
+        };
+
+        if (tools && tools.length > 0) {
+            body.tools = tools.map(t => ({
+                name: t.name,
+                description: t.description,
+                input_schema: t.parameters
+            }));
+            body.tool_choice = { type: 'auto' };
+        }
+    } else {
+        // OpenAI format
+        body = {
+            model: providerConfig.modelId,
+            messages,
+            stream: true,
+            stream_options: { include_usage: true },
+        };
+
+        if (tools && tools.length > 0) {
+            body.tools = tools.map(t => ({ type: 'function', function: t }));
+            body.tool_choice = 'auto';
+        }
+    }
 
     let response;
     try {
@@ -72,7 +153,6 @@ export async function* streamChatCompletion(
         try {
             const errorText = await response.text();
             if (errorText) {
-                // Try to parse JSON if possible for cleaner error message
                 try {
                     const json = JSON.parse(errorText);
                     errorMsg += ` - ${JSON.stringify(json)}`;
@@ -108,19 +188,49 @@ export async function* streamChatCompletion(
                 if (data === '[DONE]') return;
                 try {
                     const json = JSON.parse(data);
-                    // DEBUG: Log first few tokens or unusual structures
-                    if (Math.random() < 0.05 || json.usage) {
-                        console.log('[LLM Stream]', JSON.stringify(json).substring(0, 200));
-                    }
 
-                    const choice = json.choices?.[0];
-                    const delta = choice?.delta;
+                    if (isAnthropic) {
+                        // Anthropic Stream Parsing
+                        if (json.type === 'content_block_start' && json.content_block?.type === 'tool_use') {
+                            yield {
+                                tool_calls: [{
+                                    index: json.index,
+                                    id: json.content_block.id,
+                                    function: {
+                                        name: json.content_block.name,
+                                        arguments: ''
+                                    }
+                                }]
+                            };
+                        } else if (json.type === 'content_block_delta') {
+                            if (json.delta?.type === 'text_delta') {
+                                yield { content: json.delta.text };
+                            } else if (json.delta?.type === 'thinking_delta') {
+                                yield { content: `<think>${json.delta.thinking}</think>` };
+                            } else if (json.delta?.type === 'input_json_delta') {
+                                yield {
+                                    tool_calls: [{
+                                        index: json.index,
+                                        function: {
+                                            arguments: json.delta.partial_json
+                                        }
+                                    }]
+                                };
+                            }
+                        } else if (json.usage) {
+                            yield { usage: json.usage };
+                        }
+                    } else {
+                        // OpenAI Stream Parsing
+                        const choice = json.choices?.[0];
+                        const delta = choice?.delta;
 
-                    if (delta) yield delta;
-                    if (json.usage) yield { usage: json.usage };
+                        if (delta) yield delta;
+                        if (json.usage) yield { usage: json.usage };
 
-                    if (choice?.finish_reason) {
-                        console.log('[LLM Stream] Finish reason:', choice.finish_reason);
+                        if (choice?.finish_reason) {
+                            console.log('[LLM Stream] Finish reason:', choice.finish_reason);
+                        }
                     }
                 } catch (e) {
                     console.error('[LLM Stream] Parse error:', e);
@@ -134,18 +244,39 @@ export async function getChatCompletion(
     providerConfig: LLMProviderConfig,
     messages: { role: string; content: string }[]
 ) {
+    // Re-use stream implementation to keep things unified
+    // or just implement a simplified version. Since this is mainly used for summaries, we can implement it.
+    const isAnthropic = providerConfig.baseUrl.includes('api.anthropic.com');
     const { url, headers } = getProviderEndpoint(providerConfig);
+
+    let body: any;
+    if (isAnthropic) {
+        const systemMsg = messages.find(m => m.role === 'system');
+        const otherMessages = messages.filter(m => m.role !== 'system');
+        body = {
+            model: providerConfig.modelId,
+            system: systemMsg?.content,
+            messages: otherMessages.map(m => ({
+                role: m.role === 'assistant' ? 'assistant' : 'user',
+                content: m.content
+            })),
+            max_tokens: 4096,
+            stream: false
+        };
+    } else {
+        body = {
+            model: providerConfig.modelId,
+            messages,
+            stream: false,
+        };
+    }
 
     let response;
     try {
         response = await fetch(url, {
             method: 'POST',
             headers,
-            body: JSON.stringify({
-                model: providerConfig.modelId,
-                messages,
-                stream: false,
-            }),
+            body: JSON.stringify(body),
         });
     } catch (error) {
         if (error instanceof Error) {
@@ -173,6 +304,14 @@ export async function getChatCompletion(
     }
 
     const json = await response.json();
+
+    if (isAnthropic) {
+        return {
+            content: json.content?.[0]?.text || '',
+            usage: json.usage
+        };
+    }
+
     return {
         content: json.choices[0]?.message?.content || '',
         usage: json.usage
@@ -251,6 +390,33 @@ export async function listModels(
         } catch (e) {
             console.warn(`Gemini listModels exception:`, e);
             // Fallthrough to standard OpenAI attempt
+        }
+    }
+
+    // Handling for Anthropic Native API
+    if (providerConfig.baseUrl.includes('api.anthropic.com')) {
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'x-api-key': providerConfig.apiKey || '',
+            'anthropic-version': '2023-06-01'
+        };
+
+        try {
+            const response = await fetch('https://api.anthropic.com/v1/models', {
+                method: 'GET',
+                headers
+            });
+
+            if (response.ok) {
+                const json = await response.json();
+                if (json.data && Array.isArray(json.data)) {
+                    return json.data;
+                }
+            } else {
+                console.warn(`Anthropic listModels failed: ${response.status} ${response.statusText}`);
+            }
+        } catch (e) {
+            console.warn(`Anthropic listModels exception:`, e);
         }
     }
 
