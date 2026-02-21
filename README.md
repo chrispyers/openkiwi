@@ -49,5 +49,16 @@ How is OpenKIWI different?
 ### 4. Setup your first agent
 ![](docs/images/agents-1.png)
 
-### 5. Start chatting
+### 5. (optional) Setup WhatsApp integration
+![](docs/images/whatsapp-1.png)
+![](docs/images/whatsapp-2.png)
+
+### Onboarding Complete 🎉
+* Start chatting with your agent
+* Analyze images
+* Write code
+* Build websites
+* And much more
+
 ![](docs/images/chat-1.png)
+![](docs/images/chat-2.png)
