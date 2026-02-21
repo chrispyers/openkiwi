@@ -15,7 +15,7 @@ const ConfigSchema = z.object({
         endpoint: z.string().url().default("http://localhost:3808"),
     }).passthrough(),
     global: z.object({
-        systemPrompt: z.string().default("You are a helpful AI assistant."),
+        systemPrompt: z.string().default("You are a helpful AI assistant. You have access to a personal workspace where you can read, write, move, and copy files using the 'manage_files' tool. If a user asks about an image in your workspace (like a screenshot), you can visually inspect it using the 'describe_image' tool."),
     }).passthrough().optional(),
     providers: z.array(z.object({
         description: z.string().default(""),

@@ -25,22 +25,32 @@ export default {
     },
     handler: async ({ filename, prompt }: { filename: string; prompt?: string }) => {
         try {
-            const name = path.basename(filename);
-            let fullPath = path.join(WORKSPACE_DIR, name);
-
-            if (!fs.existsSync(fullPath)) {
-                fullPath = path.join(SCREENSHOTS_DIR, name);
+            // Allow subdirectories but prevent directory traversal
+            let fullPath = path.resolve(WORKSPACE_DIR, filename);
+            if (!fullPath.startsWith(WORKSPACE_DIR)) {
+                fullPath = path.resolve(SCREENSHOTS_DIR, filename);
+                if (!fullPath.startsWith(SCREENSHOTS_DIR)) {
+                    return { error: `Access denied: ${filename}` };
+                }
             }
 
             if (!fs.existsSync(fullPath)) {
                 return { error: `Image file "${filename}" not found in workspace or screenshots.` };
             }
 
+            // Return a URL that the vision processor in index.ts will recognize
+            const isScreenshot = fullPath.startsWith(SCREENSHOTS_DIR);
+            const relativePath = isScreenshot
+                ? path.relative(SCREENSHOTS_DIR, fullPath)
+                : path.relative(WORKSPACE_DIR, fullPath);
+
+            const url = isScreenshot ? `/screenshots/${relativePath}` : `/workspace-files/${relativePath}`;
+
             // By returning this, the system's vision processor will automatically 
             // attach the image to the conversation context.
             return {
                 message: prompt ? `Looking at ${filename} to address: "${prompt}"` : `Inspecting image: ${filename}`,
-                image_url: `/workspace-files/${name}`
+                image_url: url
             };
         } catch (error: any) {
             return { error: error.message };

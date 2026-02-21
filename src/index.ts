@@ -275,114 +275,117 @@ app.post('/api/whatsapp/logout', async (req, res) => {
     res.json({ success: true });
 });
 
-// Helper to extract text from various message types
+// Helper to extract text and images from messages to provide vision context
 function processVisionMessages(messages: any[], supportsVision: boolean = true): any[] {
     if (!supportsVision) return messages;
-    return messages.map(msg => {
-        if (typeof msg.content !== 'string' && msg.role !== 'tool') return msg;
 
-        let parts: any[] = [];
-        let content = '';
+    const processed = [...messages];
+    const hoistedImages: any[] = [];
+    let lastUserIndex = -1;
 
-        if (msg.role === 'tool' && typeof msg.content === 'string') {
-            try {
-                const data = JSON.parse(msg.content);
-                if (data.screenshot_url || data.image_url) {
-                    const url = data.screenshot_url || data.image_url;
+    // Helper to resolve and encode image to base64
+    const getBase64Image = (url: string): string | null => {
+        try {
+            if (url.startsWith('data:')) return url;
+            if (url.startsWith('http')) return url;
+
+            const relativePath = url.replace(/^\/?(screenshots|workspace-files)\//, '');
+            let fullPath = path.resolve(SCREENSHOTS_DIR, relativePath);
+            if (!fullPath.startsWith(SCREENSHOTS_DIR) || !fs.existsSync(fullPath)) {
+                fullPath = path.resolve(WORKSPACE_DIR, relativePath);
+                if (!fullPath.startsWith(WORKSPACE_DIR) || !fs.existsSync(fullPath)) {
+                    // Fallback to basename
                     const filename = path.basename(url);
-
-                    // Check both screenshots and workspace directories
-                    let fullPath = path.join(SCREENSHOTS_DIR, filename);
+                    fullPath = path.join(SCREENSHOTS_DIR, filename);
                     if (!fs.existsSync(fullPath)) {
                         fullPath = path.join(WORKSPACE_DIR, filename);
                     }
-
-                    if (fs.existsSync(fullPath)) {
-                        const base64 = fs.readFileSync(fullPath, 'base64');
-                        return {
-                            ...msg,
-                            content: [
-                                { type: 'text', text: msg.content },
-                                {
-                                    type: 'image_url',
-                                    image_url: {
-                                        url: `data:image/png;base64,${base64}`
-                                    }
-                                }
-                            ]
-                        };
-                    }
                 }
-            } catch (e) {
-                // Not JSON or parse failed, fall through to regex
             }
+
+            if (fs.existsSync(fullPath)) {
+                const base64 = fs.readFileSync(fullPath, 'base64');
+                return `data:image/png;base64,${base64}`;
+            }
+        } catch (e) {
+            console.error(`[Vision] Failed to resolve image ${url}:`, e);
+        }
+        return null;
+    };
+
+    // First pass: Process all messages and collect images to hoist
+    for (let i = 0; i < processed.length; i++) {
+        const msg = { ...processed[i] }; // Shallow copy
+        if (typeof msg.content !== 'string' || !msg.content) {
+            if (msg.role === 'user') lastUserIndex = i;
+            continue;
         }
 
-        if (typeof msg.content !== 'string') return msg;
-        content = msg.content;
+        const content = msg.content;
 
-        // Regex to find Markdown images: ![alt](url)
-        // Works for /screenshots/..., screenshots/..., or even full URLs if we want (but focusing on local)
+        // 1. Extract images from current message
+        const currentImages: any[] = [];
+
+        // Check for JSON tool result
+        if (msg.role === 'tool') {
+            try {
+                const data = JSON.parse(content);
+                const url = data.screenshot_url || data.image_url || data.image;
+                if (url && typeof url === 'string') {
+                    const b64 = getBase64Image(url);
+                    if (b64) currentImages.push({ type: 'image_url', image_url: { url: b64 } });
+                }
+            } catch (e) { /* Not JSON */ }
+        }
+
+        // Check for Markdown images
         const imgRegex = /!\[.*?\]\((.*?)\)/g;
         const matches = [...content.matchAll(imgRegex)];
-
-        if (matches.length === 0) return msg;
-
-        let lastIndex = 0;
-
         for (const match of matches) {
-            const [fullMatch, url] = match;
-            const index = match.index!;
-
-            // Add text before the image
-            if (index > lastIndex) {
-                parts.push({ type: 'text', text: content.substring(lastIndex, index) });
-            }
-
-            // Process image
-            try {
-                // Handle both /screenshots/file.png and screenshots/file.png
-                const filename = path.basename(url);
-
-                // Check both screenshots and workspace directories
-                let fullPath = path.join(SCREENSHOTS_DIR, filename);
-                if (!fs.existsSync(fullPath)) {
-                    fullPath = path.join(WORKSPACE_DIR, filename);
-                }
-
-                if (fs.existsSync(fullPath)) {
-                    const base64 = fs.readFileSync(fullPath, 'base64');
-                    parts.push({
-                        type: 'image_url',
-                        image_url: {
-                            url: `data:image/png;base64,${base64}`
-                        }
-                    });
-                } else if (url.startsWith('http')) {
-                    // External URL - pass as is
-                    parts.push({
-                        type: 'image_url',
-                        image_url: { url }
-                    });
-                } else {
-                    // If file doesn't exist, keep the markdown text
-                    parts.push({ type: 'text', text: fullMatch });
-                }
-            } catch (e) {
-                console.error(`[Vision] Failed to process image ${url}:`, e);
-                parts.push({ type: 'text', text: fullMatch });
-            }
-
-            lastIndex = index + fullMatch.length;
+            const b64 = getBase64Image(match[1]);
+            if (b64) currentImages.push({ type: 'image_url', image_url: { url: b64 } });
         }
 
-        // Add remaining text
-        if (lastIndex < content.length) {
-            parts.push({ type: 'text', text: content.substring(lastIndex) });
+        if (msg.role === 'user') {
+            lastUserIndex = i;
+            // For user messages, we convert string content to array content in-place if images found
+            if (currentImages.length > 0) {
+                processed[i] = {
+                    ...msg,
+                    content: [
+                        { type: 'text', text: content },
+                        ...currentImages
+                    ]
+                };
+            }
+        } else {
+            // For assistant/tool messages, we HOIST images to the context of the user turn
+            // to satisfy strict "alternate user/assistant roles" requirements of some providers (like LM Studio)
+            hoistedImages.push(...currentImages);
         }
+    }
 
-        return { ...msg, content: parts };
-    });
+    // Second pass: Inject hoisted images into the last user turn
+    if (hoistedImages.length > 0 && lastUserIndex !== -1) {
+        const userMsg = { ...processed[lastUserIndex] };
+        const existingContent = Array.isArray(userMsg.content)
+            ? [...userMsg.content]
+            : [{ type: 'text', text: userMsg.content || '' }];
+
+        // Check for duplicates before adding
+        const uniqueHoisted = hoistedImages.filter(hi =>
+            !existingContent.some((c: any) => c.type === 'image_url' && c.image_url?.url === hi.image_url?.url)
+        );
+
+        if (uniqueHoisted.length > 0) {
+            processed[lastUserIndex] = {
+                ...userMsg,
+                content: [...existingContent, ...uniqueHoisted]
+            };
+        }
+    }
+
+    return processed;
 }
 
 function getMessageText(msg: WAMessage): string | null {
