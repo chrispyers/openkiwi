@@ -12,7 +12,6 @@ import Select from '../Select'
 import Page from './Page'
 import ModelsTable from '../ModelsTable'
 import { Model } from '../../types'
-import Input from '../Input'
 import GoogleIcon from '../../img/google.png'
 import OpenAIIcon from '../../img/openai.svg.png'
 import AnthropicIcon from '../../img/anthropic.png'
@@ -279,62 +278,60 @@ export default function ModelsPage({
                 <Button themed={true} icon={faPlus} onClick={() => setIsModalOpen(true)}>Add Model</Button>
             }
         >
+            <Card>
+                <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-6xl">
+                    {augmentedProviders.length === 0 ? (
+                        <ModelsTable providers={[]} onRowClick={() => { }} />
+                    ) : (
+                        <div className="space-y-12">
+                            {googleModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <Text size="lg" bold={true}>Google</Text>
+                                    <ModelsTable
+                                        providers={googleModels}
+                                        onRowClick={(i) => handleRowClick(googleModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(googleModels[i].originalIndex)}
+                                    />
+                                </div>
+                            )}
 
-            <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-6xl">
-                {augmentedProviders.length === 0 ? (
-                    <ModelsTable providers={[]} onRowClick={() => { }} />
-                ) : (
-                    <div className="space-y-12">
-                        {googleModels.length > 0 && (
-                            <div className="space-y-4">
-                                <Text size="lg" bold={true}>Google</Text>
-                                <ModelsTable
-                                    providers={googleModels}
-                                    onRowClick={(i) => handleRowClick(googleModels[i].originalIndex)}
-                                    onDelete={(i) => handleDeleteProvider(googleModels[i].originalIndex)}
-                                />
-                            </div>
-                        )}
+                            {lmStudioModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <Text size="lg" bold={true}>LM Studio</Text>
+                                    <ModelsTable
+                                        providers={lmStudioModels}
+                                        onRowClick={(i) => handleRowClick(lmStudioModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(lmStudioModels[i].originalIndex)}
+                                    />
+                                </div>
+                            )}
 
-                        {lmStudioModels.length > 0 && (
-                            <div className="space-y-4">
-                                <Text size="lg" bold={true}>LM Studio</Text>
-                                <ModelsTable
-                                    providers={lmStudioModels}
-                                    highlight={true}
-                                    onRowClick={(i) => handleRowClick(lmStudioModels[i].originalIndex)}
-                                    onDelete={(i) => handleDeleteProvider(lmStudioModels[i].originalIndex)}
-                                />
-                            </div>
-                        )}
+                            {openAIModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <Text size="lg" bold={true}>OpenAI</Text>
+                                    <ModelsTable
+                                        providers={openAIModels}
+                                        onRowClick={(i) => handleRowClick(openAIModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(openAIModels[i].originalIndex)}
+                                    />
+                                </div>
+                            )}
 
-                        {openAIModels.length > 0 && (
-                            <div className="space-y-4">
-                                <Text size="lg" bold={true}>OpenAI</Text>
-                                <ModelsTable
-                                    providers={openAIModels}
-                                    highlight={true}
-                                    onRowClick={(i) => handleRowClick(openAIModels[i].originalIndex)}
-                                    onDelete={(i) => handleDeleteProvider(openAIModels[i].originalIndex)}
-                                />
-                            </div>
-                        )}
+                            {otherModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <h3 className="text-lg font-semibold px-1">Other</h3>
+                                    <ModelsTable
+                                        providers={otherModels}
+                                        onRowClick={(i) => handleRowClick(otherModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(otherModels[i].originalIndex)}
+                                    />
+                                </div>
+                            )}
+                        </div>
+                    )}
+                </div>
 
-                        {otherModels.length > 0 && (
-                            <div className="space-y-4">
-                                <h3 className="text-lg font-semibold px-1">Other</h3>
-                                <ModelsTable
-                                    providers={otherModels}
-                                    highlight={true}
-                                    onRowClick={(i) => handleRowClick(otherModels[i].originalIndex)}
-                                    onDelete={(i) => handleDeleteProvider(otherModels[i].originalIndex)}
-                                />
-                            </div>
-                        )}
-                    </div>
-                )}
-            </div>
-
+            </Card>
             <Modal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}

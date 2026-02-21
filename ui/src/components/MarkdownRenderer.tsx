@@ -23,12 +23,18 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                         const isBlock = !inline && (match || isMultiLine);
 
                         return isBlock ? (
-                            <div className="my-5 rounded-xl border border-white-trans overflow-hidden shadow-lg">
+                            <div
+                                className="my-5 rounded-xl border border-white-trans overflow-hidden shadow-lg"
+                                style={{ backgroundColor: 'var(--code-bg)' }}
+                            >
                                 {match && (
-                                    <div className="px-4 py-2 bg-neutral-700 dark:bg-neutral-800 text-white border-b border-white-trans text-xs font-bold uppercase tracking-widest flex justify-between items-center">
+                                    <div
+                                        className="px-4 py-2 border-b border-white-trans text-xs font-bold uppercase tracking-widest flex justify-between items-center"
+                                        style={{ backgroundColor: 'var(--code-header-bg)', color: 'var(--code-text)' }}
+                                    >
                                         <span>{match[1]}</span>
                                         <span
-                                            className="cursor-pointer hover:text-neutral-600 dark:text-white transition-colors"
+                                            className="cursor-pointer opacity-80 hover:opacity-100 transition-colors"
                                             onClick={() => navigator.clipboard.writeText(String(children))}
                                         >
                                             Copy
@@ -41,7 +47,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                                     style={vscDarkPlus}
                                     language={match ? match[1] : ''}
                                     PreTag="div"
-                                    customStyle={{ margin: 0, padding: '20px', fontSize: '13px', background: '#0a0a0a' }}
+                                    customStyle={{ margin: 0, padding: '20px', fontSize: '13px', background: 'transparent' }}
                                 />
                             </div>
                         ) : (

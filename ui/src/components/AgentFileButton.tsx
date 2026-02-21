@@ -22,7 +22,7 @@ const AgentFileButton: React.FC<AgentFileButtonProps> = ({
     return (
         <Card
             padding="p-1"
-            className="rounded-xl group flex justify-between items-center hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all cursor-pointer"
+            className="bg-white dark:bg-bg-primary rounded-xl group flex justify-between items-center hover:bg-neutral-200 dark:hover:bg-neutral-600 transition-all cursor-pointer"
             onClick={onClick}
         >
             <div className="flex items-center gap-4">

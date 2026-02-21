@@ -153,7 +153,7 @@ export default function AgentsPage({
                                     size="md"
                                     key={a.id}
                                     themed={selectedAgentId === a.id}
-                                    className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? '!bg-transparent hover:!bg-neutral-100 dark:hover:!bg-neutral-800' : ''}`}
+                                    className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? 'hover:!bg-neutral-200 dark:hover:!bg-neutral-700' : ''}`}
                                     onClick={() => setSelectedAgentId(a.id)}
                                 >
                                     <div className="text-left">
@@ -198,7 +198,7 @@ export default function AgentsPage({
                                             inputClassName="!mt-0 font-emoji text-center pl-0"
                                         />
                                     </div>
-                                    <div className="mb-4 bg-bg-primary/50 border border-border-color rounded-xl p-4">
+                                    <div className="mb-4 bg-bg-primary/50 bg-white dark:bg-bg-primary rounded-xl p-4">
                                         <div className="flex justify-between items-center">
                                             <div>
                                                 <Text bold={true}><FontAwesomeIcon icon={faRobot} /> Proactive Heartbeat</Text>

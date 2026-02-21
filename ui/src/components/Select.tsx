@@ -46,7 +46,7 @@ const Select: React.FC<SelectProps> = ({
             disabled={disabled}
             className={`appearance-none border-2 p-2 pr-10 rounded-2xl transition-all outline-none w-full
             border-neutral-100 dark:border-neutral-700
-            bg-neutral-50 dark:bg-neutral-800
+            bg-white dark:bg-bg-primary
             hover:border-neutral-200 dark:hover:border-neutral-600
             ${icon != null ? "pl-11" : "pl-4"}
             ${getThemeInputClasses()} ${className || ""}

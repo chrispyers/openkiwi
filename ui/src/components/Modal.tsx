@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import Text from './Text';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { faX } from '@fortawesome/free-solid-svg-icons';
@@ -35,14 +36,13 @@ const Modal: React.FC<ModalProps> = ({
 
     if (!isOpen) return null;
 
-    return (
+    return createPortal(
         <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-100"
+            className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-100"
             onClick={onClose}
         >
             <div
-                style={{ backgroundColor: 'var(--modal-bg)' }}
-                className={`w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-100 shadow-2xl ${className}`}
+                className={`w-full max-w-4xl max-h-[90vh] bg-bg-modal rounded-3xl flex flex-col overflow-hidden animate-in zoom-in duration-100 shadow-2xl ${className}`}
                 onClick={e => e.stopPropagation()}
             >
                 <div className="p-6 border-b border-border-color flex justify-between items-center">
@@ -60,7 +60,8 @@ const Modal: React.FC<ModalProps> = ({
                     {children}
                 </div>
             </div>
-        </div>
+        </div>,
+        document.body
     );
 };
 

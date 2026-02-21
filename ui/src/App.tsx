@@ -864,75 +864,7 @@ function App() {
         }}
       />
       {/* Modal Overlay */}
-      {/* Modal Overlay */}
-      <Modal
-        isOpen={!!viewingFile}
-        onClose={() => setViewingFile(null)}
-        title={viewingFile && (
-          <span>{viewingFile.title}</span>
-        )}
-        headerActions={viewingFile && (
-          !viewingFile.isEditing ? (
-            <Button onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>edit</Button>
-          ) : (
-            <Button onClick={saveAgentFile}>save</Button>
-          )
-        )}
-      >
-        <div className="flex-1 overflow-y-auto p-8 h-full">
-          {viewingFile && (viewingFile.isEditing ? (
-            <textarea
-              className="w-full h-[60vh] p-6 bg-bg-primary border border-border-color rounded-2xl outline-none focus:border-accent-primary transition-colors resize-none font-mono text-sm leading-relaxed text-neutral-600 dark:text-white"
-              value={viewingFile.content}
-              onChange={e => setViewingFile({ ...viewingFile, content: e.target.value })}
-            />
-          ) : (
-            <MarkdownRenderer content={viewingFile.content} />
-          ))}
-        </div>
-      </Modal>
 
-      <Modal
-        isOpen={isUpdateModalOpen}
-        onClose={() => setIsUpdateModalOpen(false)}
-        title="Upgrade Steps"
-      >
-        <div className="flex-1 overflow-y-auto p-8 h-full space-y-6">
-          <section className="space-y-3">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">1</span>
-              <Text size="lg" bold={true}>
-                Update your local copy
-              </Text>
-            </h3>
-            <MarkdownRenderer content={"```bash\rgit pull\r\n```"} />
-
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">2</span>
-              <Text size="lg" bold={true}>
-                Restart the gateway
-              </Text>
-            </h3>
-            <MarkdownRenderer content={"```bash\ndocker compose down\ndocker compose up --build\n```"} />
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">3</span>
-              <Text size="lg" bold={true}>
-                Reload the UI
-              </Text>
-            </h3>
-            <p className="text-neutral-500 dark:text-neutral-400 pl-8">
-              Refresh your browser tab once the gateway is back online to see the latest changes.
-            </p>
-            <p className="text-center text-4xl">🎉</p>
-          </section>
-        </div>
-      </Modal>
 
       <Header
         isGatewayConnected={isGatewayConnected}
@@ -1072,6 +1004,75 @@ function App() {
           )}
         </main>
       </div>
+      {/* Modals rendered at the end to ensure proper z-index and backdrop-blur across all elements */}
+      <Modal
+        isOpen={!!viewingFile}
+        onClose={() => setViewingFile(null)}
+        title={viewingFile && (
+          <span>{viewingFile.title}</span>
+        )}
+        headerActions={viewingFile && (
+          !viewingFile.isEditing ? (
+            <Button onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>edit</Button>
+          ) : (
+            <Button onClick={saveAgentFile}>save</Button>
+          )
+        )}
+      >
+        <div className="flex-1 overflow-y-auto p-8 h-full">
+          {viewingFile && (viewingFile.isEditing ? (
+            <textarea
+              className="w-full h-[60vh] p-6 bg-bg-primary border border-border-color rounded-2xl outline-none focus:border-accent-primary transition-colors resize-none font-mono text-sm leading-relaxed text-neutral-600 dark:text-white"
+              value={viewingFile.content}
+              onChange={e => setViewingFile({ ...viewingFile, content: e.target.value })}
+            />
+          ) : (
+            <MarkdownRenderer content={viewingFile.content} />
+          ))}
+        </div>
+      </Modal>
+
+      <Modal
+        isOpen={isUpdateModalOpen}
+        onClose={() => setIsUpdateModalOpen(false)}
+        title="Upgrade Steps"
+      >
+        <div className="flex-1 overflow-y-auto p-8 h-full space-y-6">
+          <section className="space-y-3">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">1</span>
+              <Text size="lg" bold={true}>
+                Update your local copy
+              </Text>
+            </h3>
+            <MarkdownRenderer content={"```bash\rgit pull\r\n```"} />
+
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">2</span>
+              <Text size="lg" bold={true}>
+                Restart the gateway
+              </Text>
+            </h3>
+            <MarkdownRenderer content={"```bash\ndocker compose down\ndocker compose up --build\n```"} />
+          </section>
+
+          <section className="space-y-3">
+            <h3 className="text-lg font-bold flex items-center gap-2">
+              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">3</span>
+              <Text size="lg" bold={true}>
+                Reload the UI
+              </Text>
+            </h3>
+            <p className="text-neutral-500 dark:text-neutral-400 pl-8">
+              Refresh your browser tab once the gateway is back online to see the latest changes.
+            </p>
+            <p className="text-center text-4xl">🎉</p>
+          </section>
+        </div>
+      </Modal>
     </div>
   )
 }

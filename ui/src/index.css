@@ -4,6 +4,23 @@
 
 :root {}
 
+/* Light Mode */
+.light,
+:root:not(.dark) {
+  /* ... your other variables ... */
+  --code-header-bg: rgb(26, 26, 26);
+  --code-bg: rgb(48, 48, 48);
+  --code-text: #ffffff;
+}
+
+/* Dark Mode */
+.dark {
+  /* ... your other variables ... */
+  --code-header-bg: rgb(16, 16, 16);
+  --code-bg: rgb(26, 26, 26);
+  --code-text: #ffffff;
+}
+
 /* Light Mode Variables */
 .light,
 :root:not(.dark) {
@@ -15,7 +32,9 @@
   --text-secondary: #78df0a;
   --border-color: #e5e5e5;
   --user-chat-bubble-bg: rgb(43, 43, 43);
-  --modal-bg: #fafafa;
+  --modal-bg: #ffffff;
+  --table-header-bg: #f9fafb;
+  --table-body-bg: #ffffff;
 }
 
 /* Dark Mode Variables */
@@ -35,9 +54,11 @@
 
   --text-primary: #fafafa;
   --text-secondary: #a3a3a3;
-  --border-color: #525252;
+  --border-color: #383838;
   --user-chat-bubble-bg: rgb(56, 59, 61);
   --modal-bg: rgb(26, 26, 26);
+  --table-header-bg: rgb(26, 26, 26);
+  --table-body-bg: rgb(30, 30, 30);
 }
 
 @layer base {
@@ -143,6 +164,24 @@
   --tw-prose-td-borders: #e5e5e5;
 }
 
+.dark .prose {
+  --tw-prose-body: #ffffff;
+  --tw-prose-headings: #ffffff;
+  --tw-prose-links: #008cff;
+  --tw-prose-bold: #ffffff;
+  --tw-prose-counters: #ffffff;
+  --tw-prose-bullets: #ffffff;
+  --tw-prose-hr: #ffffff;
+  --tw-prose-quotes: #ffffff;
+  --tw-prose-quote-borders: #ffffff;
+  --tw-prose-captions: #ffffff;
+  --tw-prose-code: #ffffff;
+  --tw-prose-pre-code: #ffffff;
+  --tw-prose-pre-bg: #ffffff;
+  --tw-prose-th-borders: #ffffff;
+  --tw-prose-td-borders: #ffffff;
+}
+
 /* Condensed Prose for Chat */
 .prose-chat {
   @apply max-w-none;
@@ -150,6 +189,7 @@
 
 .prose-chat p {
   @apply my-1 leading-relaxed;
+
 }
 
 .prose-chat p:first-child {

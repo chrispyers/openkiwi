@@ -62,7 +62,7 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
           readOnly={readOnly}
           className={`border-2 py-2.5 rounded-2xl transition-colors w-full
             placeholder-neutral-300 dark:placeholder-neutral-500
-            bg-white dark:bg-neutral-800 border-neutral-100 dark:border-neutral-700
+            bg-white dark:bg-bg-primary border-neutral-100 dark:border-neutral-700
             hover:border-neutral-200 dark:hover:border-neutral-600
             text-neutral-900 dark:text-neutral-100
             ${icon != null ? "pl-12" : "pl-4"} pr-10

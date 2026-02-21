@@ -15,6 +15,7 @@ export default {
                 'bg-sidebar': 'var(--bg-sidebar)',
                 'bg-primary': 'var(--bg-primary)',
                 'bg-card': 'var(--bg-card)',
+                'bg-modal': 'var(--modal-bg)',
                 'text-primary': 'var(--text-primary)',
                 'text-secondary': 'var(--text-secondary)',
                 'border-color': 'var(--border-color)',

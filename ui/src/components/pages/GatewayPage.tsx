@@ -33,7 +33,7 @@ export default function GatewayPage({
         >
             <div className="max-w-5xl animate-in fade-in slide-in-from-right-4 duration-500">
                 <Card className="space-y-6">
-                    <div className="">
+                    <div>
                         <div className="w-full">
                             <div className="space-y-1">
                                 <div><Text>Specify the address of your gateway.</Text></div>
@@ -42,7 +42,6 @@ export default function GatewayPage({
                                     <Text secondary={true} size="sm">For local development use</Text>
                                     <Text secondary={true} size="sm" bold={true}><Code>http://localhost:3808</Code></Text>
                                 </div>
-
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <Input
@@ -97,12 +96,12 @@ export default function GatewayPage({
 
                         <div className="grid grid-cols-1 gap-3">
                             {connectedClients.length === 0 ? (
-                                <div className="p-8 bg-bg-primary/50 border border-dashed border-border-color rounded-2xl text-center">
+                                <div className="p-8 bg-bg-primary/50 rounded-2xl text-center">
                                     <Text>No other computers currently connected to this gateway.</Text>
                                 </div>
                             ) : (
                                 connectedClients.map((client, idx) => (
-                                    <div key={idx} className="bg-bg-primary border border-border-color rounded-2xl p-4 flex items-center justify-between group hover:border-accent-primary/50 transition-all">
+                                    <div key={idx} className="bg-bg-primary rounded-2xl p-4 flex items-center justify-between group hover:border-accent-primary/50 transition-all">
                                         <div className="flex items-center gap-4">
                                             <div className="w-10 h-10 rounded-xl bg-white-trans flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
                                                 <Text size="lg">
