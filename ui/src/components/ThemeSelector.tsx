@@ -29,7 +29,7 @@ export default function ThemeSelector() {
                         onClick={() => setTheme(option.id)}
                         className={`ml-0.5 mr-0.5 !py-1 !px-3 !rounded-full transition-all duration-300 flex items-center justify-center
                             ${theme === option.id
-                                ? `shadow-sm ${theme === 'dark' ? '!text-neutral-600' : '!text-white'}`
+                                ? `shadow-sm !text-white dark:!text-neutral-600`
                                 : '!bg-transparent'}`}
                         icon={option.icon}
                         title={option.name}

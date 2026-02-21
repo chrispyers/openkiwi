@@ -113,10 +113,16 @@ const pendingToolCalls = new Map<string, { resolve: (val: any) => void, reject: 
 
 // API to get/update config
 const SCREENSHOTS_DIR = path.resolve(process.cwd(), 'screenshots');
+const WORKSPACE_DIR = path.resolve(process.cwd(), 'workspace');
+
 if (!fs.existsSync(SCREENSHOTS_DIR)) {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 }
+if (!fs.existsSync(WORKSPACE_DIR)) {
+    fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+}
 app.use('/screenshots', express.static(SCREENSHOTS_DIR));
+app.use('/workspace-files', express.static(WORKSPACE_DIR));
 
 app.get('/api/config', (req, res) => {
     res.json(loadConfig());
@@ -270,6 +276,115 @@ app.post('/api/whatsapp/logout', async (req, res) => {
 });
 
 // Helper to extract text from various message types
+function processVisionMessages(messages: any[], supportsVision: boolean = true): any[] {
+    if (!supportsVision) return messages;
+    return messages.map(msg => {
+        if (typeof msg.content !== 'string' && msg.role !== 'tool') return msg;
+
+        let parts: any[] = [];
+        let content = '';
+
+        if (msg.role === 'tool' && typeof msg.content === 'string') {
+            try {
+                const data = JSON.parse(msg.content);
+                if (data.screenshot_url || data.image_url) {
+                    const url = data.screenshot_url || data.image_url;
+                    const filename = path.basename(url);
+
+                    // Check both screenshots and workspace directories
+                    let fullPath = path.join(SCREENSHOTS_DIR, filename);
+                    if (!fs.existsSync(fullPath)) {
+                        fullPath = path.join(WORKSPACE_DIR, filename);
+                    }
+
+                    if (fs.existsSync(fullPath)) {
+                        const base64 = fs.readFileSync(fullPath, 'base64');
+                        return {
+                            ...msg,
+                            content: [
+                                { type: 'text', text: msg.content },
+                                {
+                                    type: 'image_url',
+                                    image_url: {
+                                        url: `data:image/png;base64,${base64}`
+                                    }
+                                }
+                            ]
+                        };
+                    }
+                }
+            } catch (e) {
+                // Not JSON or parse failed, fall through to regex
+            }
+        }
+
+        if (typeof msg.content !== 'string') return msg;
+        content = msg.content;
+
+        // Regex to find Markdown images: ![alt](url)
+        // Works for /screenshots/..., screenshots/..., or even full URLs if we want (but focusing on local)
+        const imgRegex = /!\[.*?\]\((.*?)\)/g;
+        const matches = [...content.matchAll(imgRegex)];
+
+        if (matches.length === 0) return msg;
+
+        let lastIndex = 0;
+
+        for (const match of matches) {
+            const [fullMatch, url] = match;
+            const index = match.index!;
+
+            // Add text before the image
+            if (index > lastIndex) {
+                parts.push({ type: 'text', text: content.substring(lastIndex, index) });
+            }
+
+            // Process image
+            try {
+                // Handle both /screenshots/file.png and screenshots/file.png
+                const filename = path.basename(url);
+
+                // Check both screenshots and workspace directories
+                let fullPath = path.join(SCREENSHOTS_DIR, filename);
+                if (!fs.existsSync(fullPath)) {
+                    fullPath = path.join(WORKSPACE_DIR, filename);
+                }
+
+                if (fs.existsSync(fullPath)) {
+                    const base64 = fs.readFileSync(fullPath, 'base64');
+                    parts.push({
+                        type: 'image_url',
+                        image_url: {
+                            url: `data:image/png;base64,${base64}`
+                        }
+                    });
+                } else if (url.startsWith('http')) {
+                    // External URL - pass as is
+                    parts.push({
+                        type: 'image_url',
+                        image_url: { url }
+                    });
+                } else {
+                    // If file doesn't exist, keep the markdown text
+                    parts.push({ type: 'text', text: fullMatch });
+                }
+            } catch (e) {
+                console.error(`[Vision] Failed to process image ${url}:`, e);
+                parts.push({ type: 'text', text: fullMatch });
+            }
+
+            lastIndex = index + fullMatch.length;
+        }
+
+        // Add remaining text
+        if (lastIndex < content.length) {
+            parts.push({ type: 'text', text: content.substring(lastIndex) });
+        }
+
+        return { ...msg, content: parts };
+    });
+}
+
 function getMessageText(msg: WAMessage): string | null {
     if (!msg.message) return null;
     const content = msg.message;
@@ -455,15 +570,18 @@ WhatsAppManager.getInstance().on('message', async (msg) => {
         let loopCount = 0;
         const MAX_LOOPS = 5;
 
-        const chatHistory = [...payload];
+        const chatHistory = processVisionMessages([...payload], !!providerConfig?.capabilities?.vision);
 
         while (toolLoop && loopCount < MAX_LOOPS) {
             loopCount++;
             let fullContent = '';
             let toolCalls: any[] = [];
 
+            // Process vision messages in each loop to catch images returned by tools
+            const processedHistory = processVisionMessages([...chatHistory], !!providerConfig?.capabilities?.vision);
+
             // reusing streamChatCompletion but accumulating result
-            for await (const delta of streamChatCompletion(llmConfig, chatHistory, ToolManager.getToolDefinitions())) {
+            for await (const delta of streamChatCompletion(llmConfig, processedHistory, ToolManager.getToolDefinitions())) {
                 if (delta.content) {
                     fullContent += delta.content;
                 }
@@ -702,15 +820,21 @@ wss.on('connection', (ws, req) => {
                 data: userMessages[userMessages.length - 1]?.content || 'Empty message'
             });
 
-            const chatHistory = [...payload];
+            const chatHistory = processVisionMessages([...payload], !!providerConfig?.capabilities?.vision);
             let toolLoop = true;
             let finalAiResponse = '';
+            const MAX_LOOPS = 5;
+            let loopCount = 0;
 
-            while (toolLoop) {
+            while (toolLoop && loopCount < MAX_LOOPS) {
+                loopCount++;
                 let fullContent = '';
                 let toolCalls: any[] = [];
 
-                for await (const delta of streamChatCompletion(llmConfig, chatHistory, ToolManager.getToolDefinitions())) {
+                // Process vision messages in each loop to catch images returned by tools
+                const processedHistory = processVisionMessages([...chatHistory], !!providerConfig?.capabilities?.vision);
+
+                for await (const delta of streamChatCompletion(llmConfig, processedHistory, ToolManager.getToolDefinitions())) {
                     if (delta.content) {
                         fullContent += delta.content;
                         ws.send(JSON.stringify({ type: 'delta', content: delta.content }));

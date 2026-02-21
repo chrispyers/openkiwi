@@ -159,7 +159,7 @@ function App() {
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
-  const { theme, setTheme } = useTheme();
+  const { theme, resolvedTheme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
     return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
   });
@@ -797,11 +797,7 @@ function App() {
     socket.onerror = (err) => {
       console.error('Chat WebSocket Error:', err);
       setIsStreaming(false);
-      setMessages(prev => [...prev, {
-        role: 'assistant',
-        content: "Error: Could not establish a connection to the Gateway. It might be offline or your token might be invalid.",
-        timestamp: aiResponseTimestamp
-      }]);
+      setMessages(prev => [...prev, { role: 'assistant', content: 'Sorry, I encountered an error connecting to the gateway. Please check your connection.', timestamp: Math.floor(Date.now() / 1000) }]);
     };
 
     let currentAiMessage = '';
@@ -853,13 +849,13 @@ function App() {
     <div className="flex flex-col h-screen w-full overflow-hidden">
       <Toaster
         position="top-right"
-        theme={theme === 'light' ? 'dark' : 'light'}
+        theme={resolvedTheme === 'light' ? 'dark' : 'light'}
         richColors
         toastOptions={{
           style: {
-            background: theme === 'light' ? '#262626' : '#f5f5f5',
-            border: `1px solid ${theme === 'light' ? '#404040' : '#e5e5e5'}`,
-            color: theme === 'light' ? '#fafafa' : '#171717',
+            background: resolvedTheme === 'light' ? '#262626' : '#f5f5f5',
+            border: `1px solid ${resolvedTheme === 'light' ? '#404040' : '#e5e5e5'}`,
+            color: resolvedTheme === 'light' ? '#fafafa' : '#171717',
             fontFamily: 'Outfit, sans-serif'
           }
         }}

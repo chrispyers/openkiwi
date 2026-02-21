@@ -34,7 +34,7 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, update
                 )}
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center">
-                        <FontAwesomeIcon icon={faLemon} className={theme === 'dark' ? 'text-neutral-600' : 'text-white'} />
+                        <FontAwesomeIcon icon={faLemon} className="text-white dark:text-neutral-600" />
                     </div>
                     <h1 className="text-lg font-bold tracking-tight text-neutral-600 dark:text-white">
                         <Text bold={true} size="lg">OpenKIWI</Text>

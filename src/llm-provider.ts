@@ -36,7 +36,7 @@ function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; 
 
 export async function* streamChatCompletion(
     providerConfig: LLMProviderConfig,
-    messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[],
+    messages: { role: string; content: string | { type: string; text?: string; image_url?: { url: string } }[] | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[],
     tools?: any[]
 ) {
     const body: any = {

@@ -11,18 +11,22 @@ if (!fs.existsSync(WORKSPACE_DIR)) {
 export default {
     definition: {
         name: 'manage_files',
-        description: 'Manage files and directories in your local workspace. Actions: ls, read, write, delete, mkdir.',
+        description: 'Manage files and directories in your local workspace. Actions: ls, read, write, delete, mkdir, move, copy.',
         parameters: {
             type: 'object',
             properties: {
                 action: {
                     type: 'string',
-                    enum: ['ls', 'read', 'write', 'delete', 'mkdir'],
+                    enum: ['ls', 'read', 'write', 'delete', 'mkdir', 'move', 'copy'],
                     description: 'The file operation to perform.'
                 },
                 filename: {
                     type: 'string',
                     description: 'The name or path of the file or directory (relative to workspace).'
+                },
+                newFilename: {
+                    type: 'string',
+                    description: 'The new name or path for "move" or "copy" actions (relative to workspace).'
                 },
                 content: {
                     type: 'string',
@@ -32,7 +36,7 @@ export default {
             required: ['action']
         }
     },
-    handler: async ({ action, filename, content }: { action: string; filename?: string; content?: string }) => {
+    handler: async ({ action, filename, content, newFilename }: { action: string; filename?: string; content?: string; newFilename?: string }) => {
         try {
             if (action === 'ls') {
                 const targetDir = filename ? path.join(WORKSPACE_DIR, filename) : WORKSPACE_DIR;
@@ -92,6 +96,47 @@ export default {
                         fs.unlinkSync(safePath);
                     }
                     return { success: true, message: `${stats.isDirectory() ? 'Directory' : 'File'} ${filename} deleted successfully` };
+
+                case 'move':
+                    if (!fs.existsSync(safePath)) throw new Error('Source path not found');
+                    if (!newFilename) throw new Error('newFilename is required for "move" action');
+
+                    const destPath = path.join(WORKSPACE_DIR, newFilename);
+                    if (!destPath.startsWith(WORKSPACE_DIR)) {
+                        throw new Error('Access denied: Destination is outside of workspace');
+                    }
+
+                    // Ensure destination parent directory exists
+                    const destParentDir = path.dirname(destPath);
+                    if (!fs.existsSync(destParentDir)) {
+                        fs.mkdirSync(destParentDir, { recursive: true });
+                    }
+
+                    fs.renameSync(safePath, destPath);
+                    return { success: true, message: `Moved/Renamed ${filename} to ${newFilename}` };
+
+                case 'copy':
+                    if (!fs.existsSync(safePath)) throw new Error('Source path not found');
+                    if (!newFilename) throw new Error('newFilename is required for "copy" action');
+
+                    const copyDestPath = path.join(WORKSPACE_DIR, newFilename);
+                    if (!copyDestPath.startsWith(WORKSPACE_DIR)) {
+                        throw new Error('Access denied: Destination is outside of workspace');
+                    }
+
+                    // Ensure destination parent directory exists
+                    const copyDestParentDir = path.dirname(copyDestPath);
+                    if (!fs.existsSync(copyDestParentDir)) {
+                        fs.mkdirSync(copyDestParentDir, { recursive: true });
+                    }
+
+                    const srcStats = fs.statSync(safePath);
+                    if (srcStats.isDirectory()) {
+                        fs.cpSync(safePath, copyDestPath, { recursive: true });
+                    } else {
+                        fs.copyFileSync(safePath, copyDestPath);
+                    }
+                    return { success: true, message: `Copied ${filename} to ${newFilename}` };
 
                 default:
                     throw new Error(`Unknown action: ${action}`);

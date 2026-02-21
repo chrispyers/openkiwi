@@ -107,7 +107,7 @@ export const AgentChatBubble = ({
 export const StreamingChatBubble = ({ agent }: { agent?: Agent }) => (
     <div className="flex justify-start animate-in fade-in duration-300">
         <div className="flex gap-4 items-start">
-            <div className="w-9 h-9 flex-shrink-0 rounded-xl bg-accent-primary flex items-center justify-center text-lg text-white shadow-sm">
+            <div className="bg-neutral-100 dark:bg-neutral-800 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
                 {agent?.emoji ? <span>{agent.emoji}</span> : <Bot size={18} />}
             </div>
             <div className="loading-dots">

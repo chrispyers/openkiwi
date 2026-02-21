@@ -2,6 +2,7 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 
 interface ThemeContextType {
     theme: 'light' | 'dark' | 'system';
+    resolvedTheme: 'light' | 'dark';
     setTheme: (theme: 'light' | 'dark' | 'system') => void;
     getThemeButtonClasses: () => string;
     getThemeInputClasses: () => string;
@@ -14,17 +15,39 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
         return (localStorage.getItem('theme') as any) || 'dark';
     });
 
+    const [resolvedTheme, setResolvedTheme] = useState<'light' | 'dark'>(() => {
+        if (theme === 'system') {
+            return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+        }
+        return theme as 'light' | 'dark';
+    });
+
     useEffect(() => {
         const root = window.document.documentElement;
         root.classList.remove('light', 'dark');
 
-        if (theme === 'system') {
-            const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
-            root.classList.add(systemTheme);
-        } else {
-            root.classList.add(theme);
-        }
+        const updateTheme = () => {
+            let current: 'light' | 'dark';
+            if (theme === 'system') {
+                current = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            } else {
+                current = theme;
+            }
+
+            root.classList.remove('light', 'dark');
+            root.classList.add(current);
+            setResolvedTheme(current);
+        };
+
+        updateTheme();
         localStorage.setItem('theme', theme);
+
+        if (theme === 'system') {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const handleChange = () => updateTheme();
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
     }, [theme]);
 
     const getThemeButtonClasses = () => {
@@ -36,7 +59,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     return (
-        <ThemeContext.Provider value={{ theme, setTheme, getThemeButtonClasses, getThemeInputClasses }}>
+        <ThemeContext.Provider value={{ theme, resolvedTheme, setTheme, getThemeButtonClasses, getThemeInputClasses }}>
             {children}
         </ThemeContext.Provider>
     );
