@@ -174,12 +174,12 @@ export default function SettingsPage({
                     {activeSettingsSection === 'messaging' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-8">
-                                <div className="bg-bg-primary">
+                                <div>
                                     <Text bold={true} size="lg">
-                                        <span className="w-8 h-8 rounded-full bg-[#25D366] flex items-center justify-center text-white">
+                                        <span className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white inline-flex">
                                             <FontAwesomeIcon icon={faComments} />
                                         </span>
-                                        WhatsApp Integration
+                                        <Text size="lg" bold={true} className="ml-3">WhatsApp Integration</Text>
                                     </Text>
 
                                     <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
@@ -339,7 +339,7 @@ export default function SettingsPage({
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4 text-left">
                                     {tools.map(tool => (
-                                        <div key={tool.name} className="p-6 bg-bg-primary border border-border-color rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all">
+                                        <div key={tool.name} className="p-6 bg-bg-primary rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all">
                                             <div className="flex justify-between items-start">
                                                 <Text bold={true} size="lg">{tool.name}</Text>
                                                 <Badge>Plugin</Badge>

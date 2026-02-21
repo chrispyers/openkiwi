@@ -48,41 +48,41 @@ const Input = forwardRef<HTMLInputElement, InputProps>(({
         </label>
       )}
       <div className="relative">
-        <Text>
-          {icon && (
-            <FontAwesomeIcon
-              className="absolute mt-3.5 ml-3"
-              icon={icon}
-            />
-          )}
-
-          <input
-            id={id}
-            type="text"
-            ref={ref}
-            readOnly={readOnly}
-            className={`border-2 py-2 pl-10 pr-10 rounded-2xl transition-all outline-none w-full
-            placeholder-neutral-300 dark:placeholder-neutral-500
-            dark:bg-neutral-800 border-neutral-100 dark:border-neutral-700
-            hover:border-neutral-200 dark:hover:border-neutral-600
-            ${getThemeInputClasses()} ${inputClassName || ""}`}
-            value={currentText}
-            placeholder={placeholder}
-            onChange={onChange || (() => { })}
+        {icon && (
+          <FontAwesomeIcon
+            className="absolute top-1/2 -translate-y-1/2 ml-4 text-neutral-400 dark:text-neutral-500"
+            icon={icon}
           />
+        )}
 
-          {/* a little"X"button to clear the text */}
-          {currentText && clearText && (
-            <button
-              onClick={clearText}
-              className="text-lg absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 dark:text-neutral-500 hover:text-neutral-400 dark:hover:text-neutral-400 focus:outline-none transition-all"
-            >
-              <FontAwesomeIcon icon={faTimesCircle} />
-            </button>
-          )}
+        <input
+          id={id}
+          type="text"
+          ref={ref}
+          readOnly={readOnly}
+          className={`border-2 py-2.5 rounded-2xl transition-colors w-full
+            placeholder-neutral-300 dark:placeholder-neutral-500
+            bg-white dark:bg-neutral-800 border-neutral-100 dark:border-neutral-700
+            hover:border-neutral-200 dark:hover:border-neutral-600
+            text-neutral-900 dark:text-neutral-100
+            ${icon != null ? "pl-12" : "pl-4"} pr-10
+            ${getThemeInputClasses()} ${inputClassName || ""}`}
+          value={currentText}
+          placeholder={placeholder}
+          onChange={onChange || (() => { })}
+        />
 
-          {children}
-        </Text>
+        {/* a little"X"button to clear the text */}
+        {currentText && clearText && (
+          <button
+            onClick={clearText}
+            className="text-lg absolute right-3 top-1/2 -translate-y-1/2 text-neutral-300 dark:text-neutral-500 hover:text-neutral-400 dark:hover:text-neutral-400 focus:outline-none transition-all"
+          >
+            <FontAwesomeIcon icon={faTimesCircle} />
+          </button>
+        )}
+
+        {children}
       </div>
     </div >
   );

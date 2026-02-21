@@ -350,9 +350,9 @@ export default function AgentsPage({
                 className="!max-w-md"
             >
                 <div className="p-6 space-y-6">
-                    <p className="text-sm">
+                    <Text size="sm">
                         Enter a name for your new agent. Default configuration files will be created automatically.
-                    </p>
+                    </Text>
 
                     <Input
                         label="Agent Name"

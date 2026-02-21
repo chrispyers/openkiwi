@@ -14,6 +14,8 @@
   --text-primary: rgb(38, 38, 38);
   --text-secondary: #78df0a;
   --border-color: #e5e5e5;
+  --user-chat-bubble-bg: rgb(43, 43, 43);
+  --modal-bg: #fafafa;
 }
 
 /* Dark Mode Variables */
@@ -23,17 +25,19 @@
   --bg-sidebar: rgb(38, 38, 38);
 
   /* neutral-900 */
-  --bg-sidebar: rgb(23, 23, 23);
+  --bg-sidebar: rgb(26, 26, 26);
 
   /* neutral-900 */
-  --bg-primary: rgb(23, 23, 23);
+  --bg-primary: rgb(26, 26, 26);
 
   /* neutral-800 */
-  --bg-card: rgb(29, 29, 29);
+  --bg-card: rgb(38, 38, 38);
 
   --text-primary: #fafafa;
   --text-secondary: #a3a3a3;
   --border-color: #525252;
+  --user-chat-bubble-bg: rgb(56, 59, 61);
+  --modal-bg: rgb(26, 26, 26);
 }
 
 @layer base {
@@ -47,11 +51,12 @@
 
   /* Message bubbles with top corners */
   .bubble {
-    @apply p-4 rounded-3xl max-w-[85%] relative break-words shadow-sm transition-all duration-200;
+    @apply p-4 rounded-3xl max-w-[85%] relative break-words shadow-sm transition-all duration-100;
   }
 
   .user-bubble {
-    @apply bg-accent-primary rounded-tr-[8px];
+    background-color: var(--user-chat-bubble-bg);
+    @apply rounded-tr-[8px];
     /* box-shadow: 0 4px 15px rgba(43, 43, 43, 0.2); */
   }
 

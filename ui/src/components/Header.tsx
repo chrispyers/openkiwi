@@ -47,7 +47,7 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, update
                 <div className="absolute left-1/2 -translate-x-1/2">
                     <button
                         onClick={onUpdateClick}
-                        className="hover:scale-105 transition-transform duration-200 active:scale-95"
+                        className="hover:scale-105 transition-transform duration-100 active:scale-95"
                         title="Click to see upgrade steps"
                     >
                         <Button

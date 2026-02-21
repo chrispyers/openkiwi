@@ -41,7 +41,8 @@ const Modal: React.FC<ModalProps> = ({
             onClick={onClose}
         >
             <div
-                className={`bg-bg-card w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-100 shadow-2xl ${className}`}
+                style={{ backgroundColor: 'var(--modal-bg)' }}
+                className={`w-full max-w-4xl max-h-[90vh] rounded-3xl border border-border-color flex flex-col overflow-hidden animate-in zoom-in duration-100 shadow-2xl ${className}`}
                 onClick={e => e.stopPropagation()}
             >
                 <div className="p-6 border-b border-border-color flex justify-between items-center">

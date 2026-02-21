@@ -32,7 +32,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
     };
 
     const getThemeInputClasses = () => {
-        return "focus:border-accent-primary focus:ring-1 focus:ring-accent-primary/20";
+        return "focus:outline-none focus:border-accent-primary dark:focus:border-accent-primary duration-100";
     };
 
     return (
