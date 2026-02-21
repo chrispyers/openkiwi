@@ -972,6 +972,7 @@ function App() {
             <GatewayPage
               gatewayAddr={gatewayAddr}
               gatewayToken={gatewayToken}
+              isGatewayConnected={isGatewayConnected}
               initializeApp={initializeApp}
               connectedClients={connectedClients}
               fetchConnectedClients={fetchConnectedClients}

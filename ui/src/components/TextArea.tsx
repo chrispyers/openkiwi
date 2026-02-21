@@ -30,7 +30,7 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(({
     const context = useContext(ThemeContext);
     const getThemeInputClasses = context?.getThemeInputClasses || (() => "");
 
-    const defaultTextAreaClasses = "border-2 p-4 rounded-2xl dark:bg-neutral-800 border-neutral-100 dark:border-neutral-700 hover:border-neutral-200 dark:hover:border-neutral-600 text-neutral-900 dark:text-neutral-100";
+    const defaultTextAreaClasses = "border-2 p-4 rounded-2xl bg-white dark:bg-bg-primary border-neutral-100 dark:border-neutral-700 hover:border-neutral-200 dark:hover:border-neutral-600 text-neutral-900 dark:text-neutral-100";
 
     return (
         <div className={`${width != null ? width : "w-full"} ${containerClassName || ""}`}>
@@ -51,8 +51,9 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(({
                     readOnly={readOnly}
                     disabled={disabled}
                     className={`${!className && !textAreaClassName ? defaultTextAreaClasses : ""}
-                        transition-all outline-none focus:outline-none w-full resize-none
+                        transition-colors w-full resize-none
                         placeholder-neutral-300 dark:placeholder-neutral-500
+                        ${getThemeInputClasses()}
                         ${className || ""} ${textAreaClassName || ""}`}
                     value={value !== undefined ? value : currentText}
                     onChange={onChange || (() => { })}

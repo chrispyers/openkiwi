@@ -44,7 +44,7 @@ const Select: React.FC<SelectProps> = ({
           <select
             id={id}
             disabled={disabled}
-            className={`appearance-none border-2 p-2 pr-10 rounded-2xl transition-all outline-none w-full
+            className={`appearance-none border-2 p-2 pr-10 rounded-2xl transition-colors outline-none w-full
             border-neutral-100 dark:border-neutral-700
             bg-white dark:bg-bg-primary
             hover:border-neutral-200 dark:hover:border-neutral-600
