@@ -91,7 +91,7 @@ export default function ChatPage({
                 ) : (
                     <div className="flex items-center gap-4 w-full">
                         <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center text-xl">
-                            {currentAgent?.emoji || <Bot size={18} className="text-neutral-600 dark:text-neutral-200" />}
+                            {currentAgent?.emoji || null}
                         </div>
                         <div>
                             <Select
@@ -123,7 +123,7 @@ export default function ChatPage({
                     <div className="flex flex-col items-center justify-center h-full py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div className="w-24 h-24 flex items-center justify-center text-4xl mb-6 animate-bounce-slow">
                             <Text>
-                                {currentAgent?.emoji || <Bot size={40} />}
+                                {currentAgent?.emoji || null}
                             </Text>
                         </div>
                         <Text size="3xl" bold={true}>Chat with {currentAgent?.name}</Text>

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { faRobot, faPlus, faUser, faSmile, faSave, faClock, faFileText, faBrain, faMicrochip, faHeartPulse } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faUser, faSmile, faSave, faClock, faFileText, faBrain, faMicrochip, faHeartPulse } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
 import Card from '../Card'
@@ -201,7 +201,7 @@ export default function AgentsPage({
                                     <div className="mb-4 bg-bg-primary/50 bg-white dark:bg-bg-primary rounded-xl p-4">
                                         <div className="flex justify-between items-center">
                                             <div>
-                                                <Text bold={true}><FontAwesomeIcon icon={faRobot} /> Proactive Heartbeat</Text>
+                                                <Text bold={true}><FontAwesomeIcon icon={faHeartPulse} /> Proactive Heartbeat</Text>
                                                 <div className="mb-2">
                                                     <Text size="sm" secondary={true}>Allows the agent to wake up on a schedule</Text>
                                                 </div>
@@ -343,7 +343,6 @@ export default function AgentsPage({
                 }}
                 title={
                     <div className="flex items-center gap-2">
-                        <FontAwesomeIcon icon={faRobot} />
                         <span>Create New Agent</span>
                     </div>
                 }
@@ -360,7 +359,7 @@ export default function AgentsPage({
                         onChange={(e) => setNewAgentName(e.target.value)}
                         clearText={() => setNewAgentName('')}
                         placeholder="e.g., Assistant, Helper, Guide"
-                        icon={faRobot}
+                        icon={faUser}
                         inputClassName="!mt-0"
                     />
 

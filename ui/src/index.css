@@ -184,12 +184,11 @@
 
 /* Condensed Prose for Chat */
 .prose-chat {
-  @apply max-w-none;
+  @apply max-w-none text-[15px];
 }
 
 .prose-chat p {
-  @apply my-1 leading-relaxed;
-
+  @apply my-1.5 leading-relaxed;
 }
 
 .prose-chat p:first-child {
@@ -202,11 +201,11 @@
 
 .prose-chat ul,
 .prose-chat ol {
-  @apply my-2 pl-4 !important;
+  @apply my-2 pl-5 !important;
 }
 
 .prose-chat li {
-  @apply my-0.5 !important;
+  @apply my-1 !important;
 }
 
 .prose-chat li>p {
@@ -230,8 +229,39 @@
 .prose-chat h1,
 .prose-chat h2,
 .prose-chat h3,
+.prose-chat h4,
+.prose-chat h5,
+.prose-chat h6 {
+  @apply font-bold text-text-primary mt-6 mb-2 first:mt-0 tracking-tight;
+}
+
+.prose-chat h1 {
+  @apply text-2xl;
+}
+
+.prose-chat h2 {
+  @apply text-xl;
+}
+
+.prose-chat h3 {
+  @apply text-lg;
+}
+
 .prose-chat h4 {
-  @apply mt-4 mb-2 first:mt-0;
+  @apply text-base;
+}
+
+.prose-chat strong,
+.prose-chat b {
+  @apply font-bold text-text-primary;
+}
+
+.prose-chat hr {
+  @apply my-6 border-border-color;
+}
+
+.prose-chat blockquote {
+  @apply pl-4 border-l-2 border-neutral-300 dark:border-neutral-700 italic text-text-secondary my-4;
 }
 
 /* Remove default backticks from prose inline code */

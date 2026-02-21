@@ -97,7 +97,7 @@ export const AgentChatBubble = ({
             timestamp={message.timestamp}
             formatTimestamp={formatTimestamp}
             isReasoning={isReasoning}
-            avatar={isReasoning ? <BrainCircuit size={16} /> : (agent?.emoji ? <span>{agent.emoji}</span> : <Bot size={18} />)}
+            avatar={isReasoning ? <BrainCircuit size={16} /> : (agent?.emoji ? <span>{agent.emoji}</span> : null)}
             className={isReasoning ? 'reasoning-bubble' : 'ai-bubble'}
         />
     );

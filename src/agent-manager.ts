@@ -45,7 +45,7 @@ export class AgentManager {
 
         // Load agent-specific config if it exists
         const configPath = path.join(agentDir, 'config.json');
-        let agentConfig: any = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '🤖', provider: '' };
+        let agentConfig: any = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '', provider: '' };
         if (fs.existsSync(configPath)) {
             try {
                 agentConfig = { ...agentConfig, ...JSON.parse(fs.readFileSync(configPath, 'utf-8')) };
@@ -123,7 +123,7 @@ ${globalSystemPrompt}`.trim();
         fs.writeFileSync(path.join(agentDir, 'HEARTBEAT.md'), heartbeat, 'utf-8');
 
         // Create config
-        const config = { name, emoji: '🤖' };
+        const config = { name, emoji: '' };
         fs.writeFileSync(path.join(agentDir, 'config.json'), JSON.stringify(config, null, 2), 'utf-8');
 
         // Return the newly created agent
