@@ -1,3 +1,4 @@
+import { useState, useEffect } from 'react'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faGlobe, faLock, faPlug, faDesktop, faGlobeAmericas } from '@fortawesome/free-solid-svg-icons'
 import Page from './Page'
@@ -9,23 +10,31 @@ import Code from '../Code'
 
 interface GatewayPageProps {
     gatewayAddr: string;
-    setGatewayAddr: (addr: string) => void;
     gatewayToken: string;
-    setGatewayToken: (token: string) => void;
-    initializeApp: (isSilent?: boolean) => Promise<void>;
+    initializeApp: (isSilent?: boolean, addrOverride?: string, tokenOverride?: string) => Promise<void>;
     connectedClients: any[];
     fetchConnectedClients: () => Promise<void>;
 }
 
 export default function GatewayPage({
     gatewayAddr,
-    setGatewayAddr,
     gatewayToken,
-    setGatewayToken,
     initializeApp,
     connectedClients,
     fetchConnectedClients
 }: GatewayPageProps) {
+    const [localAddr, setLocalAddr] = useState(gatewayAddr);
+    const [localToken, setLocalToken] = useState(gatewayToken);
+
+    // Sync with global state when it changes (e.g. on successful connection)
+    useEffect(() => {
+        setLocalAddr(gatewayAddr);
+    }, [gatewayAddr]);
+
+    useEffect(() => {
+        setLocalToken(gatewayToken);
+    }, [gatewayToken]);
+
     return (
         <Page
             title="Gateway"
@@ -46,20 +55,20 @@ export default function GatewayPage({
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                     <Input
                                         label="Endpoint"
-                                        currentText={gatewayAddr}
-                                        onChange={e => setGatewayAddr(e.target.value)}
+                                        currentText={localAddr}
+                                        onChange={e => setLocalAddr(e.target.value)}
                                         placeholder="http://localhost:3808"
                                         icon={faGlobe}
-                                        clearText={() => setGatewayAddr('')}
+                                        clearText={() => setLocalAddr('')}
                                         className="!mt-0"
                                     />
                                     <Input
                                         label="Token"
-                                        currentText={gatewayToken}
-                                        onChange={e => setGatewayToken(e.target.value)}
+                                        currentText={localToken}
+                                        onChange={e => setLocalToken(e.target.value)}
                                         placeholder="Secret Token"
                                         icon={faLock}
-                                        clearText={() => setGatewayToken('')}
+                                        clearText={() => setLocalToken('')}
                                         className="!mt-0"
                                     />
                                 </div>
@@ -72,8 +81,8 @@ export default function GatewayPage({
 
                                 <Button
                                     themed={true}
-                                    onClick={() => initializeApp()}
-                                    disabled={!gatewayAddr || !gatewayToken}
+                                    onClick={() => initializeApp(false, localAddr, localToken)}
+                                    disabled={!localAddr || !localToken}
                                     className="w-full h-12 text-white"
                                     icon={faPlug}
                                 >

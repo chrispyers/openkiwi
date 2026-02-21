@@ -237,7 +237,7 @@ function App() {
   // This prevents breaking the UI when typing a new gateway address
 
   // Helper for Gateway URLs
-  const getApiUrl = (path: string) => `${gatewayAddr.replace(/\/$/, '')}${path}`;
+  const getApiUrl = (path: string, addr?: string) => `${(addr || gatewayAddr).replace(/\/$/, '')}${path}`;
   const getWsUrl = () => {
     try {
       const url = new URL(gatewayAddr);
@@ -391,12 +391,15 @@ function App() {
 
   // ... (rest of code) ...
 
-  const initializeApp = async (isSilent = false) => {
+  const initializeApp = async (isSilent = false, addrOverride?: string, tokenOverride?: string) => {
+    const finalAddr = addrOverride || gatewayAddr;
+    const finalToken = tokenOverride || gatewayToken;
+
     setLoading(true);
     try {
       // Test connection first before saving to localStorage
-      const testResponse = await fetch(getApiUrl('/api/config'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` },
+      const testResponse = await fetch(getApiUrl('/api/config', finalAddr), {
+        headers: { 'Authorization': `Bearer ${finalToken}` },
         signal: AbortSignal.timeout(5000) // 5 second timeout
       });
 
@@ -404,17 +407,19 @@ function App() {
         throw new Error('Authentication failed or gateway unreachable');
       }
 
-      // Connection successful - save to localStorage
-      localStorage.setItem('gateway_addr', gatewayAddr);
-      localStorage.setItem('gateway_token', gatewayToken);
+      // Connection successful - save to global state and localStorage
+      setGatewayAddr(finalAddr);
+      setGatewayToken(finalToken);
+      localStorage.setItem('gateway_addr', finalAddr);
+      localStorage.setItem('gateway_token', finalToken);
 
-      // Now fetch all data
+      // Now fetch all data using the confirmed credentials
       await Promise.all([
-        fetchConfig(),
-        fetchAgents(),
-        fetchSessions(),
-        fetchTools(),
-        fetchConnectedClients()
+        fetchConfig(finalAddr, finalToken),
+        fetchAgents(finalAddr, finalToken),
+        fetchSessions(finalAddr, finalToken),
+        fetchTools(finalAddr, finalToken),
+        fetchConnectedClients(finalAddr, finalToken)
       ]);
 
       if (!isSilent) {
@@ -426,17 +431,13 @@ function App() {
 
       if (!isSilent) {
         toast.error('Connection Failed', {
-          description: `Could not connect to gateway at ${gatewayAddr}. ${errorMsg}`
+          description: `Could not connect to gateway at ${finalAddr}. ${errorMsg}`
         });
       }
 
-      // Don't save failed connection to localStorage
-      // Revert to saved values if they exist
-      const savedAddr = localStorage.getItem('gateway_addr');
-      const savedToken = localStorage.getItem('gateway_token');
-      if (savedAddr && savedToken && !isSilent) {
-        setGatewayAddr(savedAddr);
-        setGatewayToken(savedToken);
+      // Revert in-memory values if we were trying a manual connect and it failed
+      if (addrOverride || tokenOverride) {
+        // No action needed as we didn't update the state yet
       }
     } finally {
       setLoading(false);
@@ -461,10 +462,10 @@ function App() {
     return date.toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', hour12: true });
   };
 
-  async function fetchConnectedClients() {
+  async function fetchConnectedClients(addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/clients'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      const response = await fetch(getApiUrl('/api/clients', addr), {
+        headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Failed to fetch clients');
       const data = await response.json();
@@ -474,10 +475,10 @@ function App() {
     }
   }
 
-  async function fetchConfig() {
+  async function fetchConfig(addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/config'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      const response = await fetch(getApiUrl('/api/config', addr), {
+        headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Auth Failed');
       const data = await response.json();
@@ -488,10 +489,10 @@ function App() {
     }
   }
 
-  async function fetchTools() {
+  async function fetchTools(addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/tools'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      const response = await fetch(getApiUrl('/api/tools', addr), {
+        headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Auth Failed');
       const data = await response.json();
@@ -532,10 +533,10 @@ function App() {
     }
   };
 
-  async function fetchAgents() {
+  async function fetchAgents(addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/agents'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      const response = await fetch(getApiUrl('/api/agents', addr), {
+        headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Auth Failed');
       const data = await response.json();
@@ -550,10 +551,10 @@ function App() {
     }
   }
 
-  async function fetchSessions() {
+  async function fetchSessions(addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/sessions'), {
-        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      const response = await fetch(getApiUrl('/api/sessions', addr), {
+        headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Auth Failed');
       const data = await response.json();
@@ -564,12 +565,12 @@ function App() {
     }
   }
 
-  async function fetchModels(isSilent = false, configOverride?: { endpoint: string, apiKey?: string }, skipSetState = false) {
+  async function fetchModels(isSilent = false, configOverride?: { endpoint: string, apiKey?: string }, skipSetState = false, addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/models'), {
+      const response = await fetch(getApiUrl('/api/models', addr), {
         method: 'POST',
         headers: {
-          'Authorization': `Bearer ${gatewayToken}`,
+          'Authorization': `Bearer ${token || gatewayToken}`,
           'Content-Type': 'application/json'
         },
         body: JSON.stringify(configOverride || {})
@@ -970,9 +971,7 @@ function App() {
           ) : activeView === 'gateway' ? (
             <GatewayPage
               gatewayAddr={gatewayAddr}
-              setGatewayAddr={setGatewayAddr}
               gatewayToken={gatewayToken}
-              setGatewayToken={setGatewayToken}
               initializeApp={initializeApp}
               connectedClients={connectedClients}
               fetchConnectedClients={fetchConnectedClients}

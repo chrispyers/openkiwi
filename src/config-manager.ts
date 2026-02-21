@@ -55,10 +55,18 @@ export function loadConfig(): Config {
             const crypto = require('node:crypto');
             config.gateway.secretToken = crypto.randomBytes(24).toString('hex');
             saveConfig(config);
-            console.log('Generated new secure Gateway Token:', config.gateway.secretToken);
+            const message = `Generated new secure Gateway Token: ${config.gateway.secretToken}`;
+            const line = '-'.repeat(message.length);
+            console.log('\n' + line);
+            console.log(message);
+            console.log(line + '\n');
             hasLoggedToken = true;
         } else if (!hasLoggedToken) {
-            console.log('Starting gateway with token:', config.gateway.secretToken);
+            const message = `Starting gateway with token: ${config.gateway.secretToken}`;
+            const line = '-'.repeat(message.length);
+            console.log('\n' + line);
+            console.log(message);
+            console.log(line + '\n');
             hasLoggedToken = true;
         }
 
