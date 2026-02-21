@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
+import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 import Code from './Code';
@@ -8,13 +9,22 @@ import Code from './Code';
 interface MarkdownRendererProps {
     content: string;
     className?: string;
+    breaks?: boolean;
 }
 
-const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '' }) => {
+const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '', breaks = true }) => {
+    // Pre-process content to fix common LLM formatting issues
+    const processedContent = content
+        // Ensure space after hash for headings
+        .replace(/^(#{1,6})([^# \n])/gm, '$1 $2');
+
+    const plugins = [remarkGfm];
+    if (breaks) plugins.push(remarkBreaks);
+
     return (
-        <div className={`prose-chat dark:prose-invert max-w-none leading-relaxed select-text ${className}`}>
+        <div className={`prose dark:prose-invert prose-chat max-w-none leading-relaxed select-text ${className}`}>
             <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
+                remarkPlugins={plugins as any}
                 components={{
                     pre: ({ children }) => <>{children}</>,
                     code({ node, inline, className, children, ...props }: any) {
@@ -56,7 +66,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
                     }
                 }}
             >
-                {content}
+                {processedContent}
             </ReactMarkdown>
         </div>
     );

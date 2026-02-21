@@ -42,12 +42,11 @@ export const ChatBubble = ({
                             </div>
                         )}
                         <div className="w-full">
-                            <Text>
-                                <MarkdownRenderer
-                                    content={content}
-                                    className={isUser ? 'prose-invert prose-chat' : 'prose-chat'}
-                                />
-                            </Text>
+                            <MarkdownRenderer
+                                content={content}
+                                className={isUser ? 'prose-invert whitespace-pre-wrap' : ''}
+                                breaks={!isUser}
+                            />
                         </div>
                     </div>
                 </div>
