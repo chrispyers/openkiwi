@@ -875,6 +875,9 @@ function App() {
           isNavExpanded={isNavExpanded}
           activeView={activeView}
           createNewSession={createNewSession}
+          isGatewayConnected={isGatewayConnected}
+          hasAgents={agents.length > 0}
+          hasModels={(config?.providers?.length ?? 0) > 0}
         />
 
         {/* Secondary Sidebar (Chat Sessions) */}

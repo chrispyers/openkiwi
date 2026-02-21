@@ -15,17 +15,20 @@ interface SidebarProps {
     isNavExpanded: boolean;
     activeView: string;
     createNewSession: () => void;
+    isGatewayConnected: boolean;
+    hasAgents: boolean;
+    hasModels: boolean;
 }
 
-export default function Sidebar({ isNavExpanded, activeView, createNewSession }: SidebarProps) {
+export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels }: SidebarProps) {
     const navigate = useNavigate();
     const { theme } = useTheme();
 
     const navItems = [
         { id: 'chat', icon: faComments, label: 'Chat' },
-        { id: 'agents', icon: faRobot, label: 'Agents' },
-        { id: 'gateway', icon: faServer, label: 'Gateway' },
-        { id: 'models', icon: faCube, label: 'Models' },
+        { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
+        { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
+        { id: 'models', icon: faCube, label: 'Models', showAlert: !hasModels },
         { id: 'logs', icon: faFileLines, label: 'Logs' },
         { id: 'settings', icon: faGear, label: 'Settings' },
     ];
@@ -40,19 +43,27 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession }:
                         navigate('/' + item.id);
                     }}
                     className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-100 group relative flex items-center gap-4 ${activeView === item.id
-                        ? `bg-accent-primary text-white dark:text-neutral-600`
+                        ? `bg-accent-primary text-white dark:text-neutral-600 shadow-lg shadow-accent-primary/20`
                         : 'text-neutral-600 hover:bg-neutral-200 dark:hover:bg-neutral-800 dark:text-white'
                         }`}
                     title={isNavExpanded ? undefined : item.label}
                 >
-                    <div className={`flex-shrink-0 w-6 flex justify-center`}>
+                    <div className={`flex-shrink-0 w-6 flex justify-center relative`}>
                         <FontAwesomeIcon icon={item.icon} className="text-lg" />
+                        {item.showAlert && !isNavExpanded && (
+                            <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-bg-sidebar animate-pulse" />
+                        )}
                     </div>
 
                     {isNavExpanded && (
-                        <span className="text-sm font-semibold whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300">
-                            {item.label}
-                        </span>
+                        <div className="flex flex-1 items-center justify-between min-w-0">
+                            <span className="text-sm font-semibold whitespace-nowrap animate-in fade-in slide-in-from-left-2 duration-300 overflow-hidden text-overflow-ellipsis">
+                                {item.label}
+                            </span>
+                            {item.showAlert && (
+                                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                            )}
+                        </div>
                     )}
 
 
