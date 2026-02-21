@@ -9,8 +9,9 @@ import path from 'path';
  * Usage: npx tsx worker.ts
  */
 
-const CONFIG_PATH = path.resolve(process.cwd(), 'config.json');
-const config = JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+import { loadConfig } from './src/config-manager.js';
+
+const config = loadConfig();
 
 const GATEWAY_URL = `ws://localhost:${config.gateway.port}/ws?token=${config.gateway.secretToken}&hostname=Mac-Host-Worker`;
 const ws = new WebSocket(GATEWAY_URL);

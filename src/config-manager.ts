@@ -1,6 +1,34 @@
 import fs from 'node:fs';
 import path from 'node:path';
+import crypto from 'node:crypto';
 import { z } from 'zod';
+
+const ENCRYPTION_PREFIX = 'enc:';
+const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
+const ENCRYPTION_KEY = crypto.createHash('sha256').update('openkiwi-secure-storage-key').digest();
+const ENCRYPTION_IV = Buffer.alloc(16, 0); // Static IV for obfuscation purposes
+
+function encrypt(text: string): string {
+    if (!text || text.startsWith(ENCRYPTION_PREFIX)) return text;
+    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, ENCRYPTION_IV);
+    let encrypted = cipher.update(text, 'utf8', 'hex');
+    encrypted += cipher.final('hex');
+    return `${ENCRYPTION_PREFIX}${encrypted}`;
+}
+
+function decrypt(text: string): string {
+    if (!text || !text.startsWith(ENCRYPTION_PREFIX)) return text;
+    try {
+        const encryptedText = text.substring(ENCRYPTION_PREFIX.length);
+        const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, ENCRYPTION_IV);
+        let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
+        decrypted += decipher.final('utf8');
+        return decrypted;
+    } catch (e) {
+        console.error('Failed to decrypt value:', e);
+        return text;
+    }
+}
 
 const ConfigSchema = z.object({
 
@@ -47,14 +75,31 @@ export function loadConfig(): Config {
     try {
         const data = fs.readFileSync(CONFIG_PATH, 'utf-8');
         const json = JSON.parse(data);
+        let needsMigration = false;
+
+        // Decrypt sensitive fields and check for plain text
+        if (json.providers && Array.isArray(json.providers)) {
+            json.providers.forEach((p: any) => {
+                if (p.apiKey && !p.apiKey.startsWith(ENCRYPTION_PREFIX)) {
+                    needsMigration = true;
+                }
+                if (p.apiKey) p.apiKey = decrypt(p.apiKey);
+            });
+        }
+        if (json.gateway && json.gateway.secretToken) {
+            if (json.gateway.secretToken && !json.gateway.secretToken.startsWith(ENCRYPTION_PREFIX)) {
+                needsMigration = true;
+            }
+            json.gateway.secretToken = decrypt(json.gateway.secretToken);
+        }
+
         const config = ConfigSchema.parse(json);
 
 
         // Auto-generate token if missing or empty
         if (!config.gateway.secretToken) {
-            const crypto = require('node:crypto');
             config.gateway.secretToken = crypto.randomBytes(24).toString('hex');
-            saveConfig(config);
+            needsMigration = true;
             const message = `Generated new secure Gateway Token: ${config.gateway.secretToken}`;
             const line = '-'.repeat(message.length);
             console.log('\n' + line);
@@ -68,6 +113,10 @@ export function loadConfig(): Config {
             console.log(message);
             console.log(line + '\n');
             hasLoggedToken = true;
+        }
+
+        if (needsMigration) {
+            saveConfig(config);
         }
 
         return config;
@@ -102,6 +151,19 @@ export function loadConfig(): Config {
 }
 
 export function saveConfig(config: Config): void {
-    const data = JSON.stringify(config, null, 2);
+    // Deep copy to avoid modifying the in-memory config object
+    const configToSave = JSON.parse(JSON.stringify(config));
+
+    // Encrypt sensitive fields
+    if (configToSave.providers && Array.isArray(configToSave.providers)) {
+        configToSave.providers.forEach((p: any) => {
+            if (p.apiKey) p.apiKey = encrypt(p.apiKey);
+        });
+    }
+    if (configToSave.gateway && configToSave.gateway.secretToken) {
+        configToSave.gateway.secretToken = encrypt(configToSave.gateway.secretToken);
+    }
+
+    const data = JSON.stringify(configToSave, null, 2);
     fs.writeFileSync(CONFIG_PATH, data, 'utf-8');
 }
