@@ -75,6 +75,15 @@ export default function ChatPage({
     const isNoAgentSelected = !selectedAgentId;
     const isAgentMissing = !currentAgent && !!selectedAgentId;
 
+    const getInitials = (name?: string) => {
+        if (!name) return "AI";
+        const parts = name.trim().split(/\s+/);
+        if (parts.length >= 2) {
+            return (parts[0][0] + parts[1][0]).toUpperCase();
+        }
+        return parts[0][0].toUpperCase();
+    };
+
     return (
         <div className="flex-1 flex flex-col h-full overflow-hidden">
             {/* Agent ToolBar */}
@@ -90,8 +99,8 @@ export default function ChatPage({
                     </div>
                 ) : (
                     <div className="flex items-center gap-4 w-full">
-                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-600 flex items-center justify-center text-xl">
-                            {currentAgent?.emoji || null}
+                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-xl font-bold dark:text-white">
+                            {currentAgent?.emoji || (currentAgent ? getInitials(currentAgent.name) : <Bot size={20} className="text-neutral-400" />)}
                         </div>
                         <div>
                             <Select
@@ -102,12 +111,6 @@ export default function ChatPage({
                                     ...agents.map(a => ({ value: a.id, label: `${a.emoji} ${a.name}` }))
                                 ]}
                             />
-                            {currentAgent && (
-                                <div className="flex items-center gap-1.5 mt-.5 ml-0.5">
-                                    <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
-                                    <Text size="sm" bold={true} className="uppercase tracking-wide opacity-60">Ready to assist</Text>
-                                </div>
-                            )}
                         </div>
                     </div>
                 )}
@@ -122,8 +125,8 @@ export default function ChatPage({
                 {messages.length === 0 && (
                     <div className="flex flex-col items-center justify-center h-full py-20 text-center animate-in fade-in slide-in-from-bottom-4 duration-700">
                         <div className="w-24 h-24 flex items-center justify-center text-4xl mb-6 animate-bounce-slow">
-                            <Text>
-                                {currentAgent?.emoji || null}
+                            <Text size="4xl" bold={true}>
+                                {currentAgent?.emoji || (currentAgent ? getInitials(currentAgent.name) : null)}
                             </Text>
                         </div>
                         <Text size="3xl" bold={true}>Chat with {currentAgent?.name}</Text>

@@ -1,5 +1,7 @@
 import React from 'react';
-import { User, Bot, BrainCircuit } from 'lucide-react';
+import { User, Bot } from 'lucide-react';
+import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import { faBrain } from '@fortawesome/free-solid-svg-icons';
 import MarkdownRenderer from './MarkdownRenderer';
 import { Message, Agent } from '../types';
 import Text from './Text';
@@ -80,6 +82,15 @@ export const UserChatBubble = ({
     />
 );
 
+const getInitials = (name?: string) => {
+    if (!name) return "AI";
+    const parts = name.trim().split(/\s+/);
+    if (parts.length >= 2) {
+        return (parts[0][0] + parts[1][0]).toUpperCase();
+    }
+    return parts[0][0].toUpperCase();
+};
+
 export const AgentChatBubble = ({
     message,
     agent,
@@ -97,7 +108,7 @@ export const AgentChatBubble = ({
             timestamp={message.timestamp}
             formatTimestamp={formatTimestamp}
             isReasoning={isReasoning}
-            avatar={isReasoning ? <BrainCircuit size={16} /> : (agent?.emoji ? <span>{agent.emoji}</span> : null)}
+            avatar={isReasoning ? <FontAwesomeIcon icon={faBrain} style={{ fontSize: '14px' }} /> : (agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-base font-bold">{getInitials(agent?.name)}</span>)}
             className={isReasoning ? 'reasoning-bubble' : 'ai-bubble'}
         />
     );

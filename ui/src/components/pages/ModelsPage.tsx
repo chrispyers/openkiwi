@@ -15,6 +15,7 @@ import { Model } from '../../types'
 import GoogleIcon from '../../img/google.png'
 import OpenAIIcon from '../../img/openai.svg.png'
 import AnthropicIcon from '../../img/anthropic.png'
+import LMStudioIcon from '../../img/lmstudio.png'
 
 
 
@@ -471,7 +472,7 @@ export default function ModelsPage({
                             className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'lm-studio' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('lm-studio')}
                         >
-                            LM Studio
+                            <img src={LMStudioIcon} alt="LM Studio" className="h-6" />
                         </Button>
                         <Button
                             className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'google-gemini' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
@@ -490,6 +491,7 @@ export default function ModelsPage({
                     {selectedProviderType === 'anthropic' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Provider
+                                name="Anthropic"
                                 inputLabel="API KEY"
                                 inputIcon={faKey}
                                 inputPlaceholder="ant-api-..."
@@ -520,6 +522,7 @@ export default function ModelsPage({
                     {selectedProviderType === 'lm-studio' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Provider
+                                name="LM Studio"
                                 description={newProvider.description}
                                 endpoint={newProvider.endpoint}
                                 model={newProvider.model}
@@ -564,6 +567,13 @@ export default function ModelsPage({
                                     setIsModalOpen(false);
                                     setNewProvider({ description: '', endpoint: '', model: '' });
                                 }}
+                                footer={
+                                    <div className="text-center">
+                                        <Text size="sm" secondary={true}>
+                                            Download LM Studio from <a href="https://lmstudio.ai/download" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-bold">lmstudio.ai/download</a>
+                                        </Text>
+                                    </div>
+                                }
                             />
                         </div>
                     )}
@@ -571,6 +581,7 @@ export default function ModelsPage({
                     {selectedProviderType === 'google-gemini' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Provider
+                                name="Google"
                                 inputLabel="API KEY"
                                 inputIcon={faKey}
                                 inputPlaceholder="Enter your Google Gemini API key"
@@ -600,6 +611,7 @@ export default function ModelsPage({
                     {selectedProviderType === 'openai' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Provider
+                                name="OpenAI"
                                 inputLabel="API KEY"
                                 inputIcon={faKey}
                                 inputPlaceholder="sk-..."

@@ -11,6 +11,7 @@ import Input from './Input';
 import Text from './Text';
 
 interface ProviderProps {
+    name: string;
     description: string;
     endpoint: string;
     inputLabel?: string;
@@ -28,6 +29,7 @@ interface ProviderProps {
 }
 
 export default function Provider({
+    name,
     description,
     endpoint,
     inputLabel = "Endpoint",
@@ -45,6 +47,7 @@ export default function Provider({
 }: ProviderProps) {
     return (
         <Card className="space-y-6">
+            <Text bold={true} size="xl">{name}</Text>
             <div className="space-y-2">
                 <div className="flex gap-2 items-end">
                     <Input
