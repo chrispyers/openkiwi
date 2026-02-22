@@ -5,22 +5,41 @@ import { z } from 'zod';
 
 const ENCRYPTION_PREFIX = 'enc:';
 const ENCRYPTION_ALGORITHM = 'aes-256-cbc';
-const ENCRYPTION_KEY = crypto.createHash('sha256').update('openkiwi-secure-storage-key').digest();
-const ENCRYPTION_IV = Buffer.alloc(16, 0); // Static IV for obfuscation purposes
+
+function loadOrCreateEncryptionKey(): Buffer {
+    if (process.env.OPENKIWI_ENCRYPTION_KEY) {
+        return Buffer.from(process.env.OPENKIWI_ENCRYPTION_KEY, 'hex');
+    }
+    const keyPath = path.resolve(process.cwd(), '.openkiwi.key');
+    if (fs.existsSync(keyPath)) {
+        const existing = fs.readFileSync(keyPath, 'utf-8').trim();
+        if (existing.length === 64) {
+            return Buffer.from(existing, 'hex');
+        }
+    }
+    const key = crypto.randomBytes(32);
+    fs.writeFileSync(keyPath, key.toString('hex'), { encoding: 'utf-8', mode: 0o600 });
+    return key;
+}
+
+const ENCRYPTION_KEY = loadOrCreateEncryptionKey();
 
 function encrypt(text: string): string {
     if (!text || text.startsWith(ENCRYPTION_PREFIX)) return text;
-    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, ENCRYPTION_IV);
+    const iv = crypto.randomBytes(16);
+    const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
     let encrypted = cipher.update(text, 'utf8', 'hex');
     encrypted += cipher.final('hex');
-    return `${ENCRYPTION_PREFIX}${encrypted}`;
+    return `${ENCRYPTION_PREFIX}${iv.toString('hex')}${encrypted}`;
 }
 
 function decrypt(text: string): string {
     if (!text || !text.startsWith(ENCRYPTION_PREFIX)) return text;
     try {
-        const encryptedText = text.substring(ENCRYPTION_PREFIX.length);
-        const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, ENCRYPTION_IV);
+        const payload = text.substring(ENCRYPTION_PREFIX.length);
+        const iv = Buffer.from(payload.substring(0, 32), 'hex');
+        const encryptedText = payload.substring(32);
+        const decipher = crypto.createDecipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
         let decrypted = decipher.update(encryptedText, 'hex', 'utf8');
         decrypted += decipher.final('utf8');
         return decrypted;

@@ -10,6 +10,7 @@ services:
     volumes:
       - ./agents:/app/agents
       - ./config.json:/app/config.json
+      - ./.openkiwi.key:/app/.openkiwi.key
       - ./sessions:/app/sessions
       - ./tools:/app/tools
       - ./workspace:/app/workspace
