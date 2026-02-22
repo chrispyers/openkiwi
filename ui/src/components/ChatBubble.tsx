@@ -108,7 +108,7 @@ export const AgentChatBubble = ({
             timestamp={message.timestamp}
             formatTimestamp={formatTimestamp}
             isReasoning={isReasoning}
-            avatar={isReasoning ? <FontAwesomeIcon icon={faBrain} style={{ fontSize: '14px' }} /> : (agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-base font-bold">{getInitials(agent?.name)}</span>)}
+            avatar={isReasoning ? <FontAwesomeIcon icon={faBrain} style={{ fontSize: '14px' }} /> : (agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>)}
             className={isReasoning ? 'reasoning-bubble' : 'ai-bubble'}
         />
     );
@@ -118,7 +118,7 @@ export const StreamingChatBubble = ({ agent }: { agent?: Agent }) => (
     <div className="flex justify-start animate-in fade-in duration-300">
         <div className="flex gap-4 items-start">
             <div className="bg-neutral-100 dark:bg-neutral-800 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
-                {agent?.emoji ? <span>{agent.emoji}</span> : <Bot size={18} />}
+                {agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>}
             </div>
             <div className="loading-dots">
                 <span className="dot" />
