@@ -700,18 +700,17 @@ wss.on('connection', (ws, req) => {
     const ip = rawIp.replace(/^::ffff:/, ''); // Clean up IPv4-mapped IPv6
     const params = new URLSearchParams(req.url?.split('?')[1]);
     const hostname = params.get('hostname') || 'Unknown Device';
-    const token = params.get('token');
 
     console.log(`Client connected: ${hostname} (${ip})`);
 
-    // WS Auth Check
-    const currentConfig = loadConfig();
-
-    if (token !== currentConfig.gateway.secretToken) {
-        console.log('WS Connection rejected: Invalid Token');
-        ws.close(1008, 'Invalid Secret Token');
-        return;
-    }
+    // WS Auth Check - Start unauthenticated
+    let isAuthenticated = false;
+    const authTimeout = setTimeout(() => {
+        if (!isAuthenticated) {
+            console.log(`WS Connection timed out: ${hostname} (${ip})`);
+            ws.close(1008, 'Authentication Timeout');
+        }
+    }, 10000); // 10 second grace period to authenticate
 
     connectedClients.set(ws, {
         hostname,
@@ -720,6 +719,7 @@ wss.on('connection', (ws, req) => {
     });
 
     ws.on('close', () => {
+        clearTimeout(authTimeout);
         const client = connectedClients.get(ws);
         if (client?.tools) {
             client.tools.forEach(toolName => ToolManager.unregisterTool(toolName));
@@ -734,6 +734,28 @@ wss.on('connection', (ws, req) => {
 
         try {
             const parsed = JSON.parse(data.toString());
+
+            // Handle Auth Message
+            if (parsed.type === 'auth') {
+                const currentConfig = loadConfig();
+                if (parsed.token === currentConfig.gateway.secretToken) {
+                    isAuthenticated = true;
+                    clearTimeout(authTimeout);
+                    ws.send(JSON.stringify({ type: 'auth_success' }));
+                    console.log(`[Auth] Client authenticated: ${hostname} (${ip})`);
+                    return;
+                } else {
+                    console.warn(`[Auth] Client failed authentication: ${hostname} (${ip})`);
+                    ws.close(1008, 'Invalid Secret Token');
+                    return;
+                }
+            }
+
+            // Block all other messages until authenticated
+            if (!isAuthenticated) {
+                console.warn(`[Auth] Blocked message from unauthenticated client: ${hostname} (${ip})`);
+                return;
+            }
 
             // Handle Tool Registration from Workers
             if (parsed.type === 'register_tools') {

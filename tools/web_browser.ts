@@ -28,8 +28,6 @@ async function getBrowser() {
     const options: any = {
         headless: 'new',
         args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
             '--disable-dev-shm-usage', // critical for docker
             '--disable-gpu',
             '--no-zygote',

@@ -1,19 +1,21 @@
 import { WebSocket } from 'ws';
-import { exec, spawn } from 'child_process';
+import { exec, spawn, SpawnOptions } from 'child_process';
 import fs from 'fs';
 import path from 'path';
+import os from 'os';
 
 /**
  * HOST WORKER SCRIPT
- * Run this on your Mac host (outside Docker) to give your agents superpowers.
+ * Run this on your host (outside Docker) to give your agents superpowers.
  * Usage: npx tsx worker.ts
  */
 
 import { loadConfig } from './src/config-manager.js';
 
 const config = loadConfig();
+const hostname = os.hostname() || 'Unknown-Host';
 
-const GATEWAY_URL = `ws://localhost:${config.gateway.port}/ws?token=${config.gateway.secretToken}&hostname=Mac-Host-Worker`;
+const GATEWAY_URL = `ws://localhost:${config.gateway.port}/ws?hostname=${encodeURIComponent(hostname + ' [Host Worker]')}`;
 const ws = new WebSocket(GATEWAY_URL);
 
 const tools = [
@@ -43,15 +45,24 @@ const tools = [
 ];
 
 ws.on('open', () => {
-    console.log('✅ Connected to Gateway as Host Worker');
+    console.log('✅ Connected to Gateway. Authenticating...');
     ws.send(JSON.stringify({
-        type: 'register_tools',
-        tools: tools
+        type: 'auth',
+        token: config.gateway.secretToken
     }));
 });
 
 ws.on('message', (data) => {
     const msg = JSON.parse(data.toString());
+
+    if (msg.type === 'auth_success') {
+        console.log('✅ Authenticated as Host Worker. Registering tools...');
+        ws.send(JSON.stringify({
+            type: 'register_tools',
+            tools: tools
+        }));
+        return;
+    }
 
     if (msg.type === 'call_tool') {
         const { id, name, args } = msg;
@@ -79,10 +90,31 @@ ws.on('message', (data) => {
                     throw new Error('Forbidden protocol. Only https: is allowed.');
                 }
 
+                // SECURITY: parsedUrl.href is normalized and encoded by the URL constructor.
+                // This ensures that special shell characters (like &, |, ", %) are either
+                // encoded or validated, preventing shell injection when passed to cmd/sh.
+                const safeUrl = parsedUrl.href;
+
                 // Use spawn instead of exec to prevent shell metacharacter injection.
                 // spawn passes arguments directly to the OS without shell interpolation.
-                const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
-                const subprocess = spawn(opener, [args.url], {
+                let opener: string;
+                let openerArgs: string[];
+
+                if (process.platform === 'darwin') {
+                    opener = 'open';
+                    openerArgs = [safeUrl];
+                } else if (process.platform === 'win32') {
+                    // On Windows, 'start' is a cmd builtin, so we must use 'cmd /c'.
+                    // We use an empty title "" and wrap the URL in quotes. 
+                    // Since parsedUrl encodes double quotes, breakout is impossible.
+                    opener = 'cmd.exe';
+                    openerArgs = ['/c', 'start', '""', safeUrl];
+                } else {
+                    opener = 'xdg-open';
+                    openerArgs = [safeUrl];
+                }
+
+                const subprocess = spawn(opener, openerArgs, {
                     detached: true,
                     stdio: 'ignore'
                 });

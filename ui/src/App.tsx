@@ -247,7 +247,7 @@ function App() {
       if (!localStorage.getItem('presence_id')) localStorage.setItem('presence_id', deviceId);
 
       const hostname = encodeURIComponent(`${deviceId} [${platform}]`);
-      return `${protocol}//${url.host}/ws?token=${gatewayToken}&hostname=${hostname}`;
+      return `${protocol}//${url.host}/ws?hostname=${hostname}`;
     } catch (e) {
       // Fallback for invalid URLs
       return `ws://${window.location.hostname}:3808/ws`;
@@ -268,9 +268,20 @@ function App() {
 
         socket.onopen = () => {
           console.log('[Presence] Connected to Gateway');
-          setIsGatewayConnected(true);
-          // Refresh client list immediately on connection
-          if (activeView === 'gateway') fetchConnectedClients();
+          // Send authentication message immediately
+          socket!.send(JSON.stringify({ type: 'auth', token: gatewayToken }));
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const msg = JSON.parse(event.data);
+            if (msg.type === 'auth_success') {
+              console.log('[Presence] Authenticated successfully');
+              setIsGatewayConnected(true);
+              // Refresh client list immediately on connection
+              if (activeView === 'gateway') fetchConnectedClients();
+            }
+          } catch (e) { }
         };
 
         socket.onclose = () => {
