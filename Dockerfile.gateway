@@ -12,13 +12,11 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install tsx globally or in the app to support dynamic .ts tools in production
-COPY package*.json ./
-
-# Install Chromium and dependencies for Puppeteer
+# Install Chromium, dependencies for Puppeteer, and dumb-init
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
+    dumb-init \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -26,6 +24,7 @@ RUN apt-get update && apt-get install -y \
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
+COPY package*.json ./
 RUN npm install
 
 COPY --from=builder /app/dist ./dist
@@ -34,7 +33,17 @@ COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
 
+# Create necessary directories and set ownership to node user
+RUN mkdir -p agents sessions workspace logs screenshots && \
+    chown -R node:node /app
+
+# Use dumb-init for proper signal handling
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
+
+# Run as non-root user
+USER node
+
 EXPOSE 3808
 
-# Run with tsx so we can dynamically load .ts tools from the /tools folder
+# Run with tsx
 CMD ["npx", "tsx", "src/index.ts"]
