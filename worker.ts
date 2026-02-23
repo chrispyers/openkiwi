@@ -1,5 +1,5 @@
 import { WebSocket } from 'ws';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -72,14 +72,36 @@ ws.on('message', (data) => {
         }
 
         if (name === 'open_browser') {
-            const command = process.platform === 'darwin' ? `open "${args.url}"` : `xdg-open "${args.url}"`;
-            exec(command, (error) => {
+            try {
+                // Validate the URL: ensure it's a valid URL and uses HTTPS protocol
+                const parsedUrl = new URL(args.url);
+                if (parsedUrl.protocol !== 'https:') {
+                    throw new Error('Forbidden protocol. Only https: is allowed.');
+                }
+
+                // Use spawn instead of exec to prevent shell metacharacter injection.
+                // spawn passes arguments directly to the OS without shell interpolation.
+                const opener = process.platform === 'darwin' ? 'open' : 'xdg-open';
+                const subprocess = spawn(opener, [args.url], {
+                    detached: true,
+                    stdio: 'ignore'
+                });
+
+                // Allow the parent process to exit independently of the child browser process
+                subprocess.unref();
+
                 ws.send(JSON.stringify({
                     type: 'tool_result',
                     id: id,
-                    result: error ? { error: error.message } : { success: true, message: `Opened ${args.url}` }
+                    result: { success: true, message: `Opened ${args.url}` }
                 }));
-            });
+            } catch (error) {
+                ws.send(JSON.stringify({
+                    type: 'tool_result',
+                    id: id,
+                    result: { error: error instanceof Error ? error.message : 'Invalid URL' }
+                }));
+            }
         }
     }
 });
