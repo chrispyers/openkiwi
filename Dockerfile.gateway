@@ -33,9 +33,13 @@ COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
 
-# Create necessary directories and set ownership to node user
-RUN mkdir -p agents sessions workspace logs screenshots && \
-    chown -R node:node /app
+# Create necessary data directories
+RUN mkdir -p agents sessions workspace logs screenshots
+
+# Hardening: Only give the node user ownership of the data directories.
+# The app code (dist, src, etc.) remains owned by root and read-only for the node user.
+RUN chown -R node:node agents sessions workspace logs screenshots && \
+    chmod -R 770 agents sessions workspace logs screenshots
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
