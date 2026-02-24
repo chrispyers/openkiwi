@@ -109,6 +109,7 @@ interface Config {
     version: string;
     latestVersion: string;
   };
+  enabledTools?: Record<string, boolean>;
 }
 
 
@@ -132,6 +133,8 @@ interface ToolDefinition {
     properties: Record<string, any>;
     required?: string[];
   };
+  filename?: string;
+  isRegistered?: boolean;
 }
 
 
@@ -155,7 +158,7 @@ function App() {
   }, [location.pathname, navigate]);
 
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'general' | 'tools' | 'chat' | 'config' | 'messaging'>('general');
-  const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null }>({ connected: false, qrCode: null });
+  const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -247,7 +250,8 @@ function App() {
       if (!localStorage.getItem('presence_id')) localStorage.setItem('presence_id', deviceId);
 
       const hostname = encodeURIComponent(`${deviceId} [${platform}]`);
-      return `${protocol}//${url.host}/ws?hostname=${hostname}`;
+      const token = localStorage.getItem('gateway_token') || '';
+      return `${protocol}//${url.host}/ws?hostname=${hostname}&token=${token}`;
     } catch (e) {
       // Fallback for invalid URLs
       return `ws://${window.location.hostname}:3808/ws`;
@@ -347,12 +351,6 @@ function App() {
         fetchConfig().catch(e => console.error('Failed to fetch config:', e)),
         fetchTools().catch(e => console.error('Failed to fetch tools:', e))
       ]);
-
-      if (activeSettingsSection === 'messaging') {
-        fetchWhatsAppStatus();
-        const interval = setInterval(fetchWhatsAppStatus, 3000);
-        cancel = () => clearInterval(interval);
-      }
     } else if (activeView === 'gateway') {
       fetchConnectedClients().catch(e => console.error('Failed to fetch clients:', e));
       const interval = setInterval(() => {
@@ -364,13 +362,21 @@ function App() {
     }
 
     return cancel;
-  }, [activeView, activeSettingsSection, settingsAgentId, isGatewayConnected]);
+  }, [activeView, isGatewayConnected]);
 
+  // Handle messaging section specific updates
   useEffect(() => {
-    if (config?.providers?.length) {
-      fetchModels(true);
+    let interval: any;
+    if (activeView === 'settings' && activeSettingsSection === 'messaging') {
+      fetchWhatsAppStatus();
+      interval = setInterval(fetchWhatsAppStatus, 3000);
     }
-  }, [config?.providers]);
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [activeView, activeSettingsSection]);
+
+  // Removed automatic fetchModels on config load to make discovery opt-in
 
   const chatContainerRef = useRef<HTMLDivElement>(null);
   const isAtBottom = useRef(true);
@@ -396,12 +402,7 @@ function App() {
     }
   }, [activeView]);
 
-  useEffect(() => {
-    if (textareaRef.current) {
-      textareaRef.current.style.height = 'auto';
-      textareaRef.current.style.height = `${textareaRef.current.scrollHeight}px`;
-    }
-  }, [inputText]);
+
 
   // ... (rest of code) ...
 
@@ -533,8 +534,37 @@ function App() {
         headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Auth Failed');
-      const data = await response.json();
-      setTools(data);
+      const data = await response.json() as { definitions: any[], availableFiles: string[] };
+
+      // Pull current enabled tools from config to match with filenames
+      // definitions are already loaded/registered tools
+      // availableFiles are all files in tools/
+
+      const configResponse = await fetch(getApiUrl('/api/config', addr), {
+        headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
+      });
+      const currentConfig = await configResponse.json() as Config;
+      const enabledTools = currentConfig.enabledTools || {};
+
+      const combinedTools: ToolDefinition[] = [
+        ...data.definitions.map(d => ({ ...d, isRegistered: true }))
+      ];
+
+      // Add files that aren't registered yet
+      data.availableFiles.forEach(file => {
+        const alreadyRegistered = combinedTools.some(t => t.filename === file);
+        if (!alreadyRegistered) {
+          combinedTools.push({
+            name: file,
+            description: "This tool is currently disabled. Enable it to load its capabilities.",
+            parameters: { type: 'object', properties: {} },
+            filename: file,
+            isRegistered: false
+          });
+        }
+      });
+
+      setTools(combinedTools);
     } catch (error) {
       console.error('Failed to fetch tools:', error);
       throw error;
@@ -568,6 +598,23 @@ function App() {
     } catch (error) {
       console.error('Failed to logout from WhatsApp:', error);
       toast.error('Failed to logout');
+    }
+  };
+
+  const onConnectWhatsApp = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/whatsapp/connect'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${gatewayToken}`
+        }
+      });
+      if (!response.ok) throw new Error('Connection Failed');
+      await fetchWhatsAppStatus();
+      toast.success('WhatsApp initialization started');
+    } catch (error) {
+      console.error('Failed to connect to WhatsApp:', error);
+      toast.error('Failed to start WhatsApp connection');
     }
   };
 
@@ -1013,6 +1060,8 @@ function App() {
               initializeApp={initializeApp}
               connectedClients={connectedClients}
               fetchConnectedClients={fetchConnectedClients}
+              config={config}
+              saveConfig={saveConfig}
             />
           ) : (
             <SettingsPage
@@ -1037,6 +1086,7 @@ function App() {
               tools={tools}
               whatsappStatus={whatsappStatus}
               onLogoutWhatsApp={onLogoutWhatsApp}
+              onConnectWhatsApp={onConnectWhatsApp}
               gatewayAddr={gatewayAddr}
             />
           )}

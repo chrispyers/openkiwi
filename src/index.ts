@@ -13,13 +13,34 @@ import { logger } from './logger.js';
 import { HeartbeatManager } from './heartbeat-manager.js';
 import { WhatsAppManager } from './whatsapp-manager.js';
 import { WAMessage, areJidsSameUser, jidNormalizedUser } from '@whiskeysockets/baileys';
+import { authMiddleware, signUrl, SCREENSHOTS_DIR, WORKSPACE_DIR } from './security.js';
+import { initWhatsAppHandler } from './WhatsApp.js';
+import { processVisionMessages } from './vision.js';
+import apiRouter, { connectedClients } from './routes.js';
 
 
 
 const config = loadConfig();
 const app = express();
 const server = createServer(app);
-const wss = new WebSocketServer({ server });
+const wss = new WebSocketServer({
+    server,
+    verifyClient: (info, callback) => {
+        const origin = info.origin;
+        // Allow requests with no origin (direct connections)
+        if (!origin) return callback(true);
+
+        const currentConfig = loadConfig();
+        const allowed = currentConfig.gateway.allowedOrigins || [];
+
+        if (allowed.includes(origin) || allowed.includes('*')) {
+            callback(true);
+        } else {
+            console.warn(`[WebSocket] Blocked connection from unauthorized origin: ${origin}`);
+            callback(false, 403, 'Unauthorized Origin');
+        }
+    }
+});
 
 async function checkForUpdates() {
     try {
@@ -69,12 +90,21 @@ async function startServer() {
     await AgentManager.initializeAllMemoryManagers();
     await HeartbeatManager.start();
 
+    // Ensure required directories exist
+    if (!fs.existsSync(SCREENSHOTS_DIR)) {
+        fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
+    }
+    if (!fs.existsSync(WORKSPACE_DIR)) {
+        fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
+    }
+
     // Check for updates on startup and then every hour
     await checkForUpdates();
     setInterval(checkForUpdates, 3600000); // 3,600,000 ms = 1 hour
 
-    // Initialize WhatsApp
+    // Initialize WhatsApp and its message handler
     WhatsAppManager.getInstance();
+    initWhatsAppHandler();
 
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {
@@ -82,617 +112,32 @@ async function startServer() {
     });
 }
 
-app.use(cors());
+app.use(cors({
+    origin: (origin, callback) => {
+        // Allow requests with no origin (like mobile apps, curl, or same-origin requests)
+        if (!origin) return callback(null, true);
+
+        const currentConfig = loadConfig();
+        const allowed = currentConfig.gateway.allowedOrigins || [];
+
+        if (allowed.includes(origin) || allowed.includes('*')) {
+            callback(null, true);
+        } else {
+            console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
+            callback(new Error('Not allowed by CORS'));
+        }
+    },
+    credentials: true
+}));
 app.use(express.json());
 
-// Auth Middleware
-app.use((req, res, next) => {
-    // Allow public config check (redacted)
-    if (req.path === '/api/config/public' && req.method === 'GET') {
-        return next();
-    }
+app.get('/', (req, res) => res.json({ status: 'ok', service: 'openkiwi-gateway' }));
 
-    const token = req.headers['authorization']?.replace('Bearer ', '');
-    const currentConfig = loadConfig();
-    if (token !== currentConfig.gateway.secretToken) {
-        console.warn(`[Auth] Blocked request to ${req.path} from ${req.ip}. Token provided: ${token ? 'YES' : 'NO'}`);
-        return res.status(401).json({ error: 'Unauthorized: Invalid Secret Token' });
-    }
-    next();
-});
+app.use('/api', apiRouter);
 
-interface ConnectedClient {
-    hostname: string;
-    ip: string;
-    connectedAt: number;
-    tools?: string[];
-}
-
-const connectedClients = new Map<WebSocket, ConnectedClient>();
 const pendingToolCalls = new Map<string, { resolve: (val: any) => void, reject: (err: any) => void }>();
 
-// API to get/update config
-const SCREENSHOTS_DIR = path.resolve(process.cwd(), 'screenshots');
-const WORKSPACE_DIR = path.resolve(process.cwd(), 'workspace');
-
-if (!fs.existsSync(SCREENSHOTS_DIR)) {
-    fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
-}
-if (!fs.existsSync(WORKSPACE_DIR)) {
-    fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
-}
-app.use('/screenshots', express.static(SCREENSHOTS_DIR));
-app.use('/workspace-files', express.static(WORKSPACE_DIR));
-
-app.get('/api/config/public', (req, res) => {
-    const fullConfig = loadConfig();
-    const redactedConfig = {
-        chat: fullConfig.chat,
-        global: fullConfig.global,
-        system: fullConfig.system,
-        gateway: {
-            port: fullConfig.gateway.port,
-            endpoint: fullConfig.gateway.endpoint
-            // secretToken is explicitly omitted
-        },
-        providers: fullConfig.providers.map(p => {
-            const { apiKey, ...rest } = p;
-            return {
-                ...rest,
-                hasApiKey: !!apiKey
-            };
-        })
-    };
-    res.json(redactedConfig);
-});
-
-app.get('/api/config', (req, res) => {
-    res.json(loadConfig());
-});
-
-app.get('/api/clients', (req, res) => {
-    res.json(Array.from(connectedClients.values()));
-});
-
-app.post('/api/config', (req, res) => {
-    try {
-        const newConfig = req.body as Config;
-        saveConfig(newConfig);
-        AgentManager.clearMemoryManagers(); // Force reload of providers/memory settings
-        res.json({ success: true });
-    } catch (error) {
-        res.status(400).json({ error: String(error) });
-    }
-});
-
-// Agents API
-app.get('/api/agents', (req, res) => {
-    const agentIds = AgentManager.listAgents();
-    const agents = agentIds.map(id => AgentManager.getAgent(id));
-    res.json(agents);
-});
-
-app.post('/api/agents', (req, res) => {
-    try {
-        const { name } = req.body;
-        if (!name || typeof name !== 'string' || name.trim().length === 0) {
-            return res.status(400).json({ error: 'Agent name is required' });
-        }
-        const agent = AgentManager.createAgent(name.trim());
-        res.json(agent);
-    } catch (error) {
-        res.status(400).json({ error: String(error) });
-    }
-});
-
-app.post('/api/agents/:id/config', (req, res) => {
-    try {
-        AgentManager.saveAgentConfig(req.params.id, req.body);
-        HeartbeatManager.refreshAgent(req.params.id);
-        res.json({ success: true });
-    } catch (error) {
-        res.status(400).json({ error: String(error) });
-    }
-});
-
-app.post('/api/agents/:id/files/:filename', (req, res) => {
-    try {
-        const { content } = req.body;
-        const agentDir = path.resolve(process.cwd(), 'agents', req.params.id);
-        const filePath = path.join(agentDir, req.params.filename);
-
-        // Security check: ensure the file is within the agent directory
-        if (!filePath.startsWith(agentDir)) {
-            return res.status(403).json({ error: 'Access denied' });
-        }
-
-        fs.writeFileSync(filePath, content, 'utf-8');
-        res.json({ success: true });
-    } catch (error) {
-        res.status(500).json({ error: String(error) });
-    }
-});
-
-// Sessions API
-app.get('/api/sessions', (req, res) => {
-    res.json(SessionManager.listSessions());
-});
-
-app.get('/api/sessions/:id', (req, res) => {
-    const session = SessionManager.getSession(req.params.id);
-    if (session) res.json(session);
-    else res.status(404).json({ error: 'Session not found' });
-});
-
-app.delete('/api/sessions/:id', (req, res) => {
-    SessionManager.deleteSession(req.params.id);
-    res.json({ success: true });
-});
-
-app.get('/api/tools', (req, res) => {
-    res.json(ToolManager.getToolDefinitions());
-});
-
-import { listModels } from './llm-provider.js';
-
-app.post('/api/models', async (req, res) => {
-    try {
-        const { endpoint, apiKey } = req.body;
-        const currentConfig = loadConfig();
-
-        // Use provided config or fall back to default provider
-        let providerConfig;
-
-        if (endpoint) {
-            providerConfig = {
-                baseUrl: endpoint,
-                modelId: '', // Not needed for listing
-                apiKey: apiKey // Optional, for new providers
-            };
-        } else {
-            const defaultProvider = currentConfig.providers[0];
-            if (!defaultProvider) {
-                return res.json({ data: [] });
-            }
-            providerConfig = {
-                baseUrl: defaultProvider.endpoint,
-                modelId: defaultProvider.model,
-                apiKey: defaultProvider.apiKey
-            };
-        }
-
-        const models = await listModels(providerConfig);
-
-        logger.log({
-            type: 'system',
-            level: 'info',
-            message: `Discovered ${models.length} models from ${providerConfig.baseUrl}`,
-            data: models
-        });
-
-        // Normalize to expected format
-        res.json({ data: models });
-    } catch (error) {
-        console.error('[Models] Fetch error:', error);
-        res.status(500).json({ error: String(error) });
-    }
-});
-
-app.get('/api/logs', (req, res) => {
-    res.json(logger.getLogs());
-});
-
-app.post('/api/logs/clear', (req, res) => {
-    logger.clear();
-    res.json({ success: true });
-});
-
-// WhatsApp API
-app.get('/api/whatsapp/status', (req, res) => {
-    res.json(WhatsAppManager.getInstance().getStatus());
-});
-
-app.post('/api/whatsapp/logout', async (req, res) => {
-    await WhatsAppManager.getInstance().logout();
-    res.json({ success: true });
-});
-
-// Helper to extract text and images from messages to provide vision context
-function processVisionMessages(messages: any[], supportsVision: boolean = true): any[] {
-    if (!supportsVision) return messages;
-
-    const processed = [...messages];
-    const hoistedImages: any[] = [];
-    let lastUserIndex = -1;
-
-    // Helper to resolve and encode image to base64
-    const getBase64Image = (url: string): string | null => {
-        try {
-            if (url.startsWith('data:')) return url;
-            if (url.startsWith('http')) return url;
-
-            const relativePath = url.replace(/^\/?(screenshots|workspace-files)\//, '');
-            let fullPath = path.resolve(SCREENSHOTS_DIR, relativePath);
-            if (!fullPath.startsWith(SCREENSHOTS_DIR) || !fs.existsSync(fullPath)) {
-                fullPath = path.resolve(WORKSPACE_DIR, relativePath);
-                if (!fullPath.startsWith(WORKSPACE_DIR) || !fs.existsSync(fullPath)) {
-                    // Fallback to basename
-                    const filename = path.basename(url);
-                    fullPath = path.join(SCREENSHOTS_DIR, filename);
-                    if (!fs.existsSync(fullPath)) {
-                        fullPath = path.join(WORKSPACE_DIR, filename);
-                    }
-                }
-            }
-
-            if (fs.existsSync(fullPath)) {
-                const base64 = fs.readFileSync(fullPath, 'base64');
-                return `data:image/png;base64,${base64}`;
-            }
-        } catch (e) {
-            console.error(`[Vision] Failed to resolve image ${url}:`, e);
-        }
-        return null;
-    };
-
-    // First pass: Process all messages and collect images to hoist
-    for (let i = 0; i < processed.length; i++) {
-        const msg = { ...processed[i] }; // Shallow copy
-        if (typeof msg.content !== 'string' || !msg.content) {
-            if (msg.role === 'user') lastUserIndex = i;
-            continue;
-        }
-
-        const content = msg.content;
-
-        // 1. Extract images from current message
-        const currentImages: any[] = [];
-
-        // Check for JSON tool result
-        if (msg.role === 'tool') {
-            try {
-                const data = JSON.parse(content);
-                const url = data.screenshot_url || data.image_url || data.image;
-                if (url && typeof url === 'string') {
-                    const b64 = getBase64Image(url);
-                    if (b64) currentImages.push({ type: 'image_url', image_url: { url: b64 } });
-                }
-            } catch (e) { /* Not JSON */ }
-        }
-
-        // Check for Markdown images
-        const imgRegex = /!\[.*?\]\((.*?)\)/g;
-        const matches = [...content.matchAll(imgRegex)];
-        for (const match of matches) {
-            const b64 = getBase64Image(match[1]);
-            if (b64) currentImages.push({ type: 'image_url', image_url: { url: b64 } });
-        }
-
-        if (msg.role === 'user') {
-            lastUserIndex = i;
-            // For user messages, we convert string content to array content in-place if images found
-            if (currentImages.length > 0) {
-                processed[i] = {
-                    ...msg,
-                    content: [
-                        { type: 'text', text: content },
-                        ...currentImages
-                    ]
-                };
-            }
-        } else {
-            // For assistant/tool messages, we HOIST images to the context of the user turn
-            // to satisfy strict "alternate user/assistant roles" requirements of some providers (like LM Studio)
-            hoistedImages.push(...currentImages);
-        }
-    }
-
-    // Second pass: Inject hoisted images into the last user turn
-    if (hoistedImages.length > 0 && lastUserIndex !== -1) {
-        const userMsg = { ...processed[lastUserIndex] };
-        const existingContent = Array.isArray(userMsg.content)
-            ? [...userMsg.content]
-            : [{ type: 'text', text: userMsg.content || '' }];
-
-        // Check for duplicates before adding
-        const uniqueHoisted = hoistedImages.filter(hi =>
-            !existingContent.some((c: any) => c.type === 'image_url' && c.image_url?.url === hi.image_url?.url)
-        );
-
-        if (uniqueHoisted.length > 0) {
-            processed[lastUserIndex] = {
-                ...userMsg,
-                content: [...existingContent, ...uniqueHoisted]
-            };
-        }
-    }
-
-    return processed;
-}
-
-function getMessageText(msg: WAMessage): string | null {
-    if (!msg.message) return null;
-    const content = msg.message;
-
-    // Check for standard text types
-    let text = content.conversation ||
-        content.extendedTextMessage?.text ||
-        content.ephemeralMessage?.message?.extendedTextMessage?.text ||
-        content.ephemeralMessage?.message?.conversation ||
-        content.viewOnceMessage?.message?.listMessage?.description ||
-        content.viewOnceMessage?.message?.buttonsMessage?.contentText;
-
-    // Handle history sync messages if they contain conversation/text
-    // Usually history sync logic is internal, but if Baileys exposes it as a WAMessage with protocol content,
-    // we generally ignore it unless we specifically want to process history.
-    // However, the logs showed "protocolMessage" type. 
-    // If the user's message is wrapped in a way we missed, let's look deeper.
-    // But based on logs, the messages are type HISTORY_SYNC_NOTIFICATION, which are NOT user messages.
-    // User messages to self usually come as standard messages with fromMe=true.
-
-    return text || null;
-}
-
-// WhatsApp Message Handler
-WhatsAppManager.getInstance().on('message', async (msg) => {
-    try {
-        let remoteJid = msg.key.remoteJid;
-        const text = getMessageText(msg);
-
-        // Debug log to understand message structure if text is missing
-        if (!text) {
-            logger.log({
-                type: 'system',
-                level: 'debug',
-                message: `WhatsApp: Received message with no extractable text. Structure: ${JSON.stringify(msg.message).substring(0, 200)}...`
-            });
-            return;
-        }
-
-        if (!remoteJid) return;
-
-        // Fix for LID: If the message is from me (Note to Self sent via phone) and comes as LID,
-        // we should treat the chat session as being with the main phone number JID, not the LID.
-        // This ensures consistent session ID regardless of which device/ID sent it.
-        const { myJid, myLid } = WhatsAppManager.getInstance().getUserJids();
-
-        // If it's a self-message, normalize remoteJid to myJid (Phone Number) if available
-        if (msg.key.fromMe && myJid) {
-            if (areJidsSameUser(remoteJid, myJid) || (myLid && areJidsSameUser(remoteJid, myLid))) {
-                remoteJid = myJid;
-            }
-        }
-
-        logger.log({
-            type: 'system',
-            level: 'info',
-            message: `WhatsApp message from ${remoteJid}: ${text}`
-        });
-
-
-        // Check for agent targeting (e.g. "@luna Hello")
-        const agentIds = AgentManager.listAgents();
-        const agents = agentIds.map(id => AgentManager.getAgent(id)).filter(a => a !== null);
-
-        let agentId = 'luna';
-        let targetFound = false;
-
-        // Sort by length desc to ensure we match "@Super Bot" before "@Super" if both exist
-        const potentialMatches = agents.flatMap(agent => [
-            { name: agent!.name, id: agent!.id, agent }
-        ]).sort((a, b) => b.name.length - a.name.length);
-
-        for (const match of potentialMatches) {
-            // Check name match
-            const nameRegex = new RegExp(`^@${match.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
-            const idRegex = new RegExp(`^@${match.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
-
-            let regexMatch = text.match(nameRegex);
-            if (!regexMatch) regexMatch = text.match(idRegex);
-
-            if (regexMatch) {
-                agentId = match.id;
-                // Strip the mention and leading/trailing whitespace
-                // We use let text in local scope to override the const text from above if we could, 
-                // but we can't re-declare. We will need to update how we use 'text' below.
-                // Actually, since 'text' is const, we need to create a new variable 'messageContent'
-                // and use that instead of 'text' in the rest of the function.
-                targetFound = true;
-                break;
-            }
-        }
-
-        let messageContent = text;
-        if (targetFound) {
-            // We need to strip the prefix. Re-run the match to get the length.
-            const agent = AgentManager.getAgent(agentId);
-            if (agent) {
-                const nameRegex = new RegExp(`^@${agent.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
-                const idRegex = new RegExp(`^@${agent.id.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:\\s+|$)`, 'i');
-                let m = text.match(nameRegex) || text.match(idRegex);
-                if (m) {
-                    messageContent = text.substring(m[0].length).trim();
-                }
-            }
-        }
-
-        if (!targetFound && agentIds.length > 0) {
-            const preferred = agentIds.find(id => id.toLowerCase() === 'luna');
-            agentId = preferred || agentIds[0];
-        }
-
-        const safeSessionId = `wa-${remoteJid.replace(/[^a-zA-Z0-9]/g, '_')}-${agentId}`;
-
-        const agent = AgentManager.getAgent(agentId);
-        if (!agent) {
-            logger.log({ type: 'error', level: 'error', message: `WhatsApp: Could not find agent ${agentId}` });
-            return;
-        }
-
-        const currentConfig = loadConfig();
-
-        // Determine provider
-        const providerName = agent?.provider;
-        let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
-        if (!providerConfig && currentConfig.providers.length > 0) {
-            providerConfig = currentConfig.providers[0];
-            logger.log({ type: 'system', level: 'warn', message: `Using default provider ${providerConfig.model} for agent ${agentId} because configured provider ${providerName} was not found.` });
-        }
-
-        if (!providerConfig) {
-            logger.log({ type: 'error', level: 'error', message: `WhatsApp: No provider found for agent ${agentId}. Provider name: ${providerName}` });
-            await WhatsAppManager.getInstance().sendMessage(remoteJid, 'Error: No LLM provider configured.');
-            return;
-        }
-
-        const llmConfig = {
-            baseUrl: providerConfig.endpoint,
-            modelId: providerConfig.model,
-            apiKey: providerConfig.apiKey
-        };
-
-        logger.log({
-            type: 'system',
-            level: 'info',
-            message: `Processing WhatsApp message to ${agentId} using provider ${providerConfig.model}`
-        });
-
-        // Load or Create Session
-        let session = SessionManager.getSession(safeSessionId);
-        if (!session) {
-            session = {
-                id: safeSessionId,
-                agentId: agentId,
-                title: messageContent.slice(0, 30) + '...',
-                messages: [],
-                updatedAt: Date.now()
-            };
-        }
-
-        // Add user message to session
-        const timestamp = Math.floor(Date.now() / 1000);
-        session.messages.push({
-            role: 'user',
-            content: messageContent,
-            timestamp
-        });
-        SessionManager.saveSession(session);
-
-        // Prepare prompt payload
-        const payload: any[] = [];
-        const systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
-        if (systemPrompt) {
-            payload.push({ role: 'system', content: systemPrompt });
-        }
-
-        // Add history (filter reasoning)
-        const validMessages = session.messages.filter((msg: any) => msg.role !== 'reasoning');
-        payload.push(...validMessages);
-
-        // Tool Loop Logic (Non-streaming)
-        let toolLoop = true;
-        let finalAiResponse = '';
-        let loopCount = 0;
-        const MAX_LOOPS = 5;
-
-        const chatHistory = processVisionMessages([...payload], !!providerConfig?.capabilities?.vision);
-
-        while (toolLoop && loopCount < MAX_LOOPS) {
-            loopCount++;
-            let fullContent = '';
-            let toolCalls: any[] = [];
-
-            // Process vision messages in each loop to catch images returned by tools
-            const processedHistory = processVisionMessages([...chatHistory], !!providerConfig?.capabilities?.vision);
-
-            // reusing streamChatCompletion but accumulating result
-            for await (const delta of streamChatCompletion(llmConfig, processedHistory, ToolManager.getToolDefinitions())) {
-                if (delta.content) {
-                    fullContent += delta.content;
-                }
-                if (delta.tool_calls) {
-                    for (const toolCall of delta.tool_calls) {
-                        if (!toolCalls[toolCall.index]) {
-                            toolCalls[toolCall.index] = toolCall;
-                        } else {
-                            if (toolCall.function?.arguments) {
-                                toolCalls[toolCall.index].function.arguments += toolCall.function.arguments;
-                            }
-                        }
-                    }
-                }
-            }
-
-            const actualToolCalls = toolCalls.filter(Boolean);
-
-            if (actualToolCalls.length > 0) {
-                const assistantMsg = { role: 'assistant', content: fullContent || null, tool_calls: actualToolCalls };
-                chatHistory.push(assistantMsg);
-
-                for (const toolCall of actualToolCalls) {
-                    const name = toolCall.function.name;
-                    const args = JSON.parse(toolCall.function.arguments || '{}');
-
-                    try {
-                        const result = await ToolManager.callTool(name, args, { agentId });
-                        logger.log({
-                            type: 'tool',
-                            level: 'info',
-                            agentId,
-                            sessionId: safeSessionId,
-                            message: `Tool executed: ${name}`,
-                            data: { name, args, result }
-                        });
-                        chatHistory.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            name,
-                            content: JSON.stringify(result)
-                        });
-                    } catch (err) {
-                        logger.log({
-                            type: 'error',
-                            level: 'error',
-                            agentId,
-                            sessionId: safeSessionId,
-                            message: `Tool execution failed: ${name}`,
-                            data: { name, args, error: String(err) }
-                        });
-                        chatHistory.push({
-                            role: 'tool',
-                            tool_call_id: toolCall.id,
-                            name,
-                            content: JSON.stringify({ error: String(err) })
-                        });
-                    }
-                }
-            } else {
-                finalAiResponse = fullContent;
-                toolLoop = false;
-            }
-        }
-
-        if (finalAiResponse) {
-            // Clean up thinking tags for WhatsApp
-            const cleanResponse = finalAiResponse.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
-
-            if (cleanResponse) {
-                await WhatsAppManager.getInstance().sendMessage(remoteJid, cleanResponse);
-            }
-
-            // Save assistant response
-            session.messages.push({
-                role: 'assistant',
-                content: finalAiResponse,
-                timestamp: Math.floor(Date.now() / 1000)
-            });
-            SessionManager.saveSession(session);
-        }
-
-    } catch (err) {
-        logger.log({ type: 'error', level: 'error', message: `WhatsApp handler error: ${err}` });
-    }
-});
+// All API routes are now handled by apiRouter
 
 // WebSocket for Chat
 wss.on('connection', (ws, req) => {
@@ -700,17 +145,25 @@ wss.on('connection', (ws, req) => {
     const ip = rawIp.replace(/^::ffff:/, ''); // Clean up IPv4-mapped IPv6
     const params = new URLSearchParams(req.url?.split('?')[1]);
     const hostname = params.get('hostname') || 'Unknown Device';
+    const token = params.get('token');
 
     console.log(`Client connected: ${hostname} (${ip})`);
 
-    // WS Auth Check - Start unauthenticated
-    let isAuthenticated = false;
+    // WS Auth Check - Start unauthenticated unless token provided in URL
+    const currentConfig = loadConfig();
+    let isAuthenticated = (token === currentConfig.gateway.secretToken);
+
     const authTimeout = setTimeout(() => {
         if (!isAuthenticated) {
             console.log(`WS Connection timed out: ${hostname} (${ip})`);
             ws.close(1008, 'Authentication Timeout');
         }
     }, 10000); // 10 second grace period to authenticate
+
+    if (isAuthenticated) {
+        console.log(`[Auth] Client authenticated via URL: ${hostname} (${ip})`);
+        clearTimeout(authTimeout);
+    }
 
     connectedClients.set(ws, {
         hostname,
@@ -734,6 +187,7 @@ wss.on('connection', (ws, req) => {
 
         try {
             const parsed = JSON.parse(data.toString());
+            console.log(`[WS] Received message type: ${parsed.type || 'chat'}`);
 
             // Handle Auth Message
             if (parsed.type === 'auth') {
@@ -754,6 +208,7 @@ wss.on('connection', (ws, req) => {
             // Block all other messages until authenticated
             if (!isAuthenticated) {
                 console.warn(`[Auth] Blocked message from unauthenticated client: ${hostname} (${ip})`);
+                ws.send(JSON.stringify({ type: 'error', message: 'Unauthorized: Gateway token missing or invalid.' }));
                 return;
             }
 
@@ -836,9 +291,12 @@ wss.on('connection', (ws, req) => {
             }
 
             if (!providerConfig) {
+                console.error('[WS] No provider config found!');
                 ws.send(JSON.stringify({ type: 'error', message: 'No LLM provider configured. Please add a provider in settings.' }));
                 return;
             }
+
+            console.log(`[WS] Using provider: ${providerConfig.model} at ${providerConfig.endpoint}`);
 
             const llmConfig = {
                 baseUrl: providerConfig.endpoint,
@@ -883,6 +341,7 @@ wss.on('connection', (ws, req) => {
 
                 for await (const delta of streamChatCompletion(llmConfig, processedHistory, ToolManager.getToolDefinitions())) {
                     if (delta.content) {
+                        if (!fullContent) console.log('[WS] Received first delta from LLM');
                         fullContent += delta.content;
                         ws.send(JSON.stringify({ type: 'delta', content: delta.content }));
                     }
@@ -921,7 +380,14 @@ wss.on('connection', (ws, req) => {
                         const args = JSON.parse(toolCall.function.arguments || '{}');
 
                         try {
-                            const result = await ToolManager.callTool(name, args, { agentId: effectiveAgentId });
+                            let result = await ToolManager.callTool(name, args, { agentId: effectiveAgentId });
+
+                            // Sign any URLs in the tool result so the LLM gets signed links
+                            if (result && typeof result === 'object') {
+                                if (result.screenshot_url) result.screenshot_url = signUrl(result.screenshot_url);
+                                if (result.image_url) result.image_url = signUrl(result.image_url);
+                            }
+
                             logger.log({
                                 type: 'tool',
                                 level: 'info',

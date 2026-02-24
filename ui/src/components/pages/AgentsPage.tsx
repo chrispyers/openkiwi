@@ -10,6 +10,7 @@ import Toggle from '../Toggle'
 import Page from './Page'
 import Select from '../Select'
 import AgentFileButton from '../AgentFileButton'
+import Code from '../Code'
 
 interface Agent {
     id: string;
@@ -201,7 +202,8 @@ export default function AgentsPage({
                                     <div className="mb-4 bg-white dark:bg-bg-primary rounded-xl p-4">
                                         <div className="flex justify-between items-center">
                                             <div>
-                                                <Text bold={true}><FontAwesomeIcon icon={faHeartPulse} /> Proactive Heartbeat</Text>
+                                                <Text bold={true}>
+                                                    <FontAwesomeIcon className="mr-2" icon={faHeartPulse} />Proactive Heartbeat</Text>
                                                 <div className="mb-2">
                                                     <Text size="sm" secondary={true}>Allows the agent to wake up on a schedule</Text>
                                                 </div>
@@ -241,11 +243,13 @@ export default function AgentsPage({
                                                     placeholder="e.g. */10 * * * *"
                                                     className="!mt-0"
                                                 />
-                                                <div className="flex gap-2">
+                                                <div className="flex flex-wrap gap-2">
                                                     {[
                                                         { label: 'Every 10m', val: '*/10 * * * *' },
                                                         { label: 'Hourly', val: '0 * * * *' },
-                                                        { label: 'Daily', val: '0 0 * * *' }
+                                                        { label: 'Every 4h', val: '0 */4 * * *' },
+                                                        { label: 'Every 12h', val: '0 */12 * * *' },
+                                                        { label: 'Midnight', val: '0 0 * * *' }
                                                     ].map(opt => (
                                                         <Button
                                                             size="sm"
@@ -262,6 +266,27 @@ export default function AgentsPage({
                                                         </Button>
                                                     ))}
                                                 </div>
+                                                <div className="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg  dark:border-neutral-700/50">
+                                                    <Text size="xs" bold={true} className="uppercase mb-2 block opacity-70">Cron Reference</Text>
+                                                    <div className="grid grid-cols-5 gap-1 text-[10px] font-mono text-center uppercase text-neutral-500 dark:text-neutral-400 mb-1">
+                                                        <div>min</div>
+                                                        <div>hour</div>
+                                                        <div>day</div>
+                                                        <div>month</div>
+                                                        <div>week</div>
+                                                    </div>
+                                                    <div className="grid grid-cols-5 gap-1 font-mono text-center py-1 bg-neutral-100 dark:bg-neutral-900/50 rounded border border-neutral-200 dark:border-neutral-800">
+                                                        <Text>*</Text>
+                                                        <Text>*</Text>
+                                                        <Text>*</Text>
+                                                        <Text>*</Text>
+                                                        <Text>*</Text>
+                                                    </div>
+                                                    <div className="mt-2 text-center">
+                                                        <Text size="sm" secondary={true}>e.g., <Code>0 12 * * *</Code> runs every day at noon.</Text>
+                                                    </div>
+                                                </div>
+
                                             </div>
                                         )}
                                     </div>
@@ -295,7 +320,7 @@ export default function AgentsPage({
                                         title="IDENTITY.md"
                                         description="Core instructions"
                                         icon={faFileText}
-                                        // iconColorClass="group-hover:text-accent-primary group-hover:bg-accent-primary/10"
+                                        iconColorClass="text-accent-primary bg-accent-primary/10"
                                         onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -303,7 +328,7 @@ export default function AgentsPage({
                                         title="SOUL.md"
                                         description="Moral values"
                                         icon={faMicrochip}
-                                        // iconColorClass="group-hover:text-amber-400 group-hover:bg-amber-400/10"
+                                        iconColorClass="text-amber-400 bg-amber-400/10"
                                         onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -311,7 +336,7 @@ export default function AgentsPage({
                                         title="MEMORY.md"
                                         description="Stored facts"
                                         icon={faBrain}
-                                        // iconColorClass="group-hover:text-emerald-400 group-hover:bg-emerald-400/10"
+                                        iconColorClass="text-emerald-400 bg-emerald-400/10"
                                         onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -319,9 +344,10 @@ export default function AgentsPage({
                                         title="HEARTBEAT.md"
                                         description="Scheduled tasks"
                                         icon={faHeartPulse}
-                                        // iconColorClass="group-hover:text-rose-400 group-hover:bg-rose-400/10"
+                                        iconColorClass="text-rose-400 bg-rose-400/10"
                                         onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
+
                                 </div>
                             </div>
                         </Card>

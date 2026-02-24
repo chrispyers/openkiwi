@@ -50,7 +50,7 @@ const TextArea = forwardRef<HTMLTextAreaElement, TextAreaProps>(({
                     rows={rows}
                     readOnly={readOnly}
                     disabled={disabled}
-                    className={`${!className && !textAreaClassName ? defaultTextAreaClasses : ""}
+                    className={`${defaultTextAreaClasses}
                         transition-colors w-full resize-none
                         placeholder-neutral-300 dark:placeholder-neutral-500
                         ${getThemeInputClasses()}

@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect } from 'react'
 import {
     Bot,
     Loader2,
@@ -70,6 +70,15 @@ export default function ChatPage({
     handleScroll,
     formatTimestamp
 }: ChatPageProps) {
+    useEffect(() => {
+        if (textareaRef.current) {
+            textareaRef.current.style.height = 'auto';
+            const scrollHeight = textareaRef.current.scrollHeight;
+            const newHeight = Math.min(scrollHeight, 200);
+            textareaRef.current.style.height = `${newHeight}px`;
+            textareaRef.current.style.overflowY = scrollHeight > 200 ? 'auto' : 'hidden';
+        }
+    }, [inputText, textareaRef]);
 
     const currentAgent = agents.find(a => a.id === selectedAgentId);
     const isNoAgentSelected = !selectedAgentId;
@@ -170,7 +179,7 @@ export default function ChatPage({
             </div>
 
             {/* Input Section */}
-            <div className="p-6 lg:px-12 bg-gradient-to-t from-bg-primary via-bg-primary/95 to-transparent pt-10">
+            <div className="p-6 lg:px-12  pt-10">
                 {isAgentMissing && (
                     <div className="max-w-4xl mx-auto mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm flex items-center justify-center gap-2">
                         <AlertCircle size={16} />
@@ -180,7 +189,7 @@ export default function ChatPage({
                 <form onSubmit={handleSend} className="relative group max-w-4xl mx-auto">
                     <TextArea
                         ref={textareaRef}
-                        className={`w-full bg-neutral-100 dark:bg-neutral-800/50 border-2 border-neutral-300 dark:border-neutral-700 text-neutral-600 dark:text-white rounded-3xl py-4 pl-6 pr-14 outline-none transition-all scrollbar-none resize-none text-base leading-relaxed ${(!isGatewayConnected || isAgentMissing || isNoAgentSelected) ? 'opacity-50 cursor-not-allowed' : 'hover:border-neutral-400 dark:hover:border-neutral-600'}`}
+                        className={`rounded-3xl pr-14`}
                         placeholder={isAgentMissing ? "Agent not found" : isNoAgentSelected ? "Select an agent to start chatting..." : isGatewayConnected ? `Message ${currentAgent?.name}...` : "Gateway Offline - Check Settings"}
                         rows={1}
                         currentText={inputText}

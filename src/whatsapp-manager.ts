@@ -29,7 +29,7 @@ export class WhatsAppManager extends EventEmitter {
 
     private constructor() {
         super();
-        this.initialize();
+        // Removed this.initialize() to make WhatsApp opt-in
     }
 
     public static getInstance(): WhatsAppManager {
@@ -189,22 +189,15 @@ export class WhatsAppManager extends EventEmitter {
         }
     }
 
-    public getStatus() {
-        // Self-healing: If we are not connected, no QR code, and gave up retrying, 
-        // but now someone is asking for status (e.g. UI is open), let's try to wake up.
-        if (!this.isConnected && !this.qrCode && this.reconnectRetries >= 5 && !this.isInitializing) {
-            logger.log({
-                type: 'system',
-                level: 'info',
-                message: 'WhatsApp Manager waking up from dormant state due to status check.'
-            });
-            this.reconnectRetries = 0;
-            this.initialize();
-        }
+    public async connect() {
+        await this.initialize();
+    }
 
+    public getStatus() {
         return {
             connected: this.isConnected,
-            qrCode: this.qrCode
+            qrCode: this.qrCode,
+            isInitializing: this.isInitializing
         };
     }
 
@@ -230,7 +223,6 @@ export class WhatsAppManager extends EventEmitter {
             // Ignore if already logged out
         }
         this.cleanup();
-        this.initialize(); // Restart to get new QR
     }
 
     private cleanup() {

@@ -15,6 +15,8 @@ interface GatewayPageProps {
     initializeApp: (isSilent?: boolean, addrOverride?: string, tokenOverride?: string) => Promise<void>;
     connectedClients: any[];
     fetchConnectedClients: () => Promise<void>;
+    config: any;
+    saveConfig: (e?: React.FormEvent, configOverride?: any) => Promise<void>;
 }
 
 export default function GatewayPage({
@@ -23,10 +25,13 @@ export default function GatewayPage({
     isGatewayConnected,
     initializeApp,
     connectedClients,
-    fetchConnectedClients
+    fetchConnectedClients,
+    config,
+    saveConfig
 }: GatewayPageProps) {
     const [localAddr, setLocalAddr] = useState(gatewayAddr);
     const [localToken, setLocalToken] = useState(gatewayToken);
+    const [allowedOrigins, setAllowedOrigins] = useState<string>('');
 
     // Sync with global state when it changes (e.g. on successful connection)
     useEffect(() => {
@@ -36,6 +41,25 @@ export default function GatewayPage({
     useEffect(() => {
         setLocalToken(gatewayToken);
     }, [gatewayToken]);
+
+    useEffect(() => {
+        if (config?.gateway?.allowedOrigins) {
+            setAllowedOrigins(config.gateway.allowedOrigins.join(', '));
+        }
+    }, [config]);
+
+    const handleSaveOrigins = async () => {
+        if (!config) return;
+        const originsArray = allowedOrigins.split(',').map(o => o.trim()).filter(o => o.length > 0);
+        const updatedConfig = {
+            ...config,
+            gateway: {
+                ...config.gateway,
+                allowedOrigins: originsArray
+            }
+        };
+        await saveConfig(undefined, updatedConfig);
+    };
 
     return (
         <Page
@@ -94,45 +118,70 @@ export default function GatewayPage({
                         </div>
                     </div>
 
-                    {isGatewayConnected && (
+                    {isGatewayConnected && config && (
                         <div className="pt-8 border-t border-border-color space-y-6 animate-in fade-in slide-in-from-top-4 duration-500">
-                            <div className="flex items-center justify-between">
-                                <Text bold={true} className="uppercase">Connected Computers ({connectedClients.length})</Text>
-                                {/* <button
-                                    onClick={(e) => { e.preventDefault(); fetchConnectedClients(); }}
-                                    className="text-xs font-bold uppercase tracking-widest text-accent-primary hover:text-accent-primary/80 flex items-center gap-1 transition-colors"
-                                >
-                                    <RefreshCw size={10} /> Refresh List
-                                </button> */}
+                            <div>
+                                <Text bold={true} className="uppercase">Security: CORS Whitelist</Text>
+                                <div className="mt-2 text-sm">
+                                    <Text secondary={true}>Specify which origins are allowed to make requests to this gateway. This prevents malicious websites from accessing your gateway.</Text>
+                                </div>
+                                <div className="mt-4 flex gap-4">
+                                    <div className="flex-1">
+                                        <Input
+                                            label="Allowed Origins (comma separated)"
+                                            currentText={allowedOrigins}
+                                            onChange={e => setAllowedOrigins(e.target.value)}
+                                            placeholder="http://localhost:3000, http://127.0.0.1:3000"
+                                        />
+                                    </div>
+                                    <div className="flex items-end pb-1">
+                                        <Button
+                                            onClick={handleSaveOrigins}
+                                            className="h-10 px-6"
+                                        >
+                                            Save Origins
+                                        </Button>
+                                    </div>
+                                </div>
+                                <div className="mt-2 flex gap-1">
+                                    <Text secondary={true} size="xs">Recommended for local use:</Text>
+                                    <Text secondary={true} size="xs" bold={true}><Code>http://localhost:3000, http://127.0.0.1:3000</Code></Text>
+                                </div>
                             </div>
 
-                            <div className="grid grid-cols-1 gap-3">
-                                {connectedClients.length === 0 ? (
-                                    <div className="p-8 bg-white dark:bg-bg-primary rounded-2xl text-center">
-                                        <Text>No other computers currently connected to this gateway.</Text>
-                                    </div>
-                                ) : (
-                                    connectedClients.map((client, idx) => (
-                                        <div key={idx} className="bg-white dark:bg-bg-primary rounded-2xl p-4 flex items-center justify-between group hover:border-accent-primary/50 transition-all">
-                                            <div className="flex items-center gap-4">
-                                                <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
-                                                    <Text size="lg">
-                                                        <FontAwesomeIcon icon={faDesktop} />
-                                                    </Text>
-                                                </div>
-                                                <div className="text-left">
-                                                    <div><Text size="sm" bold={true}>{client.hostname}</Text></div>
-                                                    <Text size="xs" secondary={true}><FontAwesomeIcon icon={faGlobeAmericas} /> {client.id}</Text>
-                                                    <Text size="xs" bold={true} secondary={true}><Code>{client.ip}</Code></Text>
-                                                </div>
-                                            </div>
-                                            <div className="text-right">
-                                                <div><Text size="xs" bold={true} className="uppercase">Connected Since</Text></div>
-                                                <Text size="xs" bold={true} secondary={true}><Code>{new Date(client.connectedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}</Code></Text>
-                                            </div>
+                            <div className="pt-8 border-t border-border-color">
+                                <div className="flex items-center justify-between">
+                                    <Text bold={true} className="uppercase">Connected Computers ({connectedClients.length})</Text>
+                                </div>
+
+                                <div className="grid grid-cols-1 gap-3 mt-4">
+                                    {connectedClients.length === 0 ? (
+                                        <div className="p-8 bg-white dark:bg-bg-primary rounded-2xl text-center">
+                                            <Text>No other computers currently connected to this gateway.</Text>
                                         </div>
-                                    ))
-                                )}
+                                    ) : (
+                                        connectedClients.map((client, idx) => (
+                                            <div key={idx} className="bg-white dark:bg-bg-primary rounded-2xl p-4 flex items-center justify-between group hover:border-accent-primary/50 transition-all">
+                                                <div className="flex items-center gap-4">
+                                                    <div className="w-10 h-10 rounded-xl flex items-center justify-center group-hover:text-accent-primary group-hover:bg-accent-primary/10 transition-all">
+                                                        <Text size="lg">
+                                                            <FontAwesomeIcon icon={faDesktop} />
+                                                        </Text>
+                                                    </div>
+                                                    <div className="text-left">
+                                                        <div><Text size="sm" bold={true}>{client.hostname}</Text></div>
+                                                        <Text size="xs" secondary={true}><FontAwesomeIcon icon={faGlobeAmericas} /> {client.id || ''}</Text>
+                                                        <Text size="xs" bold={true} secondary={true}><Code>{client.ip}</Code></Text>
+                                                    </div>
+                                                </div>
+                                                <div className="text-right">
+                                                    <div><Text size="xs" bold={true} className="uppercase">Connected Since</Text></div>
+                                                    <Text size="xs" bold={true} secondary={true}><Code>{new Date(client.connectedAt).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true })}</Code></Text>
+                                                </div>
+                                            </div>
+                                        ))
+                                    )}
+                                </div>
                             </div>
                         </div>
                     )}
