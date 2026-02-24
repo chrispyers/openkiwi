@@ -330,6 +330,8 @@ wss.on('connection', (ws, req) => {
             let finalAiResponse = '';
             const MAX_LOOPS = 5;
             let loopCount = 0;
+            let totalUsage = { completion_tokens: 0, prompt_tokens: 0, total_tokens: 0 };
+            let lastTps = 0;
 
             while (toolLoop && loopCount < MAX_LOOPS) {
                 loopCount++;
@@ -339,8 +341,12 @@ wss.on('connection', (ws, req) => {
                 // Process vision messages in each loop to catch images returned by tools
                 const processedHistory = processVisionMessages([...chatHistory], !!providerConfig?.capabilities?.vision);
 
+                let firstTokenTime = 0;
+                const requestStartTime = Date.now();
+
                 for await (const delta of streamChatCompletion(llmConfig, processedHistory, ToolManager.getToolDefinitions())) {
                     if (delta.content) {
+                        if (!firstTokenTime) firstTokenTime = Date.now();
                         if (!fullContent) console.log('[WS] Received first delta from LLM');
                         fullContent += delta.content;
                         ws.send(JSON.stringify({ type: 'delta', content: delta.content }));
@@ -356,15 +362,45 @@ wss.on('connection', (ws, req) => {
                             }
                         }
                     }
-                    if (delta.usage) {
+                    if (delta.usage || delta.stats) {
+                        const usage = delta.usage || {};
+                        const stats = delta.stats || {};
+
+                        // Calculate TPS (Tokens Per Second)
+                        const endTime = Date.now();
+                        const durationSeconds = (endTime - (firstTokenTime || requestStartTime)) / 1000;
+
+                        const completionTokens = usage.completion_tokens || usage.output_tokens || stats.total_output_tokens || 0;
+                        const promptTokens = usage.prompt_tokens || usage.input_tokens || stats.input_tokens || 0;
+
+                        // Use provider-supplied TPS if available (LM Studio), otherwise calculate
+                        let tps = stats.tokens_per_second || usage.tokens_per_second;
+                        if (tps === undefined || tps === null) {
+                            tps = durationSeconds > 0 ? (completionTokens / durationSeconds) : 0;
+                        }
+
+                        lastTps = parseFloat(tps.toFixed(1));
+                        totalUsage.completion_tokens += completionTokens;
+                        totalUsage.prompt_tokens += promptTokens;
+                        totalUsage.total_tokens += (completionTokens + promptTokens);
+
+                        const usageStats = {
+                            ...usage,
+                            ...stats,
+                            tps: lastTps,
+                            duration: parseFloat(durationSeconds.toFixed(2))
+                        };
+
                         logger.log({
                             type: 'usage',
                             level: 'info',
                             agentId: effectiveAgentId,
                             sessionId,
                             message: 'Token usage report',
-                            data: delta.usage
+                            data: usageStats
                         });
+
+                        ws.send(JSON.stringify({ type: 'usage', usage: usageStats }));
                     }
                 }
 
@@ -452,7 +488,14 @@ wss.on('connection', (ws, req) => {
                     newMessages.push({
                         role: 'assistant',
                         content: finalAiResponse,
-                        timestamp: Math.floor(timestamp / 1000)
+                        timestamp: Math.floor(timestamp / 1000),
+                        stats: {
+                            tps: lastTps,
+                            tokens: totalUsage.completion_tokens,
+                            inputTokens: totalUsage.prompt_tokens,
+                            outputTokens: totalUsage.completion_tokens,
+                            totalTokens: totalUsage.total_tokens
+                        } as any
                     });
                 }
 

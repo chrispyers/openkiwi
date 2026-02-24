@@ -3,6 +3,13 @@ export interface Message {
     role: 'user' | 'assistant' | 'reasoning' | 'system';
     content: string;
     timestamp?: number;
+    stats?: {
+        tps?: number;
+        tokens?: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        totalTokens?: number;
+    };
 }
 
 export interface Agent {

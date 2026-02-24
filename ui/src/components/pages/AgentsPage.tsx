@@ -320,7 +320,7 @@ export default function AgentsPage({
                                         title="IDENTITY.md"
                                         description="Core instructions"
                                         icon={faFileText}
-                                        iconColorClass="text-accent-primary bg-accent-primary/10"
+                                        iconColorClass="bg-sky-500/10"
                                         onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -328,7 +328,7 @@ export default function AgentsPage({
                                         title="SOUL.md"
                                         description="Moral values"
                                         icon={faMicrochip}
-                                        iconColorClass="text-amber-400 bg-amber-400/10"
+                                        iconColorClass="bg-amber-400/10"
                                         onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -336,7 +336,7 @@ export default function AgentsPage({
                                         title="MEMORY.md"
                                         description="Stored facts"
                                         icon={faBrain}
-                                        iconColorClass="text-emerald-400 bg-emerald-400/10"
+                                        iconColorClass="bg-emerald-400/10"
                                         onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -344,7 +344,7 @@ export default function AgentsPage({
                                         title="HEARTBEAT.md"
                                         description="Scheduled tasks"
                                         icon={faHeartPulse}
-                                        iconColorClass="text-rose-400 bg-rose-400/10"
+                                        iconColorClass="bg-rose-400/10"
                                         onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 

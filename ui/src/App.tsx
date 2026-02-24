@@ -48,6 +48,7 @@ import LogsPage from './components/pages/LogsPage'
 import GatewayPage from './components/pages/GatewayPage'
 import SettingsPage from './components/pages/SettingsPage'
 import ChatPage from './components/pages/ChatPage'
+import ActivityPage from './components/pages/ActivityPage'
 import Sidebar from './components/Sidebar'
 import { TABLE, TH, TR, TD } from './components/Table'
 import {
@@ -82,6 +83,7 @@ interface Config {
     showReasoning: boolean;
     includeHistory: boolean;
     generateSummaries: boolean;
+    showTokenMetrics: boolean;
   };
   gateway: {
     port: number;
@@ -916,6 +918,24 @@ function App() {
           streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp });
         }
         setMessages(streamingMsgs);
+      } else if (data.type === 'usage') {
+        const stats = {
+          tps: data.usage.tps,
+          tokens: data.usage.completion_tokens || data.usage.output_tokens || data.usage.total_output_tokens,
+          inputTokens: data.usage.prompt_tokens || data.usage.input_tokens || data.usage.input_tokens,
+          outputTokens: data.usage.completion_tokens || data.usage.output_tokens || data.usage.total_output_tokens,
+          totalTokens: data.usage.total_tokens
+        };
+        setMessages(prev => {
+          const newMsgs = [...prev];
+          for (let k = newMsgs.length - 1; k >= 0; k--) {
+            if (newMsgs[k].role === 'assistant') {
+              newMsgs[k] = { ...newMsgs[k], stats };
+              break;
+            }
+          }
+          return newMsgs;
+        });
       } else if (data.type === 'done') {
         setIsStreaming(false);
         socket.close();
@@ -1063,6 +1083,8 @@ function App() {
               config={config}
               saveConfig={saveConfig}
             />
+          ) : activeView === 'activity' ? (
+            <ActivityPage />
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}

@@ -143,6 +143,10 @@ export class MemoryIndexManager {
         // For simplicity, we'll do it sequentially.
         const chunksWithEmbeddings = [];
 
+        if (this.providerConfig) {
+            logger.log({ type: 'system', level: 'info', message: `[Memory] Embedding provider: ${this.providerConfig.modelId}` });
+        }
+
         for (const chunk of chunks) {
             let embedding: number[] = [];
             if (this.providerConfig) {
@@ -152,6 +156,7 @@ export class MemoryIndexManager {
                     if (vectors && vectors.length > 0) embedding = vectors[0];
                 } catch (err) {
                     logger.log({ type: 'error', level: 'error', message: `[Memory] Embedding failed for chunk`, data: { error: String(err) } });
+                    logger.log({ type: 'error', level: 'error', message: `[Memory] Please verify that ${this.providerConfig.modelId} is a valid embedding model` });
                 }
             } else {
                 logger.log({ type: 'system', level: 'warn', message: `[Memory] No provider config for embeddings. Skipping.` });
@@ -250,6 +255,7 @@ export class MemoryIndexManager {
         let vectorResults: MemorySearchResult[] = [];
         if (this.providerConfig) {
             try {
+                logger.log({ type: 'system', level: 'info', message: `[Memory] Embedding provider: ${this.providerConfig.modelId}` });
                 const vectors = await createEmbedding(this.providerConfig, query);
                 if (vectors && vectors.length > 0) {
                     const queryVec = vectors[0];
@@ -276,7 +282,8 @@ export class MemoryIndexManager {
                         .slice(0, limit) as MemorySearchResult[];
                 }
             } catch (err) {
-                console.error('[Memory] Vector search failed', err);
+                logger.log({ type: 'error', level: 'error', message: `[Memory] Vector search failed`, data: { error: String(err) } });
+                logger.log({ type: 'error', level: 'error', message: `[Memory] Please verify that ${this.providerConfig.modelId} is a valid embedding model` });
             }
         }
 

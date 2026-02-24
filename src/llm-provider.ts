@@ -232,7 +232,7 @@ export async function* streamChatCompletion(
                         const delta = choice?.delta;
 
                         if (delta) yield delta;
-                        if (json.usage) yield { usage: json.usage };
+                        if (json.usage || json.stats) yield { usage: json.usage, stats: json.stats };
 
                         if (choice?.finish_reason) {
                             console.log('[LLM Stream] Finish reason:', choice.finish_reason);
@@ -320,7 +320,8 @@ export async function getChatCompletion(
 
     return {
         content: json.choices[0]?.message?.content || '',
-        usage: json.usage
+        usage: json.usage,
+        stats: json.stats
     };
 }
 
@@ -436,8 +437,11 @@ export async function listModels(
         // Construct rich URL: replace /v1/models with /api/v1/models
         // getProviderEndpoint ensures URL ends with /v1/chat/completions -> /v1/models
         // So we can safely strip /v1/models and append /api/v1/models
-        // Or closer simply: if we have /v1/models, try /api/v1/models
-        const richUrl = url.replace(/\/v1\/models$/, '/api/v1/models');
+        // For Lemonade, we also want to append ?show_all=true
+        let richUrl = url.replace(/\/v1\/models$/, '/api/v1/models');
+        if (richUrl.includes(':8000')) {
+            richUrl += '?show_all=true';
+        }
 
         console.log(`[listModels] Trying rich endpoint: ${richUrl}`);
 

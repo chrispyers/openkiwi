@@ -21,6 +21,7 @@ interface Config {
         showReasoning: boolean;
         includeHistory: boolean;
         generateSummaries: boolean;
+        showTokenMetrics: boolean;
     };
     gateway: {
         port: number;
@@ -117,7 +118,7 @@ export default function ChatPage({
                                 onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAgentId(e.target.value)}
                                 options={[
                                     { value: '', label: 'Choose an Agent' },
-                                    ...agents.map(a => ({ value: a.id, label: `${a.emoji} ${a.name}` }))
+                                    ...agents.map(a => ({ value: a.id, label: `${a.name}` }))
                                 ]}
                             />
                         </div>
@@ -169,6 +170,7 @@ export default function ChatPage({
                             message={msg}
                             agent={currentAgent}
                             formatTimestamp={formatTimestamp}
+                            showTokenMetrics={config?.chat.showTokenMetrics}
                         />
                     );
                 })}

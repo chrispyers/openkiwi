@@ -1,7 +1,6 @@
 import React from 'react';
-import { User, Bot } from 'lucide-react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBrain } from '@fortawesome/free-solid-svg-icons';
+import { faBrain, faArrowUp, faArrowDown, faUser } from '@fortawesome/free-solid-svg-icons';
 import MarkdownRenderer from './MarkdownRenderer';
 import { Message, Agent } from '../types';
 import Text from './Text';
@@ -15,6 +14,14 @@ interface ChatBubbleProps {
     isUser?: boolean;
     isReasoning?: boolean;
     className?: string; // For the bubble itself
+    stats?: {
+        tps?: number;
+        tokens?: number;
+        inputTokens?: number;
+        outputTokens?: number;
+        totalTokens?: number;
+    };
+    showTokenMetrics?: boolean;
 }
 
 export const ChatBubble = ({
@@ -25,7 +32,9 @@ export const ChatBubble = ({
     avatar,
     isUser = false,
     isReasoning = false,
-    className = ""
+    className = "",
+    stats,
+    showTokenMetrics = true
 }: ChatBubbleProps) => {
     return (
         <div className={`flex w-full group ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
@@ -50,6 +59,26 @@ export const ChatBubble = ({
                                 breaks={!isUser}
                             />
                         </div>
+                        {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (
+                            <div className="flex items-center gap-3 mt-3 pt-2 border-t border-neutral-500/10 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+                                <span className="flex items-center gap-1">
+                                    {stats.tps} <span className="opacity-50">TPS</span>
+                                </span>
+                                <span className="mx-1 opacity-20">|</span>
+                                <span className="flex items-center gap-1">
+                                    TOKENS:
+                                    <span className="flex items-center gap-0.5 ml-1">
+                                        <FontAwesomeIcon icon={faArrowUp} />
+                                        {stats.inputTokens ?? 0}
+                                    </span>
+                                    <span className="mx-1 opacity-30">|</span>
+                                    <span className="flex items-center gap-0.5">
+                                        <FontAwesomeIcon icon={faArrowDown} />
+                                        {stats.outputTokens ?? stats.tokens ?? 0}
+                                    </span>
+                                </span>
+                            </div>
+                        )}
                     </div>
                 </div>
                 {timestamp && (
@@ -77,7 +106,7 @@ export const UserChatBubble = ({
         timestamp={message.timestamp}
         formatTimestamp={formatTimestamp}
         isUser={true}
-        avatar={<User size={18} />}
+        avatar={<FontAwesomeIcon icon={faUser} />}
         className="user-bubble"
     />
 );
@@ -94,11 +123,13 @@ const getInitials = (name?: string) => {
 export const AgentChatBubble = ({
     message,
     agent,
-    formatTimestamp
+    formatTimestamp,
+    showTokenMetrics
 }: {
     message: Message,
     agent?: Agent,
-    formatTimestamp: (t?: number) => string
+    formatTimestamp: (t?: number) => string,
+    showTokenMetrics?: boolean
 }) => {
     const isReasoning = message.role === 'reasoning';
     return (
@@ -110,15 +141,19 @@ export const AgentChatBubble = ({
             isReasoning={isReasoning}
             avatar={isReasoning ? <FontAwesomeIcon icon={faBrain} style={{ fontSize: '14px' }} /> : (agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>)}
             className={isReasoning ? 'reasoning-bubble' : 'ai-bubble'}
+            stats={message.stats}
+            showTokenMetrics={showTokenMetrics}
         />
     );
 };
 
 export const StreamingChatBubble = ({ agent }: { agent?: Agent }) => (
-    <div className="flex justify-start animate-in fade-in duration-300">
+    <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex gap-4 items-start">
-            <div className="bg-neutral-100 dark:bg-neutral-800 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
-                {agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>}
+            <div className="bg-neutral-200/50 dark:bg-neutral-800 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
+                <Text>
+                    {agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>}
+                </Text>
             </div>
             <div className="loading-dots">
                 <span className="dot" />

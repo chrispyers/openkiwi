@@ -29,7 +29,8 @@ import {
     faTrash,
     faBrain,
     faFileText,
-    faFileCode
+    faFileCode,
+    faGaugeHigh
 } from '@fortawesome/free-solid-svg-icons'
 import { Loader2 } from 'lucide-react'
 
@@ -40,6 +41,7 @@ interface Config {
         showReasoning: boolean;
         includeHistory: boolean;
         generateSummaries: boolean;
+        showTokenMetrics: boolean;
     };
     memory?: {
         useEmbeddings: boolean;
@@ -285,13 +287,20 @@ export default function SettingsPage({
                                             </div>
                                             <Toggle
                                                 checked={config?.memory?.useEmbeddings || false}
-                                                onChange={() => setConfig(prev => prev ? {
-                                                    ...prev,
-                                                    memory: {
-                                                        ...(prev.memory || { embeddingsModel: "" }),
-                                                        useEmbeddings: !prev.memory?.useEmbeddings
-                                                    }
-                                                } : null)}
+                                                onChange={() => {
+                                                    if (!config) return;
+                                                    const newConfig = {
+                                                        ...config,
+                                                        memory: {
+                                                            ...(config.memory || { embeddingsModel: "" }),
+                                                            useEmbeddings: !config.memory?.useEmbeddings
+                                                        }
+                                                    };
+                                                    setConfig(newConfig);
+                                                    saveConfig(undefined, newConfig).then(() => {
+                                                        toast.success(`${newConfig.memory?.useEmbeddings ? 'Enabled' : 'Disabled'} vector embeddings`);
+                                                    });
+                                                }}
                                             />
                                         </div>
 
@@ -309,13 +318,18 @@ export default function SettingsPage({
                                                         value={config?.memory?.embeddingsModel || ""}
                                                         onChange={(e) => {
                                                             const val = e.target.value;
-                                                            setConfig(prev => prev ? {
-                                                                ...prev,
+                                                            if (!config) return;
+                                                            const newConfig = {
+                                                                ...config,
                                                                 memory: {
-                                                                    ...(prev.memory || { useEmbeddings: true }),
+                                                                    ...(config.memory || { useEmbeddings: true }),
                                                                     embeddingsModel: val
                                                                 }
-                                                            } : null);
+                                                            };
+                                                            setConfig(newConfig);
+                                                            saveConfig(undefined, newConfig).then(() => {
+                                                                toast.success(`Embedding provider set to ${val}`);
+                                                            });
                                                         }}
                                                     />
                                                     <Text size="sm" secondary={true}>
@@ -326,10 +340,7 @@ export default function SettingsPage({
                                         )}
                                     </div>
 
-                                    <Button themed={true} className="w-full h-12 text-white" onClick={async () => {
-                                        await saveConfig();
-                                        toast.success("Memory preferences saved");
-                                    }} icon={faSave}>Save Settings</Button>
+
                                 </div>
                             </Card>
                         </div>
@@ -345,7 +356,7 @@ export default function SettingsPage({
                                     placeholder=""
                                     rows={12}
                                 />
-                                <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save Agent Configurations</Button>
+                                <Button themed={true} className="w-full h-12 text-white" onClick={() => saveConfig()} icon={faSave}>Save System Prompt</Button>
                             </Card>
                         </form>
                     )}
@@ -399,6 +410,7 @@ export default function SettingsPage({
                                                             });
                                                         }}
                                                         disabled={!tool.filename}
+                                                        title={!tool.filename ? "This is a core system skill that is always enabled and cannot be deactivated." : undefined}
                                                     />
                                                 </div>
                                             </div>
@@ -437,7 +449,14 @@ export default function SettingsPage({
                                         </div>
                                         <Toggle
                                             checked={config?.chat.showReasoning || false}
-                                            onChange={() => setConfig(prev => prev ? { ...prev, chat: { ...prev.chat, showReasoning: !prev.chat.showReasoning } } : null)}
+                                            onChange={() => {
+                                                if (!config) return;
+                                                const newConfig = { ...config, chat: { ...config.chat, showReasoning: !config.chat.showReasoning } };
+                                                setConfig(newConfig);
+                                                saveConfig(undefined, newConfig).then(() => {
+                                                    toast.success(`${newConfig.chat.showReasoning ? 'Enabled' : 'Disabled'} thought process display`);
+                                                });
+                                            }}
                                         />
                                     </div>
 
@@ -451,7 +470,14 @@ export default function SettingsPage({
                                         </div>
                                         <Toggle
                                             checked={config?.chat.includeHistory || false}
-                                            onChange={() => setConfig(prev => prev ? { ...prev, chat: { ...prev.chat, includeHistory: !prev.chat.includeHistory } } : null)}
+                                            onChange={() => {
+                                                if (!config) return;
+                                                const newConfig = { ...config, chat: { ...config.chat, includeHistory: !config.chat.includeHistory } };
+                                                setConfig(newConfig);
+                                                saveConfig(undefined, newConfig).then(() => {
+                                                    toast.success(`${newConfig.chat.includeHistory ? 'Enabled' : 'Disabled'} stateful conversations`);
+                                                });
+                                            }}
                                         />
                                     </div>
 
@@ -465,20 +491,37 @@ export default function SettingsPage({
                                         </div>
                                         <Toggle
                                             checked={config?.chat.generateSummaries || false}
-                                            onChange={() => setConfig(prev => prev ? { ...prev, chat: { ...prev.chat, generateSummaries: !prev.chat.generateSummaries } } : null)}
+                                            onChange={() => {
+                                                if (!config) return;
+                                                const newConfig = { ...config, chat: { ...config.chat, generateSummaries: !config.chat.generateSummaries } };
+                                                setConfig(newConfig);
+                                                saveConfig(undefined, newConfig).then(() => {
+                                                    toast.success(`${newConfig.chat.generateSummaries ? 'Enabled' : 'Disabled'} chat summaries`);
+                                                });
+                                            }}
+                                        />
+                                    </div>
+
+                                    <div className="bg-white dark:bg-bg-primary rounded-xl p-4 flex justify-between items-center group transition-all">
+                                        <div className="space-y-1">
+                                            <Text bold={true} className="flex items-center gap-2">
+                                                <FontAwesomeIcon icon={faGaugeHigh} />Show Token Statistics</Text>
+                                            <Text size="sm" secondary={true}>Display generation speed (TPS) and token counts on AI messages</Text>
+                                        </div>
+                                        <Toggle
+                                            checked={config?.chat.showTokenMetrics || false}
+                                            onChange={() => {
+                                                if (!config) return;
+                                                const newConfig = { ...config, chat: { ...config.chat, showTokenMetrics: !config.chat.showTokenMetrics } };
+                                                setConfig(newConfig);
+                                                saveConfig(undefined, newConfig).then(() => {
+                                                    toast.success(`${newConfig.chat.showTokenMetrics ? 'Enabled' : 'Disabled'} token statistics`);
+                                                });
+                                            }}
                                         />
                                     </div>
                                 </div>
-                                <div className="pt-4">
-                                    <Button
-                                        themed={true}
-                                        className="w-full h-12 text-white"
-                                        onClick={(e) => saveConfig(e)}
-                                        icon={faSave}
-                                    >
-                                        Save Chat Configurations
-                                    </Button>
-                                </div>
+
                             </Card>
                         </div>
                     )}

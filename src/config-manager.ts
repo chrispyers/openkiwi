@@ -55,6 +55,7 @@ const ConfigSchema = z.object({
         showReasoning: z.boolean(),
         includeHistory: z.boolean(),
         generateSummaries: z.boolean(),
+        showTokenMetrics: z.boolean().default(true),
     }).passthrough(),
     gateway: z.object({
         port: z.number().int().positive(),
@@ -149,6 +150,7 @@ export function loadConfig(): Config {
                 showReasoning: true,
                 includeHistory: false,
                 generateSummaries: false,
+                showTokenMetrics: true,
             },
             gateway: {
                 port: 3808,

@@ -117,7 +117,7 @@
 
   /* Loading dots */
   .loading-dots {
-    @apply flex gap-1.5 p-3 px-5 bg-bg-card rounded-2xl border border-border-color mt-2 w-max;
+    @apply flex gap-1.5 p-3 px-5 bg-neutral-100 dark:bg-neutral-50/5 rounded-3xl rounded-tl-[8px] mt-0 w-max shadow-sm;
   }
 
   .dot {

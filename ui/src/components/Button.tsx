@@ -54,12 +54,12 @@ export default function Button(props: ButtonProps) {
             onClick={props.onClick || (() => { })}
             title={props.title}
         >
-            {props.icon &&
+            {props.icon && (
                 (props.themed || props.variant === "danger") ?
-                <FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} />
-                :
-                <Text className={props.children ? "h-auto" : "h-full"}><FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} /></Text>
-            }
+                    <FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} />
+                    :
+                    <Text className={props.children ? "h-auto" : "h-full"}><FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} /></Text>
+            )}
 
             {props.themed || props.variant === "danger" ? props.children :
                 <Text className={`font-semibold`} size={props.size || "md"}>

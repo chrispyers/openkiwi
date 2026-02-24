@@ -18,7 +18,8 @@ import OpenAIIcon from '../../img/openai.svg.png'
 import AnthropicIcon from '../../img/anthropic.png'
 import LMStudioIcon from '../../img/lmstudio.png'
 import OpenRouterIcon from '../../img/openrouter.png'
-
+import OllamaIcon from '../../img/ollama.png'
+import LemonadeIcon from '../../img/lemonade.png'
 
 
 interface Config {
@@ -72,6 +73,7 @@ export default function ModelsPage({
     const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [newAnthropicProvider, setNewAnthropicProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [newOpenRouterProvider, setNewOpenRouterProvider] = useState({ apiKey: '', description: '' });
+    const [newLemonadeProvider, setNewLemonadeProvider] = useState({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} as any });
     const [scannedModels, setScannedModels] = useState<Model[]>([]);
 
     // Editing State
@@ -97,6 +99,7 @@ export default function ModelsPage({
             setNewOpenAIProvider({ apiKey: '', model: '', description: '', capabilities: {} });
             setNewAnthropicProvider({ apiKey: '', model: '', description: '', capabilities: {} });
             setNewOpenRouterProvider({ apiKey: '', description: '' });
+            setNewLemonadeProvider({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} });
             setScannedModels([]);
         }
     }, [isModalOpen]);
@@ -336,15 +339,55 @@ export default function ModelsPage({
         setNewOpenRouterProvider({ apiKey: '', description: '' });
     };
 
+    const handleLemonadeScan = async () => {
+        if (!newLemonadeProvider.endpoint) {
+            toast.error("Please enter an endpoint first");
+            return;
+        }
+        const result = await fetchModels(false, {
+            endpoint: newLemonadeProvider.endpoint,
+            apiKey: ''
+        }, true);
+        if (Array.isArray(result)) {
+            const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
+            setScannedModels(models);
+        }
+    };
+
+    const handleLemonadeSave = async () => {
+        if (!config || !newLemonadeProvider.model) {
+            toast.error("Please select a Model first");
+            return;
+        }
+
+        const providerToAdd = {
+            description: newLemonadeProvider.description.trim() || `Lemonade - ${newLemonadeProvider.model}`,
+            endpoint: newLemonadeProvider.endpoint,
+            model: newLemonadeProvider.model,
+            capabilities: newLemonadeProvider.capabilities
+        };
+
+        const updatedProviders = [...(config.providers || []), providerToAdd];
+        const newConfig = { ...config, providers: updatedProviders };
+        setConfig(newConfig);
+        await saveConfig(undefined, newConfig);
+        toast.success("Successfully saved Lemonade provider");
+        setIsModalOpen(false);
+        setNewLemonadeProvider({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} });
+    };
+
     const augmentedProviders = config?.providers.map((p, i) => ({ ...p, originalIndex: i })) || [];
     const anthropicModels = augmentedProviders.filter(p => p.endpoint.includes('anthropic.com'));
     const googleModels = augmentedProviders.filter(p => p.endpoint.includes('googleapis.com'));
+    const lemonadeModels = augmentedProviders.filter(p => p.endpoint.includes(':8000') || p.description.toLowerCase().includes('lemonade'));
     const lmStudioModels = augmentedProviders.filter(p => p.endpoint.includes(':1234'));
     const openAIModels = augmentedProviders.filter(p => p.endpoint.includes('api.openai.com'));
     const openRouterModels = augmentedProviders.filter(p => p.endpoint.includes('openrouter.ai'));
     const otherModels = augmentedProviders.filter(p =>
         !p.endpoint.includes('anthropic.com') &&
         !p.endpoint.includes('googleapis.com') &&
+        !p.endpoint.includes(':8000') &&
+        !p.description.toLowerCase().includes('lemonade') &&
         !p.endpoint.includes(':1234') &&
         !p.endpoint.includes('api.openai.com') &&
         !p.endpoint.includes('openrouter.ai')
@@ -382,6 +425,17 @@ export default function ModelsPage({
                                         providers={googleModels}
                                         onRowClick={(i) => handleRowClick(googleModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(googleModels[i].originalIndex)}
+                                    />
+                                </div>
+                            )}
+
+                            {lemonadeModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <Text size="lg" bold={true}>Lemonade</Text>
+                                    <ModelsTable
+                                        providers={lemonadeModels}
+                                        onRowClick={(i) => handleRowClick(lemonadeModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(lemonadeModels[i].originalIndex)}
                                     />
                                 </div>
                             )}
@@ -512,34 +566,46 @@ export default function ModelsPage({
                 <div className="p-6">
                     <div className="flex gap-4 justify-center mb-6 overflow-x-auto">
                         <Button
-                            className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'anthropic' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'anthropic' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('anthropic')}
                         >
-                            <img src={AnthropicIcon} alt="Anthropic" className="h-6 dark:invert" />
+                            <img src={AnthropicIcon} alt="Anthropic" className="h-8 dark:invert" />
                         </Button>
                         <Button
-                            className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'lm-studio' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
-                            onClick={() => setSelectedProviderType('lm-studio')}
-                        >
-                            <img src={LMStudioIcon} alt="LM Studio" className="h-6" />
-                        </Button>
-                        <Button
-                            className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'google-gemini' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'google-gemini' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('google-gemini')}
                         >
-                            <img src={GoogleIcon} alt="Google Gemini" className="h-6" />
+                            <img src={GoogleIcon} alt="Google Gemini" className="h-8" />
                         </Button>
                         <Button
-                            className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'openai' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'lemonade' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            onClick={() => setSelectedProviderType('lemonade')}
+                        >
+                            <img src={LemonadeIcon} alt="Lemonade" className="h-8" />
+                        </Button>
+                        <Button
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'lm-studio' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            onClick={() => setSelectedProviderType('lm-studio')}
+                        >
+                            <img src={LMStudioIcon} alt="LM Studio" className="h-8" />
+                        </Button>
+                        <Button
+                            className="h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500"
+                            onClick={() => toast.info("Ollama support coming soon")}
+                        >
+                            <img src={OllamaIcon} alt="Ollama" className="h-8 dark:invert" />
+                        </Button>
+                        <Button
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'openai' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('openai')}
                         >
-                            <img src={OpenAIIcon} alt="OpenAI" className="h-6 dark:invert" />
+                            <img src={OpenAIIcon} alt="OpenAI" className="h-8 dark:invert" />
                         </Button>
                         <Button
-                            className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'openrouter' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'openrouter' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('openrouter')}
                         >
-                            <img src={OpenRouterIcon} alt="OpenRouter" className="h-6 dark:invert" />
+                            <img src={OpenRouterIcon} alt="OpenRouter" className="h-8 dark:invert" />
                         </Button>
                     </div>
 
@@ -663,6 +729,35 @@ export default function ModelsPage({
                             />
                         </div>
                     )}
+
+                    {selectedProviderType === 'lemonade' && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                            <Provider
+                                name="Lemonade"
+                                description={newLemonadeProvider.description}
+                                endpoint={newLemonadeProvider.endpoint}
+                                model={newLemonadeProvider.model}
+                                models={scannedModels}
+                                onDescriptionChange={(val) => setNewLemonadeProvider(prev => ({ ...prev, description: val }))}
+                                onEndpointChange={(val) => setNewLemonadeProvider(prev => ({ ...prev, endpoint: val }))}
+                                onModelChange={(val) => {
+                                    const selectedModel = scannedModels.find(m => m.id === val);
+                                    const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
+                                    setNewLemonadeProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                }}
+                                onScan={handleLemonadeScan}
+                                onSave={handleLemonadeSave}
+                                inputPlaceholder="http://localhost:8000"
+                                footer={
+                                    <div className="text-center">
+                                        <Text size="sm" secondary={true}>
+                                            Download Lemonade from <a href="https://lemonade-server.ai/" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-bold">lemonade-server.ai</a>
+                                        </Text>
+                                    </div>
+                                }
+                            />
+                        </div>
+                    )}
                     {selectedProviderType === 'openai' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Provider
@@ -733,7 +828,7 @@ export default function ModelsPage({
                         </div>
                     )}
                 </div>
-            </Modal>
+            </Modal >
         </Page >
     )
 }
