@@ -21,14 +21,23 @@ export const SessionGroup: React.FC<SessionGroupProps> = ({
     onDeleteSession,
     formatTimestamp
 }) => {
-    const [isExpanded, setIsExpanded] = useState(true);
+    const [isExpanded, setIsExpanded] = useState(() => {
+        const saved = localStorage.getItem(`chat_group_expanded_${agent.id}`);
+        return saved !== null ? JSON.parse(saved) : true;
+    });
+
+    const toggleExpanded = () => {
+        const newState = !isExpanded;
+        setIsExpanded(newState);
+        localStorage.setItem(`chat_group_expanded_${agent.id}`, JSON.stringify(newState));
+    };
 
     if (sessions.length === 0) return null;
 
     return (
         <div className="mb-2">
             <button
-                onClick={() => setIsExpanded(!isExpanded)}
+                onClick={toggleExpanded}
                 className="w-full flex items-center gap-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
             >
                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}

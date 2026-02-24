@@ -60,6 +60,7 @@ const ConfigSchema = z.object({
         port: z.number().int().positive(),
         secretToken: z.string().default(""),
         endpoint: z.string().url().default("http://localhost:3808"),
+        allowedOrigins: z.array(z.string()).default(["http://localhost:3000", "http://127.0.0.1:3000"]),
     }).passthrough(),
     global: z.object({
         systemPrompt: z.string().default("You are a helpful AI assistant. You have access to a personal workspace where you can read, write, move, and copy files using the 'manage_files' tool. If a user asks about an image in your workspace (like a screenshot), you can visually inspect it using the 'describe_image' tool."),
@@ -83,6 +84,7 @@ const ConfigSchema = z.object({
         version: z.string().default("2026-02-18"),
         latestVersion: z.string().default(""),
     }).passthrough().default({ version: "2026-02-18", latestVersion: "" }),
+    enabledTools: z.record(z.string(), z.boolean()).default({}),
 }).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -152,6 +154,7 @@ export function loadConfig(): Config {
                 port: 3808,
                 secretToken: "",
                 endpoint: "http://localhost:3808",
+                allowedOrigins: ["http://localhost:3000", "http://127.0.0.1:3000"],
             },
             global: {
                 systemPrompt: "You are a helpful AI assistant.",
@@ -164,7 +167,8 @@ export function loadConfig(): Config {
             system: {
                 version: "2026-02-18",
                 latestVersion: "",
-            }
+            },
+            enabledTools: {}
         };
     }
 }

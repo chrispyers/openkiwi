@@ -57,6 +57,7 @@ interface Config {
         endpoint: string;
         model: string;
     }[];
+    enabledTools?: Record<string, boolean>;
 }
 
 interface Agent {
@@ -77,6 +78,8 @@ interface ToolDefinition {
         properties: Record<string, any>;
         required?: string[];
     };
+    filename?: string;
+    isRegistered?: boolean;
 }
 
 interface SettingsPageProps {
@@ -88,7 +91,7 @@ interface SettingsPageProps {
     config: Config | null;
     setConfig: React.Dispatch<React.SetStateAction<Config | null>>;
     models: string[];
-    saveConfig: (e?: React.FormEvent) => Promise<void>;
+    saveConfig: (e?: React.FormEvent, configOverride?: Config) => Promise<void>;
     agents: Agent[];
     settingsAgentId: string;
     setSettingsAgentId: (id: string) => void;
@@ -99,8 +102,9 @@ interface SettingsPageProps {
     saveAgentConfig: () => Promise<void>;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     tools: ToolDefinition[];
-    whatsappStatus: { connected: boolean, qrCode: string | null };
+    whatsappStatus: { connected: boolean, qrCode: string | null, isInitializing?: boolean };
     onLogoutWhatsApp: () => Promise<void>;
+    onConnectWhatsApp: () => Promise<void>;
     gatewayAddr: string;
 }
 
@@ -126,6 +130,7 @@ export default function SettingsPage({
     tools,
     whatsappStatus,
     onLogoutWhatsApp,
+    onConnectWhatsApp,
     gatewayAddr
 }: SettingsPageProps) {
     const [publicConfig, setPublicConfig] = useState<any>(null);
@@ -219,8 +224,10 @@ export default function SettingsPage({
                                         ) : (
                                             <div className="flex flex-col md:flex-row gap-8 w-full items-center">
                                                 <div className="flex-1">
-                                                    <Text>
+                                                    <Text bold={true}>
                                                         Scan the QR code below with your phone to link WhatsApp.
+                                                    </Text>
+                                                    <Text>
                                                         <br />
                                                         1. Open WhatsApp on your phone
                                                         <br />
@@ -232,13 +239,24 @@ export default function SettingsPage({
                                                     </Text>
                                                 </div>
 
-                                                <div className="w-64 h-64 bg-white p-4 rounded-xl flex items-center justify-center border border-border-color shadow-sm">
+                                                <div className="w-64 h-64 bg-white dark:bg-bg-primary p-4 rounded-xl flex items-center justify-center">
                                                     {whatsappStatus.qrCode ? (
                                                         <img src={whatsappStatus.qrCode} alt="WhatsApp QR Code" className="w-full h-full object-contain" />
-                                                    ) : (
+                                                    ) : whatsappStatus.isInitializing ? (
                                                         <div className="flex flex-col items-center gap-2 text-neutral-400">
                                                             <Loader2 className="animate-spin" />
                                                             <span className="text-xs">Generating QR...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <div className="flex flex-col items-center gap-4 text-neutral-400">
+                                                            <Button
+                                                                themed={false}
+                                                                onClick={onConnectWhatsApp}
+                                                                icon={faLink}
+                                                            >
+                                                                Generate QR Code
+                                                            </Button>
+                                                            <span className="text-xs">WhatsApp is currently inactive.</span>
                                                         </div>
                                                     )}
                                                 </div>
@@ -260,9 +278,7 @@ export default function SettingsPage({
                                         <div className="flex justify-between items-center">
                                             <div className="space-y-1">
                                                 <Text bold={true} className="flex items-center gap-2">
-                                                    <FontAwesomeIcon icon={faBrain} />
-                                                    Enable Vector Embeddings
-                                                </Text>
+                                                    <FontAwesomeIcon icon={faBrain} />Enable Vector Embeddings</Text>
                                                 <Text size="sm" secondary={true} className="block">
                                                     Enhance memory recall using semantic vector search. When disabled, keyword search is used.
                                                 </Text>
@@ -339,7 +355,7 @@ export default function SettingsPage({
                     {activeSettingsSection === 'tools' && (
                         <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500">
                             <Card className="space-y-6">
-                                <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2">
                                     <Text>
                                         <FontAwesomeIcon icon={faWrench} />
                                     </Text>
@@ -352,15 +368,46 @@ export default function SettingsPage({
 
                                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4 text-left">
                                     {tools.map(tool => (
-                                        <div key={tool.name} className="p-6 bg-white dark:bg-bg-primary rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all">
-                                            <div className="flex justify-between items-start">
-                                                <Text bold={true} size="lg">{tool.name}</Text>
-                                                <Badge>Plugin</Badge>
+                                        <div key={tool.name} className="p-6 bg-white dark:bg-bg-primary rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all relative">
+                                            <div className="flex justify-between items-start pr-12">
+                                                <div className="flex items-center gap-2">
+                                                    <Text bold={true} size="lg">{tool.name}</Text>
+                                                    <Badge>Plugin</Badge>
+                                                </div>
+                                                <div className="absolute top-5 right-0">
+                                                    <Toggle
+                                                        checked={tool.filename ? (config?.enabledTools?.[tool.filename] ?? false) : true}
+                                                        onChange={() => {
+                                                            if (!tool.filename || !config) return;
+                                                            const filename = tool.filename;
+                                                            const enabledStatus = config.enabledTools?.[filename] ?? false;
+
+                                                            const newConfig: Config = {
+                                                                ...config,
+                                                                enabledTools: {
+                                                                    ...(config.enabledTools || {}),
+                                                                    [filename]: !enabledStatus
+                                                                }
+                                                            };
+
+                                                            setConfig(newConfig);
+                                                            saveConfig(undefined, newConfig).then(() => {
+                                                                toast.success(`${!enabledStatus ? 'Enabled' : 'Disabled'} ${tool.name}`);
+                                                            }).catch(err => {
+                                                                toast.error(`Failed to update ${tool.name}`);
+                                                                console.error(err);
+                                                            });
+                                                        }}
+                                                        disabled={!tool.filename}
+                                                    />
+                                                </div>
                                             </div>
-                                            <Text size="sm" secondary={true}>{tool.description}</Text>
-                                            <div className="pt-2">
+                                            <div className="pt-0">
+                                                <Text size="sm" secondary={true}>{tool.description}</Text>
+                                            </div>
+                                            <div className="pt-0">
                                                 <Text className="uppercase" size="xs" bold={true}>Parameters</Text>
-                                                <div className="flex flex-wrap gap-2">
+                                                <div className="flex flex-wrap gap-2 mt-1">
                                                     {Object.keys(tool.parameters.properties).map(prop => (
                                                         <Badge key={prop} className="font-mono">
                                                             {prop}

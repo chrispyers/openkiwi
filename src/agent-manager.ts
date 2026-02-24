@@ -227,4 +227,13 @@ ${globalSystemPrompt}`.trim();
         this.memoryManagers.clear();
         logger.log({ type: 'system', level: 'info', message: '[AgentManager] Cleared memory manager cache.' });
     }
+
+    static deleteAgent(id: string): void {
+        const agentDir = path.join(AGENTS_DIR, id);
+        if (fs.existsSync(agentDir)) {
+            fs.rmSync(agentDir, { recursive: true, force: true });
+        }
+        this.memoryManagers.delete(id);
+        logger.log({ type: 'system', level: 'info', message: `[AgentManager] Deleted agent ${id}` });
+    }
 }

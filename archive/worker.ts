@@ -69,14 +69,42 @@ ws.on('message', (data) => {
         console.log(`🛠️ Executing remote tool: ${name}`, args);
 
         if (name === 'run_host_command') {
-            exec(args.command, { cwd: args.cwd }, (error, stdout, stderr) => {
+            const parts = args.command.split(' ');
+            const cmd = parts[0];
+            const cmdArgs = parts.slice(1);
+
+            const child = spawn(cmd, cmdArgs, { cwd: args.cwd });
+            let stdout = '';
+            let stderr = '';
+
+            child.stdout.on('data', (data) => {
+                stdout += data.toString();
+            });
+
+            child.stderr.on('data', (data) => {
+                stderr += data.toString();
+            });
+
+            child.on('close', (code) => {
                 ws.send(JSON.stringify({
                     type: 'tool_result',
                     id: id,
                     result: {
                         stdout: stdout.trim(),
                         stderr: stderr.trim(),
-                        exitCode: error ? error.code : 0
+                        exitCode: code
+                    }
+                }));
+            });
+
+            child.on('error', (error) => {
+                ws.send(JSON.stringify({
+                    type: 'tool_result',
+                    id: id,
+                    result: {
+                        stdout: stdout.trim(),
+                        stderr: stderr.trim() + '\nError: ' + error.message,
+                        exitCode: 1
                     }
                 }));
             });

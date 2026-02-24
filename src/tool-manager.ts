@@ -23,20 +23,28 @@ export class ToolManager {
     private static tools: Map<string, Tool> = new Map();
 
     static async discoverTools(): Promise<void> {
+        this.tools.clear();
         if (!fs.existsSync(TOOLS_DIR)) {
             fs.mkdirSync(TOOLS_DIR, { recursive: true });
         }
 
         const files = fs.readdirSync(TOOLS_DIR).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
+        const config = (await import('./config-manager.js')).loadConfig();
+        const enabledTools = config.enabledTools || {};
 
         for (const file of files) {
+            if (!enabledTools[file]) {
+                console.log(`[ToolManager] Skipping disabled tool file: ${file}`);
+                continue;
+            }
             try {
                 // Dynamic import for external plugins
                 const fullPath = path.join(TOOLS_DIR, file);
                 const toolModule = await import(`file://${fullPath}`); // Use file:// for ESM absolute paths
                 if (toolModule.default && toolModule.default.definition && toolModule.default.handler) {
+                    toolModule.default.definition.filename = file;
                     this.registerTool(toolModule.default);
-                    console.log(`[ToolManager] Loaded external tool: ${toolModule.default.definition.name}`);
+                    console.log(`[ToolManager] Loaded external tool: ${toolModule.default.definition.name} (${file})`);
                 } else {
                     console.warn(`[ToolManager] File ${file} is not a valid tool (missing default export or definition/handler)`);
                 }
@@ -46,16 +54,19 @@ export class ToolManager {
         }
 
         // Register built-in tools for the demo
-        this.registerBuiltInTools();
+        await this.registerBuiltInTools();
     }
 
-    private static registerBuiltInTools() {
+    private static async registerBuiltInTools() {
         // Register built-in tools
-        import('./tools/memory_tools.js').then(module => {
+        try {
+            const module = await import('./tools/memory_tools.js');
             this.registerTool(module.memory_search);
             this.registerTool(module.memory_get);
             this.registerTool(module.save_to_memory);
-        }).catch(err => console.error('Failed to load memory tools', err));
+        } catch (err) {
+            console.error('Failed to load memory tools', err);
+        }
     }
 
     static registerTool(tool: any) {
@@ -73,6 +84,11 @@ export class ToolManager {
 
     static getToolDefinitions(): ToolDefinition[] {
         return Array.from(this.tools.values()).map(t => t.definition);
+    }
+
+    static getAvailableToolFiles(): string[] {
+        if (!fs.existsSync(TOOLS_DIR)) return [];
+        return fs.readdirSync(TOOLS_DIR).filter(f => f.endsWith('.ts') || f.endsWith('.js'));
     }
 
     static async callTool(name: string, args: any, context?: any): Promise<any> {

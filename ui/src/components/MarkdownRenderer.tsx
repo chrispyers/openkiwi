@@ -13,10 +13,20 @@ interface MarkdownRendererProps {
 }
 
 const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className = '', breaks = true }) => {
-    // Pre-process content to fix common LLM formatting issues
+    const gatewayToken = localStorage.getItem('gateway_token') || '';
+
+    // Pre-process content to fix common LLM formatting issues and inject auth for images
     const processedContent = content
         // Ensure space after hash for headings
-        .replace(/^(#{1,6})([^# \n])/gm, '$1 $2');
+        .replace(/^(#{1,6})([^# \n])/gm, '$1 $2')
+        // Rewrite image URLs to use the authenticated proxy and include the token if not already signed
+        .replace(/(?<!\/api\/files\/)(\/screenshots\/|\/workspace-files\/)([^? \n\)]+)/g, (match, prefix, filename) => {
+            // If it already has a signature or token, leave it alone
+            if (match.includes('?sig=') || match.includes('?token=')) return match;
+
+            const type = prefix.includes('screenshots') ? 'screenshots' : 'workspace-files';
+            return `/api/files/${type}/${filename}?token=${gatewayToken}`;
+        });
 
     const plugins = [remarkGfm];
     if (breaks) plugins.push(remarkBreaks);

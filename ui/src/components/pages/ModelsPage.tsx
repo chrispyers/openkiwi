@@ -414,15 +414,14 @@ export default function ModelsPage({
                                     <div className="bg-bg-primary/50 border border-border-color rounded-2xl p-6 flex items-center justify-between">
                                         <div className="flex items-center gap-4">
                                             <div className="w-12 h-12 bg-white dark:bg-neutral-800 rounded-xl flex items-center justify-center border border-border-color">
-                                                <img src={OpenRouterIcon} className="h-7" alt="OpenRouter" />
+                                                <img src={OpenRouterIcon} className="h-7 dark:invert" alt="OpenRouter" />
                                             </div>
                                             <div>
-                                                <Text bold={true}>OpenRouter is active</Text>
-                                                <Text size="sm" secondary={true}>You can now use OpenRouter models with your agents.</Text>
+                                                <div><Text bold={true}>OpenRouter is active</Text></div>
+                                                <div><Text size="sm" secondary={true}>You can now use OpenRouter models with your agents.</Text></div>
                                             </div>
                                         </div>
                                         <div className="flex gap-2">
-                                            <Button size="sm" onClick={() => handleRowClick(openRouterModels[0].originalIndex)}>Edit Configuration</Button>
                                             <Button size="sm" themed={false} className="!text-rose-500 hover:!bg-rose-500/10" onClick={() => handleDeleteProvider(openRouterModels[0].originalIndex)}>Remove</Button>
                                         </div>
                                     </div>
@@ -540,7 +539,7 @@ export default function ModelsPage({
                             className={`h-12 flex-1 min-w-[140px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'openrouter' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
                             onClick={() => setSelectedProviderType('openrouter')}
                         >
-                            <img src={OpenRouterIcon} alt="OpenRouter" className="h-6" />
+                            <img src={OpenRouterIcon} alt="OpenRouter" className="h-6 dark:invert" />
                         </Button>
                     </div>
 
