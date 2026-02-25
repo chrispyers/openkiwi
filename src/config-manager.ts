@@ -90,10 +90,60 @@ const ConfigSchema = z.object({
 
 export type Config = z.infer<typeof ConfigSchema>;
 
-const CONFIG_PATH = path.resolve(process.cwd(), 'config.json');
+const CONFIG_PATH = path.resolve(process.cwd(), 'config', 'config.json');
+const LEGACY_MOUNT_PATH = path.resolve(process.cwd(), 'config.json.legacy');
+const TEMPLATE_PATH = path.resolve(process.cwd(), 'config.json.template');
 let hasLoggedToken = false;
 
+function ensureConfigDir() {
+    const configDir = path.dirname(CONFIG_PATH);
+    if (!fs.existsSync(configDir)) {
+        fs.mkdirSync(configDir, { recursive: true });
+    }
+}
+
 export function loadConfig(): Config {
+    // 1. Migration/Initialization logic
+    if (!fs.existsSync(CONFIG_PATH)) {
+        // Try legacy mount first
+        if (fs.existsSync(LEGACY_MOUNT_PATH)) {
+            try {
+                const stats = fs.statSync(LEGACY_MOUNT_PATH);
+                if (stats.isFile()) {
+                    console.log('[Config] Found legacy config.json via mount. Migrating to config/config.json...');
+                    ensureConfigDir();
+                    fs.copyFileSync(LEGACY_MOUNT_PATH, CONFIG_PATH);
+                }
+            } catch (err) {
+                // Likely a directory mount from Docker (new user), ignore it
+            }
+        }
+
+        // Check for existing old config in root (for non-docker local runs)
+        const OLD_ROOT_CONFIG = path.resolve(process.cwd(), 'config.json');
+        if (!fs.existsSync(CONFIG_PATH) && fs.existsSync(OLD_ROOT_CONFIG)) {
+            try {
+                const stats = fs.statSync(OLD_ROOT_CONFIG);
+                if (stats.isFile()) {
+                    console.log('[Config] Found legacy config.json in root. Migrating...');
+                    ensureConfigDir();
+                    fs.copyFileSync(OLD_ROOT_CONFIG, CONFIG_PATH);
+                }
+            } catch (err) { }
+        }
+
+        // If still no config, use template
+        if (!fs.existsSync(CONFIG_PATH) && fs.existsSync(TEMPLATE_PATH)) {
+            console.log('[Config] No config found. Initializing from template...');
+            try {
+                ensureConfigDir();
+                fs.copyFileSync(TEMPLATE_PATH, CONFIG_PATH);
+            } catch (err) {
+                console.error('[Config] Failed to initialize from template:', err);
+            }
+        }
+    }
+
     try {
         const data = fs.readFileSync(CONFIG_PATH, 'utf-8');
         const json = JSON.parse(data);

@@ -32,14 +32,15 @@ COPY --from=builder /app/dist ./dist
 COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
+COPY config.json.template ./
 
 # Create necessary data directories
-RUN mkdir -p agents sessions workspace logs screenshots
+RUN mkdir -p agents sessions workspace logs screenshots config
 
 # Hardening: Only give the node user ownership of the data directories.
 # The app code (dist, src, etc.) remains owned by root and read-only for the node user.
-RUN chown -R node:node agents sessions workspace logs screenshots && \
-    chmod -R 770 agents sessions workspace logs screenshots
+RUN chown -R node:node agents sessions workspace logs screenshots config && \
+    chmod -R 770 agents sessions workspace logs screenshots config
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]

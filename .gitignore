@@ -7,6 +7,7 @@ ui/dist/*
 agents/*/*.md
 agents/*/config.json
 agents/*/sessions/*
+config/config.json
 config.json
 dist/*
 logs.db

@@ -1,0 +1,33 @@
+{
+  "chat": {
+    "showReasoning": false,
+    "includeHistory": false,
+    "generateSummaries": false,
+    "showTokenMetrics": true
+  },
+  "gateway": {
+    "port": 3808,
+    "allowedOrigins": [
+      "http://localhost:3000",
+      "http://127.0.0.1:3000"
+    ],
+    "secretToken": "",
+    "endpoint": "http://localhost:3808"
+  },
+  "global": {
+    "systemPrompt": ""
+  },
+  "providers": [],
+  "memory": {
+    "useEmbeddings": false
+  },
+  "system": {
+  },
+  "enabledTools": {
+    "example_tool.ts": false,
+    "vision.ts": true,
+    "filesystem.ts": true,
+    "weather.ts": true,
+    "web_browser.ts": true
+  }
+}
