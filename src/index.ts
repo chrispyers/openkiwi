@@ -8,8 +8,10 @@ import { AgentManager } from './agent-manager.js';
 import { ToolManager } from './tool-manager.js';
 import { HeartbeatManager } from './heartbeat-manager.js';
 import { WhatsAppManager } from './whatsapp-manager.js';
+import { TelegramManager } from './telegram-manager.js';
 import { SCREENSHOTS_DIR, WORKSPACE_DIR } from './security.js';
 import { initWhatsAppHandler } from './WhatsApp.js';
+import { initTelegramHandler } from './Telegram.js';
 import apiRouter from './routes.js';
 import { checkForUpdates } from './services/update-service.js';
 import { handleChatConnection } from './chat-handler.js';
@@ -55,6 +57,12 @@ async function startServer() {
     // Initialize WhatsApp and its message handler
     WhatsAppManager.getInstance();
     initWhatsAppHandler();
+
+    // Initialize Telegram and its message handler
+    initTelegramHandler();
+    if (process.env.TELEGRAM_BOT_TOKEN?.trim()) {
+        TelegramManager.getInstance().connect();
+    }
 
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {
