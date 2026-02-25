@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
 import Page from './Page'
 import { faHistory, faMicrochip, faWrench } from '@fortawesome/free-solid-svg-icons'
+import { faWhatsapp } from '@fortawesome/free-brands-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
 import Select from '../Select'
@@ -197,7 +198,7 @@ export default function SettingsPage({
                                 <div>
                                     <Text bold={true} size="lg">
                                         <span className="w-10 h-10 rounded-full bg-[#25D366] flex items-center justify-center text-white inline-flex">
-                                            <FontAwesomeIcon icon={faComments} />
+                                            <Text size="2xl" className="text-white"><FontAwesomeIcon icon={faWhatsapp} /></Text>
                                         </span>
                                         <Text size="lg" bold={true} className="ml-3">WhatsApp Integration</Text>
                                     </Text>

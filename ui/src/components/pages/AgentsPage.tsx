@@ -12,23 +12,8 @@ import Select from '../Select'
 import AgentFileButton from '../AgentFileButton'
 import Code from '../Code'
 
-interface Agent {
-    id: string;
-    name: string;
-    emoji: string;
-    path: string;
-    identity: string;
-    soul: string;
-    memory?: string;
-    rules: string;
-    heartbeatInstructions?: string;
-    heartbeat?: {
-        enabled: boolean;
-        schedule: string;
-    };
-    systemPrompt: string;
-    provider?: string;
-}
+import { Agent } from '../../types'
+
 
 interface AgentsPageProps {
     gatewayAddr: string;

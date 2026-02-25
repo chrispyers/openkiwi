@@ -1,0 +1,115 @@
+import { Router } from 'express';
+import path from 'node:path';
+import fs from 'node:fs';
+import { AgentManager } from '../agent-manager.js';
+import { HeartbeatManager } from '../heartbeat-manager.js';
+import { signMarkdown } from '../security.js';
+
+const router = Router();
+
+router.get('/', (req, res) => {
+    const agentIds = AgentManager.listAgents();
+    const agents = agentIds.map(id => {
+        const agent = AgentManager.getAgent(id);
+        if (!agent) return null;
+        return {
+            ...agent,
+            identity: signMarkdown(agent.identity),
+            soul: signMarkdown(agent.soul),
+            memory: signMarkdown(agent.memory),
+            heartbeatInstructions: signMarkdown(agent.heartbeatInstructions),
+            systemPrompt: signMarkdown(agent.systemPrompt)
+        };
+    }).filter(Boolean);
+    res.json(agents);
+});
+
+router.post('/', (req, res) => {
+    try {
+        const { name } = req.body;
+        if (!name || typeof name !== 'string' || name.trim().length === 0) {
+            return res.status(400).json({ error: 'Agent name is required' });
+        }
+        const agent = AgentManager.createAgent(name.trim());
+        res.json(agent);
+    } catch (error) {
+        res.status(400).json({ error: String(error) });
+    }
+});
+
+const validateAgentId = (req: any, res: any, next: any) => {
+    const id = req.params.id;
+    if (!id || typeof id !== 'string') return res.status(400).json({ error: 'Invalid agent ID' });
+    const sanitized = id.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+    if (id !== sanitized || id.length === 0) {
+        return res.status(400).json({ error: 'Invalid agent ID format' });
+    }
+    next();
+};
+
+router.post('/:id/config', validateAgentId, (req, res) => {
+    try {
+        AgentManager.saveAgentConfig(req.params.id, req.body);
+        HeartbeatManager.refreshAgent(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ error: String(error) });
+    }
+});
+
+router.get('/:id/files', validateAgentId, (req, res) => {
+    try {
+        const agentDir = path.resolve(process.cwd(), 'agents', req.params.id);
+        if (!fs.existsSync(agentDir)) return res.json([]);
+
+        const files = fs.readdirSync(agentDir).filter(f => fs.statSync(path.join(agentDir, f)).isFile());
+        res.json(files);
+    } catch (error) {
+        res.status(500).json({ error: String(error) });
+    }
+});
+
+router.get('/:id/files/:filename', validateAgentId, (req, res) => {
+    try {
+        const agentDir = path.resolve(process.cwd(), 'agents', req.params.id);
+        const filePath = path.join(agentDir, req.params.filename);
+
+        if (filePath !== agentDir && !filePath.startsWith(agentDir + path.sep)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        if (!fs.existsSync(filePath)) return res.status(404).send('File not found');
+
+        res.sendFile(filePath);
+    } catch (error) {
+        res.status(500).json({ error: String(error) });
+    }
+});
+
+router.delete('/:id', validateAgentId, (req, res) => {
+    try {
+        AgentManager.deleteAgent(req.params.id);
+        res.json({ success: true });
+    } catch (error) {
+        res.status(400).json({ error: String(error) });
+    }
+});
+
+router.post('/:id/files/:filename', validateAgentId, (req, res) => {
+    try {
+        const { content } = req.body;
+        const agentDir = path.resolve(process.cwd(), 'agents', req.params.id);
+        const filePath = path.join(agentDir, req.params.filename);
+
+        if (filePath !== agentDir && !filePath.startsWith(agentDir + path.sep)) {
+            return res.status(403).json({ error: 'Access denied' });
+        }
+
+        fs.writeFileSync(filePath, content, 'utf-8');
+        res.json({ success: true });
+    } catch (error) {
+        res.status(500).json({ error: String(error) });
+    }
+});
+
+export default router;

@@ -70,12 +70,10 @@ export default function GatewayPage({
                 <Card className="space-y-6">
                     <div>
                         <div className="w-full">
-                            <div className="space-y-1">
-                                <div><Text>Specify the address of your gateway.</Text></div>
-
+                            <div className="space-y-5">
                                 <div className="flex gap-1">
-                                    <Text secondary={true} size="sm">For local development use</Text>
-                                    <Text secondary={true} size="sm" bold={true}><Code>http://localhost:3808</Code></Text>
+                                    <Text>Specify the address of your gateway. For local development use</Text>
+                                    <Text bold={true}><Code>http://localhost:3808</Code></Text>
                                 </div>
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -128,6 +126,7 @@ export default function GatewayPage({
                                 <div className="mt-4 flex gap-4">
                                     <div className="flex-1">
                                         <Input
+                                            icon={faGlobeAmericas}
                                             label="Allowed Origins (comma separated)"
                                             currentText={allowedOrigins}
                                             onChange={e => setAllowedOrigins(e.target.value)}
@@ -143,8 +142,8 @@ export default function GatewayPage({
                                         </Button>
                                     </div>
                                 </div>
-                                <div className="mt-2 flex gap-1">
-                                    <Text secondary={true} size="xs">Recommended for local use:</Text>
+                                <div className="mt-3 flex gap-1">
+                                    <Text secondary={true} size="sm">Recommended for local use:</Text>
                                     <Text secondary={true} size="xs" bold={true}><Code>http://localhost:3000, http://127.0.0.1:3000</Code></Text>
                                 </div>
                             </div>

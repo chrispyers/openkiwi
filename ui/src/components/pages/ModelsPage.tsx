@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { faPlus, faKey, faCube, faSave, faRefresh, faAlignLeft } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faKey, faCube, faSave, faRefresh, faAlignLeft, faPencil, faTag } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Provider from '../Provider'
 import Button from '../Button'
@@ -12,7 +12,7 @@ import Select from '../Select'
 import Page from './Page'
 import ModelsTable from '../ModelsTable'
 import Input from '../Input'
-import { Model } from '../../types'
+import { Model, Config, Agent } from '../../types'
 import GoogleIcon from '../../img/google.png'
 import OpenAIIcon from '../../img/openai.svg.png'
 import AnthropicIcon from '../../img/anthropic.png'
@@ -22,41 +22,13 @@ import OllamaIcon from '../../img/ollama.png'
 import LemonadeIcon from '../../img/lemonade.png'
 
 
-interface Config {
-
-    chat: {
-        showReasoning: boolean;
-        includeHistory: boolean;
-        generateSummaries: boolean;
-    };
-    gateway: {
-        port: number;
-        endpoint: string;
-    };
-    global?: {
-        systemPrompt: string;
-    };
-    providers: {
-        description: string;
-        endpoint: string;
-        model: string;
-        apiKey?: string;
-        capabilities?: {
-            vision?: boolean;
-            reasoning?: boolean;
-            trained_for_tool_use?: boolean;
-        }
-    }[];
-}
-
-
 interface ModelsPageProps {
     config: Config | null;
     setConfig: React.Dispatch<React.SetStateAction<Config | null>>;
     models: string[];
     saveConfig: (e?: React.FormEvent, configOverride?: Config) => Promise<void>;
     fetchModels: (isSilent?: boolean, configOverride?: { endpoint: string, apiKey?: string }, skipSetState?: boolean) => Promise<boolean | string[] | Model[] | void>;
-
+    agents: Agent[];
 }
 
 export default function ModelsPage({
@@ -64,7 +36,8 @@ export default function ModelsPage({
     setConfig,
     models,
     saveConfig,
-    fetchModels
+    fetchModels,
+    agents
 }: ModelsPageProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [newProvider, setNewProvider] = useState<{ description: string; endpoint: string; model: string; capabilities?: { vision?: boolean; reasoning?: boolean; trained_for_tool_use?: boolean } }>({ description: '', endpoint: '', model: '' });
@@ -74,6 +47,7 @@ export default function ModelsPage({
     const [newAnthropicProvider, setNewAnthropicProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [newOpenRouterProvider, setNewOpenRouterProvider] = useState({ apiKey: '', description: '' });
     const [newLemonadeProvider, setNewLemonadeProvider] = useState({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} as any });
+    const [newOllamaProvider, setNewOllamaProvider] = useState({ endpoint: 'http://localhost:11434', model: '', description: '', capabilities: {} as any });
     const [scannedModels, setScannedModels] = useState<Model[]>([]);
 
     // Editing State
@@ -100,6 +74,7 @@ export default function ModelsPage({
             setNewAnthropicProvider({ apiKey: '', model: '', description: '', capabilities: {} });
             setNewOpenRouterProvider({ apiKey: '', description: '' });
             setNewLemonadeProvider({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} });
+            setNewOllamaProvider({ endpoint: 'http://localhost:11434', model: '', description: '', capabilities: {} });
             setScannedModels([]);
         }
     }, [isModalOpen]);
@@ -133,7 +108,7 @@ export default function ModelsPage({
         const newConfig = { ...config, providers: updatedProviders };
         setConfig(newConfig);
         await saveConfig(undefined, newConfig);
-        toast.success("Provider updated");
+        toast.success("Model updated");
         setIsEditModalOpen(false);
     };
 
@@ -193,10 +168,7 @@ export default function ModelsPage({
         };
     };
 
-    const handleScanInEdit = async () => {
-        if (!editForm.endpoint) return;
-        await fetchModels(false, { endpoint: editForm.endpoint, apiKey: editForm.apiKey });
-    };
+
 
     const handleGeminiScan = async () => {
         if (!newGeminiProvider.apiKey) {
@@ -376,10 +348,48 @@ export default function ModelsPage({
         setNewLemonadeProvider({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} });
     };
 
+    const handleOllamaScan = async () => {
+        if (!newOllamaProvider.endpoint) {
+            toast.error("Please enter an endpoint first");
+            return;
+        }
+        const result = await fetchModels(false, {
+            endpoint: newOllamaProvider.endpoint,
+            apiKey: ''
+        }, true);
+        if (Array.isArray(result)) {
+            const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
+            setScannedModels(models);
+        }
+    };
+
+    const handleOllamaSave = async () => {
+        if (!config || !newOllamaProvider.model) {
+            toast.error("Please select a Model first");
+            return;
+        }
+
+        const providerToAdd = {
+            description: newOllamaProvider.description.trim() || `Ollama - ${newOllamaProvider.model}`,
+            endpoint: newOllamaProvider.endpoint,
+            model: newOllamaProvider.model,
+            capabilities: newOllamaProvider.capabilities
+        };
+
+        const updatedProviders = [...(config.providers || []), providerToAdd];
+        const newConfig = { ...config, providers: updatedProviders };
+        setConfig(newConfig);
+        await saveConfig(undefined, newConfig);
+        toast.success("Successfully saved Ollama provider");
+        setIsModalOpen(false);
+        setNewOllamaProvider({ endpoint: 'http://localhost:11434', model: '', description: '', capabilities: {} });
+    };
+
     const augmentedProviders = config?.providers.map((p, i) => ({ ...p, originalIndex: i })) || [];
     const anthropicModels = augmentedProviders.filter(p => p.endpoint.includes('anthropic.com'));
     const googleModels = augmentedProviders.filter(p => p.endpoint.includes('googleapis.com'));
     const lemonadeModels = augmentedProviders.filter(p => p.endpoint.includes(':8000') || p.description.toLowerCase().includes('lemonade'));
+    const ollamaModels = augmentedProviders.filter(p => p.endpoint.includes(':11434') || p.description.toLowerCase().includes('ollama'));
     const lmStudioModels = augmentedProviders.filter(p => p.endpoint.includes(':1234'));
     const openAIModels = augmentedProviders.filter(p => p.endpoint.includes('api.openai.com'));
     const openRouterModels = augmentedProviders.filter(p => p.endpoint.includes('openrouter.ai'));
@@ -388,6 +398,8 @@ export default function ModelsPage({
         !p.endpoint.includes('googleapis.com') &&
         !p.endpoint.includes(':8000') &&
         !p.description.toLowerCase().includes('lemonade') &&
+        !p.endpoint.includes(':11434') &&
+        !p.description.toLowerCase().includes('ollama') &&
         !p.endpoint.includes(':1234') &&
         !p.endpoint.includes('api.openai.com') &&
         !p.endpoint.includes('openrouter.ai')
@@ -404,7 +416,7 @@ export default function ModelsPage({
             <Card>
                 <div className="space-y-8 animate-in fade-in slide-in-from-right-4 duration-500 max-w-6xl">
                     {augmentedProviders.length === 0 ? (
-                        <ModelsTable providers={[]} onRowClick={() => { }} />
+                        <ModelsTable providers={[]} onRowClick={() => { }} agents={agents} />
                     ) : (
                         <div className="space-y-12">
                             {anthropicModels.length > 0 && (
@@ -414,6 +426,7 @@ export default function ModelsPage({
                                         providers={anthropicModels}
                                         onRowClick={(i) => handleRowClick(anthropicModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(anthropicModels[i].originalIndex)}
+                                        agents={agents}
                                     />
                                 </div>
                             )}
@@ -425,6 +438,7 @@ export default function ModelsPage({
                                         providers={googleModels}
                                         onRowClick={(i) => handleRowClick(googleModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(googleModels[i].originalIndex)}
+                                        agents={agents}
                                     />
                                 </div>
                             )}
@@ -436,6 +450,19 @@ export default function ModelsPage({
                                         providers={lemonadeModels}
                                         onRowClick={(i) => handleRowClick(lemonadeModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(lemonadeModels[i].originalIndex)}
+                                        agents={agents}
+                                    />
+                                </div>
+                            )}
+
+                            {ollamaModels.length > 0 && (
+                                <div className="space-y-4">
+                                    <Text size="lg" bold={true}>Ollama</Text>
+                                    <ModelsTable
+                                        providers={ollamaModels}
+                                        onRowClick={(i) => handleRowClick(ollamaModels[i].originalIndex)}
+                                        onDelete={(i) => handleDeleteProvider(ollamaModels[i].originalIndex)}
+                                        agents={agents}
                                     />
                                 </div>
                             )}
@@ -447,6 +474,7 @@ export default function ModelsPage({
                                         providers={lmStudioModels}
                                         onRowClick={(i) => handleRowClick(lmStudioModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(lmStudioModels[i].originalIndex)}
+                                        agents={agents}
                                     />
                                 </div>
                             )}
@@ -458,6 +486,7 @@ export default function ModelsPage({
                                         providers={openAIModels}
                                         onRowClick={(i) => handleRowClick(openAIModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(openAIModels[i].originalIndex)}
+                                        agents={agents}
                                     />
                                 </div>
                             )}
@@ -489,6 +518,7 @@ export default function ModelsPage({
                                         providers={otherModels}
                                         onRowClick={(i) => handleRowClick(otherModels[i].originalIndex)}
                                         onDelete={(i) => handleDeleteProvider(otherModels[i].originalIndex)}
+                                        agents={agents}
                                     />
                                 </div>
                             )}
@@ -500,49 +530,22 @@ export default function ModelsPage({
             <Modal
                 isOpen={isEditModalOpen}
                 onClose={() => setIsEditModalOpen(false)}
-                title="Edit Provider"
+                title="Edit Model"
                 className="max-w-xl"
             >
                 <div className="p-6 space-y-6">
-                    <div className="space-y-2">
-                        <label className="text-xs font-bold uppercase tracking-wider block">Description</label>
-                        <input
-                            type="text"
-                            className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                            value={editForm.description}
-                            onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
-                        />
+                    <div className="mb-2">
+                        <Text secondary={true} size="xs" bold={true} className="uppercase tracking-widest mb-1 block">Model Name</Text>
+                        <Text size="lg" bold={true}>{editForm.model}</Text>
                     </div>
 
-                    <div className="space-y-2">
-                        <div className="flex justify-between items-center mb-1">
-                            <label className="text-xs font-bold uppercase tracking-wider block">Model</label>
-                            <button
-                                onClick={handleScanInEdit}
-                                className="text-xs text-accent-primary hover:underline font-bold"
-                            >
-                                Scan Available
-                            </button>
-                        </div>
-                        <div className="relative">
-                            <input
-                                type="text"
-                                list="available-models"
-                                className="w-full bg-bg-primary border border-border-color rounded-xl px-5 py-3 outline-none focus:border-accent-primary transition-all text-sm"
-                                value={editForm.model}
-                                onChange={(e) => setEditForm(prev => ({ ...prev, model: e.target.value }))}
-                                placeholder="Enter or select a model"
-                            />
-                            <datalist id="available-models">
-                                {models.map(m => (
-                                    <option key={m} value={m} />
-                                ))}
-                                {geminiModels.map(m => (
-                                    <option key={`gemini-${m}`} value={m} />
-                                ))}
-                            </datalist>
-                        </div>
-                    </div>
+                    <Input
+                        label="Description"
+                        icon={faTag}
+                        currentText={editForm.description}
+                        onChange={(e) => setEditForm(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Enter a description for this model"
+                    />
 
                     <div className="pt-2">
                         <Button
@@ -551,7 +554,7 @@ export default function ModelsPage({
                             onClick={handleUpdateProvider}
                             icon={faSave}
                         >
-                            Update Provider
+                            Update Model
                         </Button>
                     </div>
                 </div>
@@ -590,8 +593,8 @@ export default function ModelsPage({
                             <img src={LMStudioIcon} alt="LM Studio" className="h-8" />
                         </Button>
                         <Button
-                            className="h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500"
-                            onClick={() => toast.info("Ollama support coming soon")}
+                            className={`h-16 flex-1 min-w-[60px] text-lg font-bold border-2 transition-all ${selectedProviderType === 'ollama' ? 'border-accent-primary bg-accent-primary/10 text-accent-primary' : 'border-border-color bg-bg-card hover:bg-bg-primary text-neutral-500'}`}
+                            onClick={() => setSelectedProviderType('ollama')}
                         >
                             <img src={OllamaIcon} alt="Ollama" className="h-8 dark:invert" />
                         </Button>
@@ -758,6 +761,34 @@ export default function ModelsPage({
                             />
                         </div>
                     )}
+                    {selectedProviderType === 'ollama' && (
+                        <div className="animate-in fade-in slide-in-from-top-4 duration-300">
+                            <Provider
+                                name="Ollama"
+                                description={newOllamaProvider.description}
+                                endpoint={newOllamaProvider.endpoint}
+                                model={newOllamaProvider.model}
+                                models={scannedModels}
+                                onDescriptionChange={(val) => setNewOllamaProvider(prev => ({ ...prev, description: val }))}
+                                onEndpointChange={(val) => setNewOllamaProvider(prev => ({ ...prev, endpoint: val }))}
+                                onModelChange={(val) => {
+                                    const selectedModel = scannedModels.find(m => m.id === val);
+                                    const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
+                                    setNewOllamaProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                }}
+                                onScan={handleOllamaScan}
+                                onSave={handleOllamaSave}
+                                inputPlaceholder="http://localhost:11434"
+                                footer={
+                                    <div className="text-center">
+                                        <Text size="sm" secondary={true}>
+                                            Download Ollama from <a href="https://ollama.com/" target="_blank" rel="noopener noreferrer" className="text-accent-primary hover:underline font-bold">ollama.com</a>
+                                        </Text>
+                                    </div>
+                                }
+                            />
+                        </div>
+                    )}
                     {selectedProviderType === 'openai' && (
                         <div className="animate-in fade-in slide-in-from-top-4 duration-300">
                             <Provider
@@ -804,7 +835,7 @@ export default function ModelsPage({
                                     />
                                     <Input
                                         label="(optional) Description"
-                                        icon={faAlignLeft}
+                                        icon={faTag}
                                         currentText={newOpenRouterProvider.description}
                                         onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOpenRouterProvider(prev => ({ ...prev, description: e.target.value }))}
                                         placeholder="My OpenRouter account"

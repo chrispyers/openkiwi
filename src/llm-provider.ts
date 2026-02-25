@@ -434,6 +434,29 @@ export async function listModels(
         }
     }
 
+    // Handling for Ollama Native API
+    if (providerConfig.baseUrl.includes(':11434') || providerConfig.baseUrl.toLowerCase().includes('ollama')) {
+        // Construct the native Ollama tags endpoint
+        const baseUrl = providerConfig.baseUrl.replace(/\/v1$/, '').replace(/\/$/, '');
+        const nativeUrl = `${baseUrl}/api/tags`;
+
+        try {
+            const response = await fetch(nativeUrl, { method: 'GET' });
+            if (response.ok) {
+                const json = await response.json();
+                if (json.models && Array.isArray(json.models)) {
+                    return json.models.map((m: any) => ({
+                        ...m,
+                        id: m.name || m.model
+                    }));
+                }
+            }
+        } catch (e) {
+            console.warn(`Ollama listModels exception:`, e);
+            // Fallthrough to standard OpenAI attempt
+        }
+    }
+
     // Standard OpenAI compatible URL construction
     const { url: chatUrl, headers } = getProviderEndpoint(providerConfig);
     const url = chatUrl.replace('/chat/completions', '/models');

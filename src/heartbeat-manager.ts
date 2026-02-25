@@ -120,7 +120,8 @@ export class HeartbeatManager {
             const llmConfig = {
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
-                apiKey: providerConfig.apiKey
+                apiKey: providerConfig.apiKey,
+                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
             };
 
             const now = new Date();
