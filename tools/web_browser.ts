@@ -1,6 +1,25 @@
 import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
+import dns from 'dns';
+
+// Helper to check for blocked IP addresses
+function isBannedIP(ip: string): boolean {
+    if (ip === '::1') return true;
+    if (ip.startsWith('127.')) return true;
+    if (ip.startsWith('10.')) return true;
+    if (ip.startsWith('192.168.')) return true;
+    if (ip.startsWith('169.254.')) return true;
+    if (ip.startsWith('0.')) return true;
+    const parts = ip.split('.');
+    if (parts.length === 4) {
+        if (parts[0] === '172') {
+            const second = parseInt(parts[1], 10);
+            if (second >= 16 && second <= 31) return true;
+        }
+    }
+    return false;
+}
 
 // Helper to ensure screenshots directory exists
 const SCREENSHOTS_DIR = path.resolve(process.cwd(), 'screenshots');
@@ -99,6 +118,20 @@ export default {
                 if (!urlToVisit.startsWith('http')) {
                     urlToVisit = `https://${urlToVisit}`;
                 }
+            }
+
+            try {
+                const parsedUrl = new URL(urlToVisit);
+                if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
+                    throw new Error(`Unsupported protocol: ${parsedUrl.protocol}`);
+                }
+                const lookupInfo = await dns.promises.lookup(parsedUrl.hostname);
+                if (isBannedIP(lookupInfo.address)) {
+                    throw new Error(`Access to IP ${lookupInfo.address} is restricted.`);
+                }
+            } catch (validationError: any) {
+                console.error(`[Browser] URL Validation Failed: ${validationError.message}`);
+                return { error: `URL Validation Failed: ${validationError.message}` };
             }
 
             console.log(`[Browser] Visiting: ${urlToVisit}`);
