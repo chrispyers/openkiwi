@@ -14,3 +14,5 @@ logs.db
 agents/*/memory_index.db
 whatsapp_auth/
 .openkiwi.key
+.env
+CLAUDE.md

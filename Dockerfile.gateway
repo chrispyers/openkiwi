@@ -36,12 +36,12 @@ COPY config/config.json.template ./config/
 COPY agent_template ./agent_template
 
 # Create necessary data directories
-RUN mkdir -p agents sessions workspace logs screenshots config
+RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth
 
 # Hardening: Only give the node user ownership of the data directories.
 # The app code (dist, src, etc.) remains owned by root and read-only for the node user.
-RUN chown -R node:node agents sessions workspace logs screenshots config && \
-    chmod -R 770 agents sessions workspace logs screenshots config
+RUN chown -R node:node agents sessions workspace logs screenshots config whatsapp_auth && \
+    chmod -R 770 agents sessions workspace logs screenshots config whatsapp_auth
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
