@@ -49,6 +49,7 @@ async function getBrowser() {
         args: [
             '--no-sandbox',
             '--disable-setuid-sandbox',
+            '--disable-blink-features=AutomationControlled',
             '--disable-dev-shm-usage', // critical for docker
             '--disable-gpu',
             '--no-zygote',
@@ -122,6 +123,25 @@ export default {
                 }
             }
 
+            // Set realistic headers
+            await page.setExtraHTTPHeaders({
+                'Accept-Language': 'en-US,en;q=0.9',
+                'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8',
+                'sec-ch-ua': '"Not A(Brand";v="99", "Google Chrome";v="121", "Chromium";v="121"',
+                'sec-ch-ua-mobile': '?0',
+                'sec-ch-ua-platform': '"macOS"',
+                'upgrade-insecure-requests': '1',
+            });
+
+            // Bypass basic bot detection
+            await page.evaluateOnNewDocument(() => {
+                Object.defineProperty(navigator, 'webdriver', { get: () => false });
+                // @ts-ignore
+                window.chrome = { runtime: {} };
+                // @ts-ignore
+                navigator.languages = ['en-US', 'en'];
+            });
+
             try {
                 const parsedUrl = new URL(urlToVisit);
                 if (parsedUrl.protocol !== 'http:' && parsedUrl.protocol !== 'https:') {
@@ -138,11 +158,42 @@ export default {
 
             console.log(`[Browser] Visiting: ${urlToVisit}`);
 
-            // Navigate with increased timeout and better wait condition
+            // Navigate with a more robust strategy
             const response = await page.goto(urlToVisit, {
-                waitUntil: ['domcontentloaded', 'networkidle2'],
+                waitUntil: 'domcontentloaded',
                 timeout: 30000
             });
+
+            // Allow extra time for scripts to run
+            await new Promise(r => setTimeout(r, 2000));
+
+            // Attempt to dismiss common consent banners
+            await page.evaluate(() => {
+                const selectors = [
+                    'button[id*="consent"]', 'button[class*="consent"]',
+                    'button[id*="cookie"]', 'button[class*="cookie"]',
+                    'button[id*="accept"]', 'button[class*="accept"]',
+                    '[aria-label*="Accept"]', '[title*="Accept"]',
+                    '.ot-sdk-container button', '#onetrust-accept-btn-handler'
+                ];
+                for (const selector of selectors) {
+                    const elements = document.querySelectorAll(selector);
+                    for (const el of Array.from(elements)) {
+                        if ((el as HTMLElement).innerText?.toLowerCase().includes('accept') ||
+                            (el as HTMLElement).innerText?.toLowerCase().includes('agree') ||
+                            (el as HTMLElement).innerText?.toLowerCase().includes('allow')) {
+                            (el as HTMLElement).click();
+                        }
+                    }
+                }
+            });
+
+            // Best-effort wait for network to settle
+            try {
+                await page.waitForNetworkIdle({ timeout: 4000 });
+            } catch (e) {
+                console.log(`[Browser] Network didn't settle within 4s, proceeding.`);
+            }
 
             if (!response) {
                 throw new Error('Navigation failed: No response received');
@@ -152,38 +203,22 @@ export default {
                 console.warn(`[Browser] Page responded with status ${response.status()}`);
             }
 
-            // specific waits
-            try {
-                if (action === 'search') {
-                    await page.waitForSelector('#react-layout, #links, .result', { timeout: 5000 });
-                } else if (action === 'search_images') {
-                    // Wait for any image to load
-                    try {
-                        await page.waitForSelector('img', { timeout: 5000 });
-                        // Scroll extensively to trigger lazy loading
-                        for (let i = 0; i < 5; i++) {
-                            await page.evaluate(() => window.scrollBy(0, 500));
-                            await new Promise(r => setTimeout(r, 200));
-                        }
-                        await new Promise(r => setTimeout(r, 1000));
-                    } catch (e) {
-                        // ignore
-                    }
-                }
-            } catch (e) {
-                // Ignore timeout waiting for specific selector
-            }
-
             // Take Screenshot
             const filename = `screenshot-${Date.now()}.png`;
             const screenshotPath = path.join(SCREENSHOTS_DIR, filename);
             await page.screenshot({ path: screenshotPath, fullPage: false });
 
-            // Extract text content
+            // Extract text content - focusing on main content if possible
             const textContent = await page.evaluate(() => {
-                const scripts = document.querySelectorAll('script, style, noscript, svg, img');
-                scripts.forEach(s => s.remove());
-                return document.body.innerText.trim().substring(0, 4000);
+                // Remove noise
+                const noise = document.querySelectorAll('script, style, noscript, svg, img, iframe, nav, footer, aside');
+                noise.forEach(s => s.remove());
+
+                // Try to find the main content first
+                const main = document.querySelector('main, article, #content, .content, .main-content');
+                const root = (main || document.body) as HTMLElement;
+
+                return root.innerText.trim().substring(0, 5000);
             });
 
             let searchResults = [];
