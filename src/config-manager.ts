@@ -92,7 +92,7 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'config', 'config.json');
 const LEGACY_MOUNT_PATH = path.resolve(process.cwd(), 'config.json.legacy');
-const TEMPLATE_PATH = path.resolve(process.cwd(), 'config.json.template');
+const TEMPLATE_PATH = path.resolve(process.cwd(), 'config', 'config.json.template');
 let hasLoggedToken = false;
 
 function ensureConfigDir() {

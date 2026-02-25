@@ -32,7 +32,7 @@ COPY --from=builder /app/dist ./dist
 COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
-COPY config.json.template ./
+COPY config/config.json.template ./config/
 
 # Create necessary data directories
 RUN mkdir -p agents sessions workspace logs screenshots config
