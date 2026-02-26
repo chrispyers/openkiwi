@@ -29,5 +29,6 @@
     "filesystem.ts": true,
     "weather.ts": true,
     "web_browser.ts": true
-  }
+  },
+  "tools": {}
 }

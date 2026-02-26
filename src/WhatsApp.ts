@@ -183,7 +183,8 @@ export function initWhatsAppHandler() {
                 messages: payload,
                 visionEnabled: !!providerConfig?.capabilities?.vision,
                 maxLoops: 5,
-                signToolUrls: true
+                signToolUrls: true,
+                agentToolsConfig: agent?.tools
             });
 
             if (finalAiResponse) {

@@ -9,20 +9,7 @@ function debug(...args: unknown[]) {
     if (DEBUG) console.log('[GitHub:DEBUG]', ...args);
 }
 
-const allowedReposList = (process.env.GITHUB_ALLOWED_REPOS || '')
-    .split(',')
-    .map((r) => r.trim())
-    .filter(Boolean);
-
-const allowedPathsList = (process.env.GITHUB_ALLOWED_PATHS || '')
-    .split(',')
-    .map((p) => p.trim())
-    .filter(Boolean);
-
-debug('Module loaded. GH_TOKEN set:', !!process.env.GH_TOKEN,
-    process.env.GH_TOKEN ? `(${process.env.GH_TOKEN.length} chars, starts with ${process.env.GH_TOKEN.slice(0, 10)}...)` : '(empty)');
-debug('Allowed repos:', allowedReposList);
-debug('Allowed paths:', allowedPathsList);
+debug('Module loaded. GH_TOKEN set:', !!process.env.GH_TOKEN);
 
 const toolDescription =
     'Manage files in GitHub repositories (list, read, create, update). ' +
@@ -64,7 +51,6 @@ export default {
                 },
                 repo: {
                     type: 'string',
-                    enum: allowedReposList.length > 0 ? allowedReposList : undefined,
                     description: 'GitHub repository in "owner/repo" format.'
                 },
                 path: {
@@ -95,36 +81,32 @@ export default {
         path: string;
         content?: string;
         message?: string;
+        _context?: { agentId?: string; toolConfig?: { allowedRepos?: string[]; allowedPaths?: string[] } };
     }) => {
-        const { action, repo, path, content, message } = args;
+        const { action, repo, path, content, message, _context } = args;
 
         // --- Validation ---
 
         debug('handler called:', { action, repo, path, hasContent: !!content, hasMessage: !!message });
-        debug('GH_TOKEN at call time:', !!process.env.GH_TOKEN,
-            process.env.GH_TOKEN ? `(${process.env.GH_TOKEN.length} chars, starts with ${process.env.GH_TOKEN.slice(0, 10)}...)` : '(empty)');
+        debug('GH_TOKEN at call time:', !!process.env.GH_TOKEN);
 
         if (!process.env.GH_TOKEN) {
             return { error: 'GH_TOKEN environment variable is not set. Set GH_TOKEN in your .env file.' };
         }
 
-        const allowedRepos = (process.env.GITHUB_ALLOWED_REPOS || '')
-            .split(',')
-            .map((r) => r.trim())
-            .filter(Boolean);
+        const allowedRepos = _context?.toolConfig?.allowedRepos
+            ?? (process.env.GITHUB_ALLOWED_REPOS || '').split(',').map(r => r.trim()).filter(Boolean);
 
         if (allowedRepos.length === 0) {
-            return { error: 'GITHUB_ALLOWED_REPOS is not configured. No repositories are allowed.' };
+            return { error: 'No allowed repositories configured. Set allowedRepos in tool config or GITHUB_ALLOWED_REPOS env var.' };
         }
 
         if (!allowedRepos.includes(repo)) {
             return { error: `Repository "${repo}" is not in the allowed list. Allowed: ${allowedRepos.join(', ')}` };
         }
 
-        const allowedPaths = (process.env.GITHUB_ALLOWED_PATHS || '')
-            .split(',')
-            .map((p) => p.trim())
-            .filter(Boolean);
+        const allowedPaths = _context?.toolConfig?.allowedPaths
+            ?? (process.env.GITHUB_ALLOWED_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
 
         // Path validation (skip for list at repo root)
         const isRootList = action === 'list' && (!path || path === '' || path === '/' || path === '.');

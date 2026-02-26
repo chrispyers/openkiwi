@@ -88,6 +88,7 @@ app.use('/api', apiRouter);
 
 // WebSocket for Chat
 wss.on('connection', handleChatConnection);
+/* NOTE: agentToolsConfig pass-through needs to be added to chat-handler.ts */
 
 startServer().catch(err => {
     console.error('FATAL STARTUP ERROR:', err);

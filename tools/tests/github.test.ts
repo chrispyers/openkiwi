@@ -64,6 +64,10 @@ describe('github tool', () => {
             ]);
         });
 
+        it('should not have enum constraint on repo', () => {
+            expect(tool.definition.parameters.properties.repo.enum).toBeUndefined();
+        });
+
         it('should have a handler function', () => {
             expect(typeof tool.handler).toBe('function');
         });
@@ -83,7 +87,7 @@ describe('github tool', () => {
             const result = await tool.handler({
                 action: 'list', repo: 'owner/blog', path: 'content/blog'
             });
-            expect(result.error).toMatch(/not configured/);
+            expect(result.error).toMatch(/allowed repositories/i);
         });
 
         it('should reject a repo not in the allowed list', async () => {
@@ -139,6 +143,120 @@ describe('github tool', () => {
                 content: '# Updated'
             });
             expect(result.error).toMatch(/"message".*required/);
+        });
+    });
+
+    describe('toolConfig (per-agent config)', () => {
+        it('should use toolConfig allowedRepos when provided', async () => {
+            // Clear env vars to prove toolConfig is used
+            delete process.env.GITHUB_ALLOWED_REPOS;
+            delete process.env.GITHUB_ALLOWED_PATHS;
+
+            mockGhSuccess([{ name: 'README.md', path: 'README.md', type: 'file', size: 100 }]);
+
+            const result = await tool.handler({
+                action: 'list',
+                repo: 'custom/repo',
+                path: '/',
+                _context: {
+                    agentId: 'test-agent',
+                    toolConfig: {
+                        allowedRepos: ['custom/repo'],
+                        allowedPaths: []
+                    }
+                }
+            });
+
+            expect(result.error).toBeUndefined();
+            expect(result.files).toBeDefined();
+        });
+
+        it('should use toolConfig allowedPaths when provided', async () => {
+            delete process.env.GITHUB_ALLOWED_REPOS;
+            delete process.env.GITHUB_ALLOWED_PATHS;
+
+            const result = await tool.handler({
+                action: 'read',
+                repo: 'custom/repo',
+                path: 'secrets/keys.txt',
+                _context: {
+                    agentId: 'test-agent',
+                    toolConfig: {
+                        allowedRepos: ['custom/repo'],
+                        allowedPaths: ['docs']
+                    }
+                }
+            });
+
+            expect(result.error).toMatch(/not within allowed prefixes/);
+        });
+
+        it('should reject repo not in toolConfig allowedRepos', async () => {
+            const result = await tool.handler({
+                action: 'list',
+                repo: 'hacker/evil',
+                path: '/',
+                _context: {
+                    agentId: 'test-agent',
+                    toolConfig: {
+                        allowedRepos: ['owner/blog'],
+                        allowedPaths: []
+                    }
+                }
+            });
+
+            expect(result.error).toMatch(/not in the allowed list/);
+        });
+
+        it('should fall back to env vars when no toolConfig provided', async () => {
+            // env vars are set in beforeEach
+            mockGhSuccess([{ name: 'post.md', path: 'content/blog/post.md', type: 'file', size: 50 }]);
+
+            const result = await tool.handler({
+                action: 'list', repo: 'owner/blog', path: 'content/blog'
+            });
+
+            expect(result.error).toBeUndefined();
+            expect(result.files).toBeDefined();
+        });
+
+        it('should fall back to env vars when toolConfig is empty', async () => {
+            mockGhSuccess([{ name: 'post.md', path: 'content/blog/post.md', type: 'file', size: 50 }]);
+
+            const result = await tool.handler({
+                action: 'list',
+                repo: 'owner/blog',
+                path: 'content/blog',
+                _context: { agentId: 'test-agent' }
+            });
+
+            expect(result.error).toBeUndefined();
+            expect(result.files).toBeDefined();
+        });
+
+        it('should allow all paths when toolConfig allowedPaths is empty array', async () => {
+            delete process.env.GITHUB_ALLOWED_REPOS;
+            delete process.env.GITHUB_ALLOWED_PATHS;
+
+            const fileContent = '# Secret';
+            const encoded = Buffer.from(fileContent).toString('base64');
+            mockGhSuccess({ type: 'file', content: encoded, sha: 'abc', size: 8 });
+
+            const result = await tool.handler({
+                action: 'read',
+                repo: 'custom/repo',
+                path: 'any/path/file.md',
+                _context: {
+                    agentId: 'test-agent',
+                    toolConfig: {
+                        allowedRepos: ['custom/repo'],
+                        allowedPaths: []
+                    }
+                }
+            });
+
+            expect(result.error).toBeUndefined();
+            expect(result.content).toBe(fileContent);
         });
     });
 

@@ -86,6 +86,7 @@ const ConfigSchema = z.object({
         latestVersion: z.string().default(""),
     }).passthrough().default({ version: "2026-02-18", latestVersion: "" }),
     enabledTools: z.record(z.string(), z.boolean()).default({}),
+    tools: z.record(z.string(), z.any()).default({}),
 }).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -220,7 +221,8 @@ export function loadConfig(): Config {
                 version: "2026-02-18",
                 latestVersion: "",
             },
-            enabledTools: {}
+            enabledTools: {},
+            tools: {}
         };
     }
 }

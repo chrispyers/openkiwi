@@ -21,6 +21,7 @@ export interface Agent {
         enabled: boolean;
         schedule: string;
     };
+    tools?: Record<string, any>;
 }
 
 export interface AgentState {
@@ -87,7 +88,8 @@ ${globalSystemPrompt}`.trim();
             heartbeatInstructions,
             systemPrompt,
             provider: agentConfig.provider,
-            heartbeat: agentConfig.heartbeat
+            heartbeat: agentConfig.heartbeat,
+            tools: agentConfig.tools
         };
     }
 
