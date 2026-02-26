@@ -81,7 +81,7 @@ export default {
         path: string;
         content?: string;
         message?: string;
-        _context?: { agentId?: string; toolConfig?: { allowedRepos?: string[]; allowedPaths?: string[] } };
+        _context?: { agentId?: string; toolConfig?: { repos?: Record<string, string[]> } };
     }) => {
         const { action, repo, path, content, message, _context } = args;
 
@@ -94,19 +94,23 @@ export default {
             return { error: 'GH_TOKEN environment variable is not set. Set GH_TOKEN in your .env file.' };
         }
 
-        const allowedRepos = _context?.toolConfig?.allowedRepos
-            ?? (process.env.GITHUB_ALLOWED_REPOS || '').split(',').map(r => r.trim()).filter(Boolean);
+        const reposConfig = _context?.toolConfig?.repos;
+
+        const allowedRepos = reposConfig
+            ? Object.keys(reposConfig)
+            : (process.env.GITHUB_ALLOWED_REPOS || '').split(',').map(r => r.trim()).filter(Boolean);
 
         if (allowedRepos.length === 0) {
-            return { error: 'No allowed repositories configured. Set allowedRepos in tool config or GITHUB_ALLOWED_REPOS env var.' };
+            return { error: 'No allowed repositories configured. Set repos in tool config or GITHUB_ALLOWED_REPOS env var.' };
         }
 
         if (!allowedRepos.includes(repo)) {
             return { error: `Repository "${repo}" is not in the allowed list. Allowed: ${allowedRepos.join(', ')}` };
         }
 
-        const allowedPaths = _context?.toolConfig?.allowedPaths
-            ?? (process.env.GITHUB_ALLOWED_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
+        const allowedPaths = reposConfig
+            ? reposConfig[repo] ?? []
+            : (process.env.GITHUB_ALLOWED_PATHS || '').split(',').map(p => p.trim()).filter(Boolean);
 
         // Path validation (skip for list at repo root)
         const isRootList = action === 'list' && (!path || path === '' || path === '/' || path === '.');

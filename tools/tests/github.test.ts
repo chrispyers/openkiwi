@@ -147,7 +147,7 @@ describe('github tool', () => {
     });
 
     describe('toolConfig (per-agent config)', () => {
-        it('should use toolConfig allowedRepos when provided', async () => {
+        it('should use toolConfig repos when provided', async () => {
             // Clear env vars to prove toolConfig is used
             delete process.env.GITHUB_ALLOWED_REPOS;
             delete process.env.GITHUB_ALLOWED_PATHS;
@@ -161,8 +161,7 @@ describe('github tool', () => {
                 _context: {
                     agentId: 'test-agent',
                     toolConfig: {
-                        allowedRepos: ['custom/repo'],
-                        allowedPaths: []
+                        repos: { 'custom/repo': [] }
                     }
                 }
             });
@@ -171,7 +170,7 @@ describe('github tool', () => {
             expect(result.files).toBeDefined();
         });
 
-        it('should use toolConfig allowedPaths when provided', async () => {
+        it('should use per-repo allowed paths from toolConfig repos', async () => {
             delete process.env.GITHUB_ALLOWED_REPOS;
             delete process.env.GITHUB_ALLOWED_PATHS;
 
@@ -182,8 +181,7 @@ describe('github tool', () => {
                 _context: {
                     agentId: 'test-agent',
                     toolConfig: {
-                        allowedRepos: ['custom/repo'],
-                        allowedPaths: ['docs']
+                        repos: { 'custom/repo': ['docs'] }
                     }
                 }
             });
@@ -191,7 +189,7 @@ describe('github tool', () => {
             expect(result.error).toMatch(/not within allowed prefixes/);
         });
 
-        it('should reject repo not in toolConfig allowedRepos', async () => {
+        it('should reject repo not in toolConfig repos', async () => {
             const result = await tool.handler({
                 action: 'list',
                 repo: 'hacker/evil',
@@ -199,8 +197,7 @@ describe('github tool', () => {
                 _context: {
                     agentId: 'test-agent',
                     toolConfig: {
-                        allowedRepos: ['owner/blog'],
-                        allowedPaths: []
+                        repos: { 'owner/blog': [] }
                     }
                 }
             });
@@ -234,7 +231,7 @@ describe('github tool', () => {
             expect(result.files).toBeDefined();
         });
 
-        it('should allow all paths when toolConfig allowedPaths is empty array', async () => {
+        it('should allow all paths when repo has empty paths array', async () => {
             delete process.env.GITHUB_ALLOWED_REPOS;
             delete process.env.GITHUB_ALLOWED_PATHS;
 
@@ -249,8 +246,7 @@ describe('github tool', () => {
                 _context: {
                     agentId: 'test-agent',
                     toolConfig: {
-                        allowedRepos: ['custom/repo'],
-                        allowedPaths: []
+                        repos: { 'custom/repo': [] }
                     }
                 }
             });
