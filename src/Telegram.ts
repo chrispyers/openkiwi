@@ -17,7 +17,31 @@ interface TelegramMessage {
  * Initializes the Telegram message listener and handler logic
  */
 export function initTelegramHandler() {
-    TelegramManager.getInstance().on('message', async (msg: TelegramMessage) => {
+    const telegram = TelegramManager.getInstance();
+
+    // Handle /agents command
+    telegram.on('command', async (cmd: { command: string; chatId: string }) => {
+        if (cmd.command !== 'agents') return;
+        try {
+            const agentIds = AgentManager.listAgents();
+            const agents = agentIds
+                .map(id => AgentManager.getAgent(id))
+                .filter(a => a !== null);
+
+            if (agents.length === 0) {
+                await TelegramManager.getInstance().sendMessage(cmd.chatId, 'No agents available.');
+                return;
+            }
+
+            const lines = agents.map(a => `• @${a!.name}${a!.emoji ? ' ' + a!.emoji : ''}`);
+            const reply = `Available agents:\n\n${lines.join('\n')}\n\nMention an agent by name to chat with them, e.g. @${agents[0]!.name} hello`;
+            await TelegramManager.getInstance().sendMessage(cmd.chatId, reply);
+        } catch (err) {
+            logger.log({ type: 'error', level: 'error', message: `Telegram /agents command error: ${err}` });
+        }
+    });
+
+    telegram.on('message', async (msg: TelegramMessage) => {
         try {
             const { chatId, userId, username, text } = msg;
 
@@ -145,7 +169,8 @@ export function initTelegramHandler() {
                 messages: payload,
                 visionEnabled: !!providerConfig?.capabilities?.vision,
                 maxLoops: 5,
-                signToolUrls: true
+                signToolUrls: true,
+                agentToolsConfig: agent?.tools
             });
 
             if (finalAiResponse) {

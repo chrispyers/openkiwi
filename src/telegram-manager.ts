@@ -81,6 +81,20 @@ export class TelegramManager extends EventEmitter {
 
             this.bot = new Telegraf(token);
 
+            // Register command handlers
+            this.bot.command('agents', async (ctx) => {
+                const userId = ctx.from.id;
+                const username = ctx.from.username;
+                if (!isUserAllowed(userId, username)) return;
+
+                this.emit('command', {
+                    command: 'agents',
+                    chatId: String(ctx.chat.id),
+                    userId: String(userId),
+                    username: username || undefined
+                });
+            });
+
             // Register text message handler
             this.bot.on(message('text'), async (ctx) => {
                 const userId = ctx.from.id;
