@@ -14,6 +14,7 @@ export interface AgentLoopOptions {
     signToolUrls?: boolean;
     onDelta?: (content: string) => void;
     onUsage?: (usageStats: any) => void;
+    onToolCall?: (toolCall: any) => void;
 }
 
 export interface AgentLoopResult {
@@ -67,10 +68,29 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             if (delta.tool_calls) {
                 for (const toolCall of delta.tool_calls) {
                     if (!toolCalls[toolCall.index]) {
-                        toolCalls[toolCall.index] = toolCall;
+                        toolCalls[toolCall.index] = { ...toolCall };
+                        if (toolCall.function) {
+                            toolCalls[toolCall.index].function = { ...toolCall.function };
+                        } else {
+                            toolCalls[toolCall.index].function = { name: '', arguments: '' };
+                        }
                     } else {
-                        if (toolCall.function?.arguments) {
-                            toolCalls[toolCall.index].function.arguments += toolCall.function.arguments;
+                        if (toolCall.id) {
+                            toolCalls[toolCall.index].id = toolCall.id;
+                        }
+                        if (toolCall.type) {
+                            toolCalls[toolCall.index].type = toolCall.type;
+                        }
+                        if (toolCall.function) {
+                            if (!toolCalls[toolCall.index].function) {
+                                toolCalls[toolCall.index].function = { name: '', arguments: '' };
+                            }
+                            if (toolCall.function.name) {
+                                toolCalls[toolCall.index].function.name = (toolCalls[toolCall.index].function.name || '') + toolCall.function.name;
+                            }
+                            if (toolCall.function.arguments) {
+                                toolCalls[toolCall.index].function.arguments = (toolCalls[toolCall.index].function.arguments || '') + toolCall.function.arguments;
+                            }
                         }
                     }
                 }
@@ -116,10 +136,26 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             }
         }
 
-        const actualToolCalls = toolCalls.filter(Boolean);
+        const actualToolCalls = toolCalls.filter(Boolean).map(tc => {
+            const name = tc.function?.name;
+            if (name) {
+                const defs = ToolManager.getToolDefinitions();
+                const toolDef = defs.find(d => d.name === name);
+
+                // Be resilient to both 'pluginType' and 'type' property names
+                const pType = toolDef?.pluginType || (toolDef as any)?.type || 'skill';
+
+                return {
+                    ...tc,
+                    displayName: toolDef?.displayName || name,
+                    pluginType: pType
+                };
+            }
+            return tc;
+        });
 
         if (actualToolCalls.length > 0) {
-            const assistantMsg = { role: 'assistant', content: fullContent || null, tool_calls: actualToolCalls };
+            const assistantMsg = { role: 'assistant', content: fullContent || '', tool_calls: actualToolCalls };
             chatHistory.push(assistantMsg);
 
             for (const toolCall of actualToolCalls) {
@@ -127,6 +163,10 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                 const args = JSON.parse(toolCall.function.arguments || '{}');
 
                 try {
+                    if (options.onToolCall) {
+                        options.onToolCall(toolCall);
+                    }
+
                     let result = await ToolManager.callTool(name, args, { agentId: options.agentId });
 
                     if (options.signToolUrls && result && typeof result === 'object') {
@@ -168,6 +208,9 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                 }
             }
         } else {
+            // Final response with no more tool calls
+            const assistantMsg = { role: 'assistant', content: fullContent || '' };
+            chatHistory.push(assistantMsg);
             finalAiResponse = fullContent;
             toolLoop = false;
         }

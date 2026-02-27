@@ -1,12 +1,13 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBrain, faArrowUp, faArrowDown, faUser, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
+import { faBrain, faArrowUp, faArrowDown, faUser, faEye, faEyeSlash, faWrench, faBoltLightning } from '@fortawesome/free-solid-svg-icons';
 import MarkdownRenderer from './MarkdownRenderer';
 import { Message, Agent } from '../types';
 import Text from './Text';
+import Badge from './Badge';
 
 interface ChatBubbleProps {
-    role: 'user' | 'assistant' | 'reasoning' | 'system';
+    role: 'user' | 'assistant' | 'reasoning' | 'system' | 'tool';
     content: string;
     timestamp?: number;
     formatTimestamp: (timestamp?: number) => string;
@@ -22,6 +23,15 @@ interface ChatBubbleProps {
         totalTokens?: number;
     };
     showTokenMetrics?: boolean;
+    tool_calls?: {
+        id?: string;
+        type?: string;
+        name?: string;
+        displayName?: string;
+        pluginType?: string;
+        arguments?: string;
+        function?: { name: string; arguments: string }
+    }[];
 }
 
 export const ChatBubble = ({
@@ -34,7 +44,8 @@ export const ChatBubble = ({
     isReasoning = false,
     className = "",
     stats,
-    showTokenMetrics = true
+    showTokenMetrics = true,
+    tool_calls
 }: ChatBubbleProps) => {
     const [isVisible, setIsVisible] = React.useState(!isReasoning);
 
@@ -42,7 +53,7 @@ export const ChatBubble = ({
         <div className={`flex w-full group ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
             <div className={`flex flex-col max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className={`flex gap-4 items-start ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${isUser ? 'bg-neutral-100 dark:bg-neutral-800' : isReasoning ? 'bg-violet-500/10 text-violet-500' : 'bg-neutral-200/50 dark:bg-neutral-800 text-white'} shadow-sm`}>
+                    <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${isUser ? 'bg-neutral-200 dark:bg-neutral-700' : isReasoning ? 'bg-violet-500/10 text-violet-500' : 'bg-neutral-200 dark:bg-neutral-700 text-white'} shadow-sm`}>
                         <Text>
                             {avatar}
                         </Text>
@@ -72,6 +83,22 @@ export const ChatBubble = ({
                                         breaks={!isUser}
                                     />
                                 </div>
+                                {tool_calls && tool_calls.length > 0 && (
+                                    <div className="flex flex-wrap gap-2 mt-3 pt-3 border-t border-neutral-500/10">
+                                        {tool_calls.map((tc, idx) => (
+                                            <Badge>
+                                                {tc.pluginType === 'tool' ? (
+                                                    <FontAwesomeIcon icon={faWrench} className="w-3 h-3 mr-1" />
+                                                ) : tc.pluginType === 'skill' ? (
+                                                    <FontAwesomeIcon icon={faBrain} className="w-3 h-3 mr-1" />
+                                                ) : (
+                                                    <><FontAwesomeIcon icon={faBoltLightning} className="w-3 h-3 mr-1" />{tc.pluginType}</>
+                                                )}
+                                                {tc.displayName || tc.function?.name || tc.name}
+                                            </Badge>
+                                        ))}
+                                    </div>
+                                )}
                                 {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (
                                     <div className="flex items-center gap-3 mt-3 pt-2 border-t border-neutral-500/10 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
                                         <span className="flex items-center gap-1">
@@ -158,6 +185,7 @@ export const AgentChatBubble = ({
             className={isReasoning ? 'reasoning-bubble' : 'ai-bubble'}
             stats={message.stats}
             showTokenMetrics={showTokenMetrics}
+            tool_calls={message.tool_calls}
         />
     );
 };
@@ -165,7 +193,7 @@ export const AgentChatBubble = ({
 export const StreamingChatBubble = ({ agent }: { agent?: Agent }) => (
     <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex gap-4 items-start">
-            <div className="bg-neutral-200/50 dark:bg-neutral-800 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
+            <div className="bg-neutral-200/50 dark:bg-neutral-700 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
                 <Text>
                     {agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>}
                 </Text>

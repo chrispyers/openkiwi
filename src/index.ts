@@ -50,9 +50,7 @@ async function startServer() {
         fs.mkdirSync(WORKSPACE_DIR, { recursive: true });
     }
 
-    // Check for updates on startup and then every hour
-    await checkForUpdates();
-    setInterval(checkForUpdates, 3600000); // 1 hour
+    // Check for updates is now handled manually from the ABOUT page
 
     // Initialize WhatsApp and its message handler
     WhatsAppManager.getInstance();
@@ -72,7 +70,8 @@ app.use(cors({
         const currentConfig = loadConfig();
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
-        if (allowed.includes(origin) || allowed.includes('*')) {
+        // Prevent wildcard usage with credentials
+        if (allowed.includes(origin) && origin !== '*') {
             callback(null, true);
         } else {
             console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);

@@ -9,7 +9,9 @@
 
 export default {
     definition: {
-        name: 'Weather',
+        name: 'weather',
+        displayName: 'Weather',
+        pluginType: 'tool',
         description: 'Get the current weather conditions for a specific location. You can provide a city and state (e.g. San Francisco, CA), a zip code (e.g. 90210), or any other location name.',
         parameters: {
             type: 'object',

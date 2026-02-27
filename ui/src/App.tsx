@@ -93,6 +93,7 @@ interface LogEntry {
 
 interface ToolDefinition {
   name: string;
+  displayName: string;
   description: string;
   parameters: {
     type: 'object';
@@ -124,10 +125,9 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'general' | 'tools' | 'chat' | 'config' | 'messaging'>('general');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'about'>('agents');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
-  const [isUpdateModalOpen, setIsUpdateModalOpen] = useState(false);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
@@ -514,7 +514,7 @@ function App() {
       const enabledTools = currentConfig.enabledTools || {};
 
       const combinedTools: ToolDefinition[] = [
-        ...data.definitions.map(d => ({ ...d, isRegistered: true }))
+        ...data.definitions.map(d => ({ ...d, displayName: d.displayName || d.name, isRegistered: true }))
       ];
 
       // Add files that aren't registered yet
@@ -526,6 +526,7 @@ function App() {
         if (!existingTool) {
           combinedTools.push({
             name: file,
+            displayName: file,
             description: "This tool is currently disabled. Enable it to load its capabilities.",
             parameters: { type: 'object', properties: {} },
             filename: file,
@@ -762,9 +763,10 @@ function App() {
 
   const processSessionMessages = (msgs: Message[]) => {
     const processed: Message[] = [];
+
     msgs.forEach(msg => {
       // Check for thought/reasoning tags in assistant messages
-      if (msg.role === 'assistant' && /<(think|thought|reasoning)>/.test(msg.content)) {
+      if (msg.role === 'assistant' && msg.content && /<(think|thought|reasoning)>/.test(msg.content)) {
         const thinkMatch = msg.content.match(/<(think|thought|reasoning)>([\s\S]*?)<\/\1>/i);
         if (thinkMatch) {
           // Add the reasoning message
@@ -776,22 +778,47 @@ function App() {
 
           // Add the clean assistant message
           const cleanContent = msg.content.replace(thinkMatch[0], '').trim();
-          if (cleanContent) {
+          // Always push the assistant message if it has content OR tool calls
+          if (cleanContent || (msg.tool_calls && msg.tool_calls.length > 0)) {
             processed.push({
-              role: 'assistant',
-              content: cleanContent,
-              timestamp: msg.timestamp
+              ...msg,
+              content: cleanContent
             });
           }
         } else {
-          // In case of malformed tags, keep original
           processed.push(msg);
         }
       } else {
         processed.push(msg);
       }
     });
-    return processed;
+
+    // Merge logic: If we have an assistant message with tools followed by an assistant message with text,
+    // merge the tools into the text message to match the streaming experience and avoid empty bubbles.
+    const merged: Message[] = [];
+    for (let i = 0; i < processed.length; i++) {
+      const current = processed[i];
+
+      if (current.role === 'assistant' && !current.content && current.tool_calls && current.tool_calls.length > 0) {
+        let nextAssistantIndex = -1;
+        for (let j = i + 1; j < processed.length; j++) {
+          if (processed[j].role === 'assistant') {
+            nextAssistantIndex = j;
+            break;
+          }
+          if (processed[j].role !== 'tool' && processed[j].role !== 'system') break;
+        }
+
+        if (nextAssistantIndex !== -1) {
+          const nextMsg = processed[nextAssistantIndex];
+          nextMsg.tool_calls = [...(current.tool_calls || []), ...(nextMsg.tool_calls || [])];
+          continue;
+        }
+      }
+      merged.push(current);
+    }
+
+    return merged;
   };
 
   const loadSession = (session: Session) => {
@@ -861,6 +888,7 @@ function App() {
     let currentAiMessage = '';
     let currentReasoning = '';
     let isInsideReasoning = false;
+    let completedTools: any[] = [];
 
     socket.onmessage = (event) => {
       // setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[RECEIVED] ${event.data}` }, ...prev].slice(0, 100)); // Keep last 100 logs
@@ -885,9 +913,17 @@ function App() {
         if (currentReasoning) {
           streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
         }
-        if (currentAiMessage) {
-          streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp });
+        if (currentAiMessage || completedTools.length > 0) {
+          streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
         }
+        setMessages(streamingMsgs);
+      } else if (data.type === 'tool_call') {
+        completedTools.push(data.toolCall);
+        const streamingMsgs: Message[] = [...newMessages];
+        if (currentReasoning) {
+          streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
+        }
+        streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
         setMessages(streamingMsgs);
       } else if (data.type === 'usage') {
         const stats = {
@@ -942,8 +978,6 @@ function App() {
       <Header
         isGatewayConnected={isGatewayConnected}
         onMenuClick={() => setIsNavExpanded(!isNavExpanded)}
-        updateAvailable={!!(config?.system?.latestVersion && config?.system?.version && config.system.latestVersion > config.system.version)}
-        onUpdateClick={() => setIsUpdateModalOpen(true)}
       />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}
@@ -1115,47 +1149,7 @@ function App() {
         </div>
       </Modal>
 
-      <Modal
-        isOpen={isUpdateModalOpen}
-        onClose={() => setIsUpdateModalOpen(false)}
-        title="Upgrade Steps"
-      >
-        <div className="flex-1 overflow-y-auto p-8 h-full space-y-6">
-          <section className="space-y-3">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">1</span>
-              <Text size="lg" bold={true}>
-                Update your local copy
-              </Text>
-            </h3>
-            <MarkdownRenderer content={"```bash\rgit pull\r\n```"} />
-
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">2</span>
-              <Text size="lg" bold={true}>
-                Restart the gateway
-              </Text>
-            </h3>
-            <MarkdownRenderer content={"```bash\ndocker compose down\ndocker compose up --build\n```"} />
-          </section>
-
-          <section className="space-y-3">
-            <h3 className="text-lg font-bold flex items-center gap-2">
-              <span className="w-6 h-6 rounded-full bg-neutral-700 dark:bg-white text-white dark:text-neutral-800 flex items-center justify-center text-xs">3</span>
-              <Text size="lg" bold={true}>
-                Reload the UI
-              </Text>
-            </h3>
-            <p className="text-neutral-500 dark:text-neutral-400 pl-8">
-              Refresh your browser tab once the gateway is back online to see the latest changes.
-            </p>
-            <p className="text-center text-4xl">🎉</p>
-          </section>
-        </div>
-      </Modal>
+      {/* Update Modals have been moved to the ABOUT page */}
     </div>
   )
 }

@@ -7,6 +7,8 @@ const SCREENSHOTS_DIR = path.resolve(process.cwd(), 'screenshots');
 export default {
     definition: {
         name: 'describe_image',
+        displayName: 'Image Analysis',
+        pluginType: 'skill',
         description: 'See and describe the contents of an image file in your workspace or screenshots folder.',
         parameters: {
             type: 'object',
