@@ -1,7 +1,7 @@
-import puppeteer from 'puppeteer';
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
+import { getBrowser } from './browser_utils.js';
 
 // Helper to check for blocked IP addresses
 function isBannedIP(ip: string): boolean {
@@ -27,51 +27,6 @@ if (!fs.existsSync(SCREENSHOTS_DIR)) {
     fs.mkdirSync(SCREENSHOTS_DIR, { recursive: true });
 }
 
-// Global browser instance
-let browser: any = null;
-
-async function getBrowser() {
-    // Check if existing browser is still valid
-    if (browser) {
-        if (browser.isConnected()) {
-            return browser;
-        }
-        // If disconnected, clear it and restart
-        console.log('[Browser] Browser disconnected, relaunching...');
-        try {
-            await browser.close();
-        } catch (e) { /* ignore */ }
-        browser = null;
-    }
-
-    const options: any = {
-        headless: 'new',
-        args: [
-            '--no-sandbox',
-            '--disable-setuid-sandbox',
-            '--disable-blink-features=AutomationControlled',
-            '--disable-dev-shm-usage', // critical for docker
-            '--disable-gpu',
-            '--no-zygote',
-            '--single-process', // helps in low resource containers
-            '--window-size=1280,800'
-        ]
-    };
-
-    // If running in docker, use the installed chromium
-    if (process.env.PUPPETEER_EXECUTABLE_PATH) {
-        options.executablePath = process.env.PUPPETEER_EXECUTABLE_PATH;
-    }
-
-    try {
-        console.log('[Browser] Launching new browser instance...');
-        browser = await puppeteer.launch(options);
-        return browser;
-    } catch (error) {
-        console.error('[Browser] Failed to launch browser:', error);
-        throw new Error('Browser launch failed');
-    }
-}
 
 export default {
     definition: {
