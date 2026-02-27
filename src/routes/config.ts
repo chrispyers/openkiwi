@@ -36,6 +36,7 @@ router.post('/', async (req, res) => {
         const newConfig = req.body as Config;
         saveConfig(newConfig);
         AgentManager.clearMemoryManagers();
+        await AgentManager.initializeAllMemoryManagers(); // Re-initialize to apply new settings immediately
         await ToolManager.discoverTools();
         res.json({ success: true });
     } catch (error) {
