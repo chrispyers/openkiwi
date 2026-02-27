@@ -1,12 +1,16 @@
 import cron from 'node-cron';
 import path from 'node:path';
 import fs from 'node:fs';
-import { AgentManager, Agent } from './agent-manager.js';
+import { AgentManager, Agent, HeartbeatChannel } from './agent-manager.js';
 import { loadConfig } from './config-manager.js';
 import { streamChatCompletion } from './llm-provider.js';
 import { ToolManager } from './tool-manager.js';
 import { logger } from './logger.js';
 import { runAgentLoop } from './agent-loop.js';
+import { SessionManager, Session } from './session-manager.js';
+import { TelegramManager } from './telegram-manager.js';
+import { WhatsAppManager } from './whatsapp-manager.js';
+import { connectedClients } from './routes.js';
 
 export class HeartbeatManager {
     private static jobs: Map<string, any> = new Map();
@@ -202,6 +206,12 @@ Please execute these instructions now.
                 });
             }
             console.log(`💓 Heartbeat finished for ${agent.name}:`, contentToLog.substring(0, 100) + '...');
+
+            // Deliver to configured channels
+            const channels = agent.heartbeat?.channels;
+            if (channels && channels.length > 0 && contentToLog) {
+                await this.deliverToChannels(agentId, agent, channels, contentToLog, fullContent);
+            }
         } catch (error) {
             console.error(`❌ Error during heartbeat execution for ${agent.name}:`, error);
         } finally {
@@ -216,5 +226,97 @@ Please execute these instructions now.
                 data: null
             });
         }
+    }
+
+    private static async deliverToChannels(agentId: string, agent: Agent, channels: HeartbeatChannel[], cleanContent: string, rawContent: string) {
+        for (const channel of channels) {
+            try {
+                switch (channel.type) {
+                    case 'telegram':
+                        await this.deliverToTelegram(agentId, channel.chatId, cleanContent, rawContent);
+                        break;
+                    case 'whatsapp':
+                        await this.deliverToWhatsApp(agentId, channel.jid, cleanContent, rawContent);
+                        break;
+                    case 'websocket':
+                        await this.deliverToWebSocket(agentId, cleanContent, rawContent);
+                        break;
+                    default:
+                        logger.log({ type: 'system', level: 'warn', message: `[Heartbeat] Unknown channel type for ${agentId}: ${(channel as any).type}` });
+                }
+            } catch (err) {
+                logger.log({ type: 'error', level: 'error', message: `[Heartbeat] Failed to deliver to ${channel.type} for ${agentId}`, data: err });
+            }
+        }
+    }
+
+    private static async deliverToTelegram(agentId: string, chatId: string, cleanContent: string, rawContent: string) {
+        const tg = TelegramManager.getInstance();
+        if (!tg.getStatus().connected) {
+            logger.log({ type: 'system', level: 'warn', message: `[Heartbeat] Telegram not connected, skipping delivery for ${agentId}` });
+            return;
+        }
+
+        const sessionId = `tg-${chatId}_${agentId}`;
+        this.saveHeartbeatSession(agentId, sessionId, rawContent);
+
+        await tg.sendMessage(chatId, cleanContent);
+        logger.log({ type: 'system', level: 'info', message: `[Heartbeat] Delivered to Telegram chat ${chatId} for ${agentId}` });
+    }
+
+    private static async deliverToWhatsApp(agentId: string, jid: string, cleanContent: string, rawContent: string) {
+        const wa = WhatsAppManager.getInstance();
+        if (!wa.getStatus().connected) {
+            logger.log({ type: 'system', level: 'warn', message: `[Heartbeat] WhatsApp not connected, skipping delivery for ${agentId}` });
+            return;
+        }
+
+        const sanitizedJid = jid.replace(/[^a-zA-Z0-9]/g, '_');
+        const sessionId = `wa-${sanitizedJid}-${agentId}`;
+        this.saveHeartbeatSession(agentId, sessionId, rawContent);
+
+        await wa.sendMessage(jid, cleanContent);
+        logger.log({ type: 'system', level: 'info', message: `[Heartbeat] Delivered to WhatsApp ${jid} for ${agentId}` });
+    }
+
+    private static async deliverToWebSocket(agentId: string, cleanContent: string, rawContent: string) {
+        const sessionId = `heartbeat-${agentId}-${Date.now()}`;
+        this.saveHeartbeatSession(agentId, sessionId, rawContent);
+
+        const payload = JSON.stringify({ type: 'heartbeat_message', agentId, sessionId, content: cleanContent });
+        for (const [ws] of connectedClients) {
+            try {
+                ws.send(payload);
+            } catch (err) {
+                // Client may have disconnected
+            }
+        }
+        logger.log({ type: 'system', level: 'info', message: `[Heartbeat] Broadcast to ${connectedClients.size} WebSocket client(s) for ${agentId}` });
+    }
+
+    private static saveHeartbeatSession(agentId: string, sessionId: string, rawContent: string) {
+        let session = SessionManager.getSession(sessionId);
+        if (!session) {
+            session = {
+                id: sessionId,
+                agentId,
+                title: 'Scheduled check-in',
+                messages: [],
+                updatedAt: Date.now()
+            };
+        }
+
+        session.messages.push({
+            role: 'user',
+            content: '[Scheduled check-in]',
+            timestamp: Date.now()
+        });
+        session.messages.push({
+            role: 'assistant',
+            content: rawContent,
+            timestamp: Date.now()
+        });
+
+        SessionManager.saveSession(session);
     }
 }
