@@ -67,7 +67,10 @@ export const authMiddleware = (req: any, res: any, next: any) => {
     const token = req.headers['authorization']?.replace('Bearer ', '') || (req.query.token as string);
     const currentConfig = loadConfig();
 
-    if (token !== currentConfig.gateway.secretToken) {
+    const providedBuf = Buffer.from(token || '');
+    const expectedBuf = Buffer.from(currentConfig.gateway.secretToken || '');
+
+    if (providedBuf.length !== expectedBuf.length || !crypto.timingSafeEqual(providedBuf, expectedBuf)) {
         // Log unauthorized attempts but skip for browser favicon/common probes if noisy
         if (!req.path.includes('favicon.ico')) {
             console.warn(`[Auth] Blocked request to ${req.path} from ${req.ip}. Token provided: ${token ? 'YES' : 'NO'}`);
