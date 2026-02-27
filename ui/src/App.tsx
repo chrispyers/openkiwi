@@ -75,44 +75,8 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
 import SessionGroup from './components/SessionGroup'
-import { Agent, Message, Session, Model } from './types'
+import { Agent, Message, Session, Model, Config } from './types'
 
-interface Config {
-
-  chat: {
-    showReasoning: boolean;
-    includeHistory: boolean;
-    generateSummaries: boolean;
-    showTokenMetrics: boolean;
-  };
-  gateway: {
-    port: number;
-    endpoint: string;
-  };
-  global?: {
-    systemPrompt: string;
-  };
-  providers: {
-    description: string;
-    endpoint: string;
-    model: string;
-    apiKey?: string;
-    capabilities?: {
-      vision?: boolean;
-      reasoning?: boolean;
-      trained_for_tool_use?: boolean;
-    };
-  }[];
-  memory?: {
-    useEmbeddings: boolean;
-    embeddingsModel: string;
-  };
-  system?: {
-    version: string;
-    latestVersion: string;
-  };
-  enabledTools?: Record<string, boolean>;
-}
 
 
 
@@ -198,7 +162,7 @@ function App() {
 
   const fetchLogs = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/logs'), {
+      const response = await fetch(getApiUrl('/api/system/logs'), {
         headers: { 'Authorization': `Bearer ${gatewayToken}` }
       });
       if (!response.ok) throw new Error('Failed to fetch logs');
@@ -211,7 +175,7 @@ function App() {
 
   const handleClearLogs = async () => {
     try {
-      const response = await fetch(getApiUrl('/api/logs/clear'), {
+      const response = await fetch(getApiUrl('/api/system/logs/clear'), {
         method: 'POST',
         headers: { 'Authorization': `Bearer ${gatewayToken}` }
       });
@@ -505,7 +469,7 @@ function App() {
 
   async function fetchConnectedClients(addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/clients', addr), {
+      const response = await fetch(getApiUrl('/api/config/clients', addr), {
         headers: { 'Authorization': `Bearer ${token || gatewayToken}` }
       });
       if (!response.ok) throw new Error('Failed to fetch clients');
@@ -654,7 +618,7 @@ function App() {
 
   async function fetchModels(isSilent = false, configOverride?: { endpoint: string, apiKey?: string }, skipSetState = false, addr?: string, token?: string) {
     try {
-      const response = await fetch(getApiUrl('/api/models', addr), {
+      const response = await fetch(getApiUrl('/api/system/models', addr), {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token || gatewayToken}`,
@@ -1071,6 +1035,7 @@ function App() {
               models={models}
               saveConfig={saveConfig}
               fetchModels={fetchModels}
+              agents={agents}
             />
           ) : activeView === 'gateway' ? (
             <GatewayPage

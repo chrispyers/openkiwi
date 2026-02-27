@@ -130,11 +130,20 @@ export class MemoryIndexManager {
         // Check if file has changed
         const row = this.db.prepare('SELECT hash FROM files WHERE path = ?').get(this.memoryPath) as { hash: string } | undefined;
 
-        if (!force && row && row.hash === fileHash) {
+        // Check if the model has changed by looking at existing chunks
+        const currentModel = this.providerConfig?.modelId || 'local';
+        const modelRow = this.db.prepare('SELECT model FROM chunks WHERE path = ? LIMIT 1').get(this.memoryPath) as { model: string } | undefined;
+        const modelChanged = modelRow && modelRow.model !== currentModel;
+
+        if (!force && row && row.hash === fileHash && !modelChanged) {
             return;
         }
 
-        console.log(`[Memory] Syncing ${this.memoryPath}...`);
+        if (modelChanged) {
+            logger.log({ type: 'system', level: 'info', message: `[Memory] Model changed from ${modelRow.model} to ${currentModel}. Re-syncing ${this.memoryPath}...` });
+        } else {
+            console.log(`[Memory] Syncing ${this.memoryPath}...`);
+        }
 
         // 1. Chunking
         const chunks = this.chunkFile(content);

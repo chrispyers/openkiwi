@@ -12,23 +12,8 @@ import Select from '../Select'
 import AgentFileButton from '../AgentFileButton'
 import Code from '../Code'
 
-interface Agent {
-    id: string;
-    name: string;
-    emoji: string;
-    path: string;
-    identity: string;
-    soul: string;
-    memory?: string;
-    rules: string;
-    heartbeatInstructions?: string;
-    heartbeat?: {
-        enabled: boolean;
-        schedule: string;
-    };
-    systemPrompt: string;
-    provider?: string;
-}
+import { Agent } from '../../types'
+
 
 interface AgentsPageProps {
     gatewayAddr: string;
@@ -202,155 +187,159 @@ export default function AgentsPage({
                 {/* Right Column - Agent Details */}
                 <div className="lg:col-span-8">
                     {selectedAgent ? (
-                        <Card className="space-y-6">
-                            <div className="flex items-center gap-3">
-                                <Text bold={true} size="xl">{selectedAgent.name}</Text>
-                                <span className="text-3xl ml-2">{selectedAgent.emoji}</span>
-                            </div>
+                        <>
+                            <Card className="space-y-6 mb-6">
+                                <div className="flex items-center gap-3">
+                                    <Text bold={true} size="xl">{selectedAgent.name}</Text>
+                                    <span className="text-3xl ml-2">{selectedAgent.emoji}</span>
+                                </div>
 
-                            <div className="space-y-4">
-                                <div>
-                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
-                                        <Input
-                                            label="Agent Nickname"
-                                            currentText={agentForm.name}
-                                            onChange={e => setAgentForm({ ...agentForm, name: e.target.value })}
-                                            clearText={() => setAgentForm({ ...agentForm, name: '' })}
-                                            icon={faUser}
-                                            className="md:col-span-2"
-                                            inputClassName="!mt-0"
-                                        />
-                                        <Input
-                                            label="Emoji Icon"
-                                            currentText={agentForm.emoji}
-                                            onChange={e => setAgentForm({ ...agentForm, emoji: e.target.value })}
-                                            clearText={() => setAgentForm({ ...agentForm, emoji: '' })}
-                                            icon={faSmile}
-                                            inputClassName="!mt-0 font-emoji text-center pl-0"
-                                        />
-                                    </div>
-                                    <div className="mb-4 bg-white dark:bg-bg-primary rounded-xl p-4">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <Text bold={true}>
-                                                    <FontAwesomeIcon className="mr-2" icon={faHeartPulse} />Proactive Heartbeat</Text>
-                                                <div className="mb-2">
-                                                    <Text size="sm" secondary={true}>Allows the agent to wake up on a schedule</Text>
-                                                </div>
-                                            </div>
-                                            <Toggle
-                                                checked={agentForm.heartbeat?.enabled || false}
-                                                onChange={() => setAgentForm({
-                                                    ...agentForm,
-                                                    heartbeat: {
-                                                        schedule: agentForm.heartbeat?.schedule || '* * * * *',
-                                                        enabled: !(agentForm.heartbeat?.enabled)
-                                                    }
-                                                })}
+                                <div className="space-y-4">
+                                    <div>
+                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+                                            <Input
+                                                label="Agent Nickname"
+                                                currentText={agentForm.name}
+                                                onChange={e => setAgentForm({ ...agentForm, name: e.target.value })}
+                                                clearText={() => setAgentForm({ ...agentForm, name: '' })}
+                                                icon={faUser}
+                                                className="md:col-span-2"
+                                                inputClassName="!mt-0"
+                                            />
+                                            <Input
+                                                label="Emoji Icon"
+                                                currentText={agentForm.emoji}
+                                                onChange={e => setAgentForm({ ...agentForm, emoji: e.target.value })}
+                                                clearText={() => setAgentForm({ ...agentForm, emoji: '' })}
+                                                icon={faSmile}
+                                                inputClassName="!mt-0 font-emoji text-center pl-0"
                                             />
                                         </div>
-
-                                        {(agentForm.heartbeat?.enabled) && (
-                                            <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <Input
-                                                    label="Cron Schedule"
-                                                    icon={faClock}
-                                                    currentText={agentForm.heartbeat?.schedule || ''}
-                                                    onChange={e => setAgentForm({
+                                        <div className="mb-4 bg-white dark:bg-bg-primary rounded-xl p-4">
+                                            <div className="flex justify-between items-center">
+                                                <div>
+                                                    <Text bold={true}>
+                                                        <FontAwesomeIcon className="mr-2" icon={faHeartPulse} />Proactive Heartbeat</Text>
+                                                    <div className="mb-2">
+                                                        <Text size="sm" secondary={true}>Allows the agent to wake up on a schedule</Text>
+                                                    </div>
+                                                </div>
+                                                <Toggle
+                                                    checked={agentForm.heartbeat?.enabled || false}
+                                                    onChange={() => setAgentForm({
                                                         ...agentForm,
                                                         heartbeat: {
-                                                            ...agentForm.heartbeat!,
-                                                            schedule: e.target.value
+                                                            schedule: agentForm.heartbeat?.schedule || '* * * * *',
+                                                            enabled: !(agentForm.heartbeat?.enabled)
                                                         }
                                                     })}
-                                                    clearText={() => setAgentForm({
-                                                        ...agentForm,
-                                                        heartbeat: {
-                                                            ...agentForm.heartbeat!,
-                                                            schedule: ''
-                                                        }
-                                                    })}
-                                                    placeholder="e.g. */10 * * * *"
-                                                    className="!mt-0"
                                                 />
-                                                <div className="flex flex-wrap gap-2">
-                                                    {[
-                                                        { label: 'Every 10m', val: '*/10 * * * *' },
-                                                        { label: 'Hourly', val: '0 * * * *' },
-                                                        { label: 'Every 4h', val: '0 */4 * * *' },
-                                                        { label: 'Every 12h', val: '0 */12 * * *' },
-                                                        { label: 'Midnight', val: '0 0 * * *' }
-                                                    ].map(opt => (
-                                                        <Button
-                                                            size="sm"
-                                                            key={opt.label}
-                                                            onClick={() => setAgentForm({
-                                                                ...agentForm,
-                                                                heartbeat: {
-                                                                    ...agentForm.heartbeat!,
-                                                                    schedule: opt.val
-                                                                }
-                                                            })}
-                                                        >
-                                                            {opt.label}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                                <div className="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg  dark:border-neutral-700/50">
-                                                    <Text size="xs" bold={true} className="uppercase mb-2 block opacity-70">Cron Reference</Text>
-                                                    <div className="grid grid-cols-5 gap-1 text-[10px] font-mono text-center uppercase text-neutral-500 dark:text-neutral-400 mb-1">
-                                                        <div>min</div>
-                                                        <div>hour</div>
-                                                        <div>day</div>
-                                                        <div>month</div>
-                                                        <div>week</div>
-                                                    </div>
-                                                    <div className="grid grid-cols-5 gap-1 font-mono text-center py-1 bg-neutral-100 dark:bg-neutral-900/50 rounded border border-neutral-200 dark:border-neutral-800">
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                    </div>
-                                                    <div className="mt-2 text-center">
-                                                        <Text size="sm" secondary={true}>e.g., <Code>0 12 * * *</Code> runs every day at noon.</Text>
-                                                    </div>
-                                                </div>
-
                                             </div>
-                                        )}
-                                    </div>
 
-                                    <div className="mb-4">
-                                        <Select
-                                            label="Model"
-                                            value={agentForm.provider || ''}
-                                            onChange={(e) => setAgentForm({ ...agentForm, provider: e.target.value })}
-                                            options={[
-                                                { value: '', label: 'Use Global Default' },
-                                                ...providers.map(p => ({
-                                                    value: p.description,
-                                                    label: p.description
-                                                }))
-                                            ]}
-                                        />
+                                            {(agentForm.heartbeat?.enabled) && (
+                                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                    <Input
+                                                        label="Cron Schedule"
+                                                        icon={faClock}
+                                                        currentText={agentForm.heartbeat?.schedule || ''}
+                                                        onChange={e => setAgentForm({
+                                                            ...agentForm,
+                                                            heartbeat: {
+                                                                ...agentForm.heartbeat!,
+                                                                schedule: e.target.value
+                                                            }
+                                                        })}
+                                                        clearText={() => setAgentForm({
+                                                            ...agentForm,
+                                                            heartbeat: {
+                                                                ...agentForm.heartbeat!,
+                                                                schedule: ''
+                                                            }
+                                                        })}
+                                                        placeholder="e.g. */10 * * * *"
+                                                        className="!mt-0"
+                                                    />
+                                                    <div className="flex flex-wrap gap-2">
+                                                        {[
+                                                            { label: 'Every 10m', val: '*/10 * * * *' },
+                                                            { label: 'Hourly', val: '0 * * * *' },
+                                                            { label: 'Every 4h', val: '0 */4 * * *' },
+                                                            { label: 'Every 12h', val: '0 */12 * * *' },
+                                                            { label: 'Midnight', val: '0 0 * * *' }
+                                                        ].map(opt => (
+                                                            <Button
+                                                                size="sm"
+                                                                key={opt.label}
+                                                                onClick={() => setAgentForm({
+                                                                    ...agentForm,
+                                                                    heartbeat: {
+                                                                        ...agentForm.heartbeat!,
+                                                                        schedule: opt.val
+                                                                    }
+                                                                })}
+                                                            >
+                                                                {opt.label}
+                                                            </Button>
+                                                        ))}
+                                                    </div>
+                                                    <div className="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg  dark:border-neutral-700/50">
+                                                        <Text size="xs" bold={true} className="uppercase mb-2 block opacity-70">Cron Reference</Text>
+                                                        <div className="grid grid-cols-5 gap-1 text-[10px] font-mono text-center uppercase text-neutral-500 dark:text-neutral-400 mb-1">
+                                                            <div>min</div>
+                                                            <div>hour</div>
+                                                            <div>day</div>
+                                                            <div>month</div>
+                                                            <div>week</div>
+                                                        </div>
+                                                        <div className="grid grid-cols-5 gap-1 font-mono text-center py-1 bg-neutral-100 dark:bg-neutral-900/50 rounded border border-neutral-200 dark:border-neutral-800">
+                                                            <Text>*</Text>
+                                                            <Text>*</Text>
+                                                            <Text>*</Text>
+                                                            <Text>*</Text>
+                                                            <Text>*</Text>
+                                                        </div>
+                                                        <div className="mt-2 text-center">
+                                                            <Text size="sm" secondary={true}>e.g., <Code>0 12 * * *</Code> runs every day at noon.</Text>
+                                                        </div>
+                                                    </div>
+
+                                                </div>
+                                            )}
+                                        </div>
+
+                                        <div className="mb-4">
+                                            <Select
+                                                label="Model"
+                                                value={agentForm.provider || ''}
+                                                onChange={(e) => setAgentForm({ ...agentForm, provider: e.target.value })}
+                                                options={[
+                                                    { value: '', label: 'Use Global Default' },
+                                                    ...providers.map(p => ({
+                                                        value: p.description,
+                                                        label: p.description
+                                                    }))
+                                                ]}
+                                            />
+                                        </div>
+                                        <Button
+                                            themed={true}
+                                            className="w-full"
+                                            onClick={saveAgentConfig}
+                                            icon={faSave}
+                                        >
+                                            Update Agent Profile
+                                        </Button>
                                     </div>
-                                    <Button
-                                        themed={true}
-                                        className="w-full"
-                                        onClick={saveAgentConfig}
-                                        icon={faSave}
-                                    >
-                                        Update Agent Profile
-                                    </Button>
                                 </div>
+                            </Card>
+                            <Card className="space-y-6">
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
                                     <AgentFileButton
                                         title="IDENTITY.md"
                                         description="Core instructions"
                                         icon={faIdBadge}
-                                        iconColorClass="bg-sky-500/10"
+                                        iconColorClass="bg-neutral-800/10"
                                         onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -358,7 +347,7 @@ export default function AgentsPage({
                                         title="SOUL.md"
                                         description="Moral values"
                                         icon={faMicrochip}
-                                        iconColorClass="bg-amber-400/10"
+                                        iconColorClass="bg-teal-400/20"
                                         onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -366,7 +355,7 @@ export default function AgentsPage({
                                         title="MEMORY.md"
                                         description="Stored facts"
                                         icon={faBrain}
-                                        iconColorClass="bg-emerald-400/10"
+                                        iconColorClass="bg-indigo-400/20"
                                         onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -374,7 +363,7 @@ export default function AgentsPage({
                                         title="HEARTBEAT.md"
                                         description="Scheduled tasks"
                                         icon={faHeartPulse}
-                                        iconColorClass="bg-rose-400/10"
+                                        iconColorClass="bg-red-400/20"
                                         onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -382,7 +371,7 @@ export default function AgentsPage({
                                         title="AGENT.md"
                                         description="Rules & Guardrails"
                                         icon={faShield}
-                                        iconColorClass="bg-indigo-400/10"
+                                        iconColorClass="bg-sky-400/20"
                                         onClick={() => setViewingFile({ title: 'AGENT.md', content: selectedAgent.rules || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 
@@ -396,8 +385,8 @@ export default function AgentsPage({
                                 >
                                     Delete Agent
                                 </Button>
-                            </div>
-                        </Card>
+                            </Card>
+                        </>
                     ) : (
                         <div className="flex-1 flex flex-col items-center justify-center py-20 bg-bg-card rounded-3xl">
                             <Text secondary={true}>Select an agent from the left to view details</Text>

@@ -19,6 +19,8 @@ export interface Agent {
     path: string;
     identity: string;
     soul: string;
+    memory?: string;
+    rules: string;
     heartbeatInstructions?: string;
     heartbeat?: {
         enabled: boolean;
@@ -64,3 +66,40 @@ export interface Model {
     max_context_length?: number;
     format?: string;
 }
+
+export interface Config {
+    chat: {
+        showReasoning: boolean;
+        includeHistory: boolean;
+        generateSummaries: boolean;
+        showTokenMetrics: boolean;
+    };
+    gateway: {
+        port: number;
+        endpoint: string;
+    };
+    global?: {
+        systemPrompt: string;
+    };
+    providers: {
+        description: string;
+        endpoint: string;
+        model: string;
+        apiKey?: string;
+        capabilities?: {
+            vision?: boolean;
+            reasoning?: boolean;
+            trained_for_tool_use?: boolean;
+        };
+    }[];
+    memory?: {
+        useEmbeddings: boolean;
+        embeddingsModel: string;
+    };
+    system?: {
+        version: string;
+        latestVersion: string;
+    };
+    enabledTools?: Record<string, boolean>;
+}
+

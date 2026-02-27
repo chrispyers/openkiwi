@@ -1,5 +1,5 @@
 import React from 'react';
-import { faAlignLeft, faLink, faSave, faCheck, faRefresh } from '@fortawesome/free-solid-svg-icons';
+import { faTag, faLink, faSave, faCheck, faRefresh } from '@fortawesome/free-solid-svg-icons';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
 import { IconDefinition } from '@fortawesome/fontawesome-svg-core';
 import Button from './Button';
@@ -161,7 +161,7 @@ export default function Provider({
             <div className="space-y-2">
                 <Input
                     label="(optional) Description"
-                    icon={faAlignLeft}
+                    icon={faTag}
                     currentText={description}
                     onChange={(e) => onDescriptionChange(e.target.value)}
                     placeholder="A short description of this model"

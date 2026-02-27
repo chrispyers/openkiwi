@@ -5,6 +5,8 @@ import Modal from "./Modal";
 import Button from "./Button";
 import { EyeIcon, BrainIcon, ToolIcon } from './CapabilityIcons';
 import Text from './Text';
+import Badge from './Badge';
+import { Agent } from '../types';
 
 interface Provider {
     description: string;
@@ -23,18 +25,12 @@ interface ModelsTableProps {
     onRowClick: (index: number) => void;
     highlight?: boolean;
     onDelete?: (index: number) => void;
+    agents?: Agent[];
 }
 
-export default function ModelsTable({ providers, onRowClick, highlight = false, onDelete }: ModelsTableProps) {
+export default function ModelsTable({ providers, onRowClick, highlight = false, onDelete, agents = [] }: ModelsTableProps) {
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
     const [providerToDeleteIndex, setProviderToDeleteIndex] = useState<number | null>(null);
-
-    const getProviderName = (endpoint: string) => {
-        if (endpoint.includes('generativelanguage.googleapis.com')) return 'Google Gemini';
-        if (endpoint.includes('api.openai.com')) return 'OpenAI';
-        if (endpoint.includes(':1234')) return 'LM Studio';
-        return 'Custom Provider';
-    };
 
     const handleDeleteClick = (e: React.MouseEvent, index: number) => {
         e.stopPropagation();
@@ -66,34 +62,52 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
                 { name: "Model", alignment: "left" },
                 { name: "Description", alignment: "left" },
                 { name: "Capabilities", alignment: "center" },
+                { name: "AGENTS", alignment: "center" },
                 { name: "" }
             ]}>
-                {providers.map((provider, idx) => (
-                    <TR key={idx} highlight={highlight} onClick={() => onRowClick(idx)}>
-                        <TD className="w-1/3">
-                            <Text className="font-mono" size="sm">
-                                {provider.model}
-                            </Text>
-                        </TD>
-                        <TD className="w-1/3">
-                            <Text>
-                                {provider.description}
-                            </Text>
-                        </TD>
-                        <TD>
-                            <div className="flex justify-center gap-2">
-                                {provider.capabilities?.vision && <EyeIcon />}
-                                {provider.capabilities?.trained_for_tool_use && <ToolIcon />}
-                                {provider.capabilities?.reasoning && <BrainIcon />}
-                            </div>
-                        </TD>
-                        <TD className="w-10 text-center">
-                            {onDelete && (
-                                <DeleteButton onClick={(e) => handleDeleteClick(e, idx)} />
-                            )}
-                        </TD>
-                    </TR>
-                ))}
+                {providers.map((provider, idx) => {
+                    const usingAgents = agents.filter(a => a.provider === provider.description);
+
+                    return (
+                        <TR key={idx} highlight={highlight} onClick={() => onRowClick(idx)}>
+                            <TD className="w-1/4">
+                                <Text className="font-mono" size="sm">
+                                    {provider.model}
+                                </Text>
+                            </TD>
+                            <TD className="w-1/4">
+                                <Text>
+                                    {provider.description}
+                                </Text>
+                            </TD>
+                            <TD>
+                                <div className="flex justify-center gap-2">
+                                    {provider.capabilities?.vision && <EyeIcon />}
+                                    {provider.capabilities?.trained_for_tool_use && <ToolIcon />}
+                                    {provider.capabilities?.reasoning && <BrainIcon />}
+                                </div>
+                            </TD>
+                            <TD className="w-1/4">
+                                <div className="justify-center flex flex-wrap gap-2">
+                                    {usingAgents.length > 0 ? (
+                                        usingAgents.map(agent => (
+                                            <Badge key={agent.id}>
+                                                {agent.emoji} {agent.name}
+                                            </Badge>
+                                        ))
+                                    ) : (
+                                        <Text size="xs" secondary={true}>-</Text>
+                                    )}
+                                </div>
+                            </TD>
+                            <TD className="w-10 text-center">
+                                {onDelete && (
+                                    <DeleteButton onClick={(e) => handleDeleteClick(e, idx)} />
+                                )}
+                            </TD>
+                        </TR>
+                    );
+                })}
             </TABLE>
 
             <Modal

@@ -359,10 +359,21 @@ export async function createEmbedding(
     }
 
     if (!response.ok) {
-        // If 404, maybe the model name is wrong or endpoint is different.
-        // For local providers (LM Studio), they might not support embeddings or use a different port/path.
-        // But for standard OpenAI compat, this should work.
-        throw new Error(`Embedding API error: ${response.status} ${response.statusText}`);
+        let errorMsg = `Embedding API error: ${response.status} ${response.statusText}`;
+        try {
+            const errorText = await response.text();
+            if (errorText) {
+                try {
+                    const json = JSON.parse(errorText);
+                    errorMsg += ` - ${JSON.stringify(json)}`;
+                } catch {
+                    errorMsg += ` - ${errorText}`;
+                }
+            }
+        } catch (e) {
+            // ignore
+        }
+        throw new Error(errorMsg);
     }
 
     const json = await response.json();
@@ -431,6 +442,29 @@ export async function listModels(
             }
         } catch (e) {
             console.warn(`Anthropic listModels exception:`, e);
+        }
+    }
+
+    // Handling for Ollama Native API
+    if (providerConfig.baseUrl.includes(':11434') || providerConfig.baseUrl.toLowerCase().includes('ollama')) {
+        // Construct the native Ollama tags endpoint
+        const baseUrl = providerConfig.baseUrl.replace(/\/v1$/, '').replace(/\/$/, '');
+        const nativeUrl = `${baseUrl}/api/tags`;
+
+        try {
+            const response = await fetch(nativeUrl, { method: 'GET' });
+            if (response.ok) {
+                const json = await response.json();
+                if (json.models && Array.isArray(json.models)) {
+                    return json.models.map((m: any) => ({
+                        ...m,
+                        id: m.name || m.model
+                    }));
+                }
+            }
+        } catch (e) {
+            console.warn(`Ollama listModels exception:`, e);
+            // Fallthrough to standard OpenAI attempt
         }
     }
 

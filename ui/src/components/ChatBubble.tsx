@@ -1,6 +1,6 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBrain, faArrowUp, faArrowDown, faUser } from '@fortawesome/free-solid-svg-icons';
+import { faBrain, faArrowUp, faArrowDown, faUser, faEye, faEyeSlash } from '@fortawesome/free-solid-svg-icons';
 import MarkdownRenderer from './MarkdownRenderer';
 import { Message, Agent } from '../types';
 import Text from './Text';
@@ -36,48 +36,63 @@ export const ChatBubble = ({
     stats,
     showTokenMetrics = true
 }: ChatBubbleProps) => {
+    const [isVisible, setIsVisible] = React.useState(!isReasoning);
+
     return (
         <div className={`flex w-full group ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
             <div className={`flex flex-col max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
                 <div className={`flex gap-4 items-start ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
-                    <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${isUser ? 'bg-neutral-100 dark:bg-neutral-800' : isReasoning ? 'bg-amber-500/10 text-amber-500' : 'bg-neutral-200/50 dark:bg-neutral-800 text-white'} shadow-sm`}>
+                    <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${isUser ? 'bg-neutral-100 dark:bg-neutral-800' : isReasoning ? 'bg-violet-500/10 text-violet-500' : 'bg-neutral-200/50 dark:bg-neutral-800 text-white'} shadow-sm`}>
                         <Text>
                             {avatar}
                         </Text>
                     </div>
                     <div className={`bubble ${className}`}>
                         {isReasoning && (
-                            <div className="flex items-center gap-2 mb-2 pb-2 border-b border-amber-500/10 text-xs font-bold uppercase tracking-widest text-amber-400">
-                                <div className="w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
-                                Thought Process
+                            <div className={`flex items-center justify-between gap-2 ${isVisible ? 'mb-2 pb-2 border-b border-violet-500/10' : ''} text-xs font-bold uppercase tracking-widest text-violet-500`}>
+                                <div className="flex items-center gap-2">
+                                    <div className="w-1.5 h-1.5 rounded-full bg-violet-500 animate-pulse" />
+                                    Thought Process
+                                </div>
+                                <button
+                                    onClick={() => setIsVisible(!isVisible)}
+                                    className="hover:text-violet-400 transition-colors p-1"
+                                    title={isVisible ? "Hide Thought Process" : "Show Thought Process"}
+                                >
+                                    <FontAwesomeIcon icon={isVisible ? faEye : faEyeSlash} />
+                                </button>
                             </div>
                         )}
-                        <div className="w-full">
-                            <MarkdownRenderer
-                                content={content}
-                                className={isUser ? 'prose-invert whitespace-pre-wrap' : ''}
-                                breaks={!isUser}
-                            />
-                        </div>
-                        {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (
-                            <div className="flex items-center gap-3 mt-3 pt-2 border-t border-neutral-500/10 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
-                                <span className="flex items-center gap-1">
-                                    {stats.tps} <span className="opacity-50">TPS</span>
-                                </span>
-                                <span className="mx-1 opacity-20">|</span>
-                                <span className="flex items-center gap-1">
-                                    TOKENS:
-                                    <span className="flex items-center gap-0.5 ml-1">
-                                        <FontAwesomeIcon icon={faArrowUp} />
-                                        {stats.inputTokens ?? 0}
-                                    </span>
-                                    <span className="mx-1 opacity-30">|</span>
-                                    <span className="flex items-center gap-0.5">
-                                        <FontAwesomeIcon icon={faArrowDown} />
-                                        {stats.outputTokens ?? stats.tokens ?? 0}
-                                    </span>
-                                </span>
-                            </div>
+                        {(!isReasoning || isVisible) && (
+                            <>
+                                <div className="w-full">
+                                    <MarkdownRenderer
+                                        content={content}
+                                        className={isUser ? 'prose-invert whitespace-pre-wrap' : ''}
+                                        breaks={!isUser}
+                                    />
+                                </div>
+                                {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (
+                                    <div className="flex items-center gap-3 mt-3 pt-2 border-t border-neutral-500/10 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
+                                        <span className="flex items-center gap-1">
+                                            {stats.tps} <span className="opacity-50">TPS</span>
+                                        </span>
+                                        <span className="mx-1 opacity-20">|</span>
+                                        <span className="flex items-center gap-1">
+                                            TOKENS:
+                                            <span className="flex items-center gap-0.5 ml-1">
+                                                <FontAwesomeIcon icon={faArrowUp} />
+                                                {stats.inputTokens ?? 0}
+                                            </span>
+                                            <span className="mx-1 opacity-30">|</span>
+                                            <span className="flex items-center gap-0.5">
+                                                <FontAwesomeIcon icon={faArrowDown} />
+                                                {stats.outputTokens ?? stats.tokens ?? 0}
+                                            </span>
+                                        </span>
+                                    </div>
+                                )}
+                            </>
                         )}
                     </div>
                 </div>

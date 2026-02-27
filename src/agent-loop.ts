@@ -52,7 +52,11 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         let firstTokenTime = 0;
         const requestStartTime = Date.now();
 
-        for await (const delta of streamChatCompletion(options.llmConfig, processedHistory, ToolManager.getToolDefinitions())) {
+        for await (const delta of streamChatCompletion(
+            options.llmConfig,
+            processedHistory,
+            options.llmConfig.supportsTools ? ToolManager.getToolDefinitions() : undefined
+        )) {
             if (delta.content) {
                 if (!firstTokenTime) firstTokenTime = Date.now();
                 fullContent += delta.content;

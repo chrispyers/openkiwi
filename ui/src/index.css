@@ -98,7 +98,7 @@
   }
 
   .reasoning-bubble {
-    @apply bg-amber-500/5 border border-amber-500/20 text-amber-500 italic text-[0.85rem] rounded-tl-[6px];
+    @apply bg-violet-500/5 border border-violet-500/20 text-violet-500 italic text-[0.85rem] rounded-tl-[6px];
   }
 
   .nav-button-active {
