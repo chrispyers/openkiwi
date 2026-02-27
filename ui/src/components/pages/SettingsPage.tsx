@@ -34,6 +34,9 @@ import {
     faGaugeHigh
 } from '@fortawesome/free-solid-svg-icons'
 import { Loader2 } from 'lucide-react'
+import Modal from '../Modal'
+import MarkdownRenderer from '../MarkdownRenderer'
+import { faInfoCircle } from '@fortawesome/free-solid-svg-icons'
 
 // Re-using types from App.tsx - ideally these should be moved to a types.ts file
 interface Config {
@@ -83,6 +86,7 @@ interface ToolDefinition {
     };
     filename?: string;
     isRegistered?: boolean;
+    hasReadme?: boolean;
 }
 
 interface SettingsPageProps {
@@ -109,6 +113,7 @@ interface SettingsPageProps {
     onLogoutWhatsApp: () => Promise<void>;
     onConnectWhatsApp: () => Promise<void>;
     gatewayAddr: string;
+    gatewayToken: string;
 }
 
 export default function SettingsPage({
@@ -134,13 +139,20 @@ export default function SettingsPage({
     whatsappStatus,
     onLogoutWhatsApp,
     onConnectWhatsApp,
-    gatewayAddr
+    gatewayAddr,
+    gatewayToken
 }: SettingsPageProps) {
     const [publicConfig, setPublicConfig] = useState<any>(null);
+    const [viewingReadme, setViewingReadme] = useState<{ name: string, content: string } | null>(null);
+    const [loadingReadme, setLoadingReadme] = useState(false);
 
     useEffect(() => {
         if (activeSettingsSection === 'config') {
-            fetch(`${gatewayAddr.replace(/\/$/, '')}/api/config/public`)
+            fetch(`${gatewayAddr.replace(/\/$/, '')}/api/config/public`, {
+                headers: {
+                    'Authorization': `Bearer ${gatewayToken}`
+                }
+            })
                 .then(res => res.json())
                 .then(data => setPublicConfig(data))
                 .catch(err => console.error('Failed to fetch public config:', err));
@@ -411,13 +423,54 @@ export default function SettingsPage({
                                                             });
                                                         }}
                                                         disabled={!tool.filename}
-                                                        title={!tool.filename ? "This is a core system skill that is always enabled and cannot be deactivated." : undefined}
+                                                        title={!tool.filename ? "This is a core system function and cannot be deactivated." : undefined}
                                                     />
                                                 </div>
                                             </div>
                                             <div className="pt-0">
                                                 <Text size="sm" secondary={true}>{tool.description}</Text>
                                             </div>
+
+                                            {tool.hasReadme && tool.filename && (
+                                                <div className="pt-1">
+                                                    <Button
+                                                        size="sm"
+                                                        icon={faInfoCircle}
+                                                        onClick={(e) => {
+                                                            e.preventDefault();
+                                                            setLoadingReadme(true);
+                                                            fetch(`${gatewayAddr.replace(/\/$/, '')}/api/tools/readme?path=${encodeURIComponent(tool.filename!)}`, {
+                                                                headers: {
+                                                                    'Authorization': `Bearer ${gatewayToken}`
+                                                                }
+                                                            })
+                                                                .then(res => res.json())
+                                                                .then(data => {
+                                                                    if (data.content) {
+                                                                        // Rewrite relative image paths to authenticated API endpoints
+                                                                        const toolDir = tool.filename!.split(/[\/\\]/).slice(0, -1).join('/');
+                                                                        const processedContent = data.content.replace(/!\[(.*?)\]\((?!http|https|\/)(.*?)\)/g, (match: string, alt: string, imagePath: string) => {
+                                                                            const fullImagePath = toolDir ? `${toolDir}/${imagePath}` : imagePath;
+                                                                            return `![${alt}](/api/tools/files?path=${encodeURIComponent(fullImagePath)})`;
+                                                                        });
+                                                                        setViewingReadme({ name: tool.name, content: processedContent });
+                                                                    } else {
+                                                                        toast.error("Failed to load README content");
+                                                                    }
+                                                                })
+                                                                .catch(err => {
+                                                                    console.error(err);
+                                                                    toast.error("Error fetching README");
+                                                                })
+                                                                .finally(() => setLoadingReadme(false));
+                                                        }}
+                                                        disabled={loadingReadme}
+                                                    >
+                                                        Read Documentation
+                                                    </Button>
+                                                </div>
+                                            )}
+
                                             <div className="pt-0">
                                                 <Text className="uppercase" size="xs" bold={true}>Parameters</Text>
                                                 <div className="flex flex-wrap gap-2 mt-1">
@@ -552,6 +605,17 @@ export default function SettingsPage({
                 </div>
             )}
 
+            {viewingReadme && (
+                <Modal
+                    isOpen={!!viewingReadme}
+                    onClose={() => setViewingReadme(null)}
+                    title={`${viewingReadme.name} Documentation`}
+                >
+                    <div className="max-h-[70vh] overflow-y-auto p-10 bg-neutral-100 dark:bg-neutral-800 rounded-2xl m-4">
+                        <MarkdownRenderer content={viewingReadme.content} />
+                    </div>
+                </Modal>
+            )}
         </Page >
     )
 }

@@ -11,6 +11,7 @@ import Page from './Page'
 import Select from '../Select'
 import AgentFileButton from '../AgentFileButton'
 import Code from '../Code'
+import { EyeIcon, BrainIcon, ToolIcon } from '../CapabilityIcons'
 
 import { Agent } from '../../types'
 
@@ -25,7 +26,16 @@ interface AgentsPageProps {
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
     setSelectedAgentId: (id: string) => void;
-    providers: { description: string; endpoint: string; model: string }[];
+    providers: {
+        description: string;
+        endpoint: string;
+        model: string;
+        capabilities?: {
+            vision?: boolean;
+            reasoning?: boolean;
+            trained_for_tool_use?: boolean;
+        }
+    }[];
 }
 
 export default function AgentsPage({
@@ -164,20 +174,33 @@ export default function AgentsPage({
                                 <Text secondary={true}>No agents discovered yet</Text>
                             </div>
                         ) : (
-                            agents.map(a => (
-                                <Button
-                                    size="md"
-                                    key={a.id}
-                                    themed={selectedAgentId === a.id}
-                                    className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? 'hover:!bg-neutral-200 dark:hover:!bg-neutral-700' : ''}`}
-                                    onClick={() => setSelectedAgentId(a.id)}
-                                >
-                                    <div className="text-left">
-                                        <div>{a.name}</div>
-                                        <div><Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text></div>
-                                    </div>
-                                </Button>
-                            ))
+                            agents.map(a => {
+                                const provider = providers.find(p => p.description === a.provider);
+                                return (
+                                    <Button
+                                        size="md"
+                                        key={a.id}
+                                        themed={selectedAgentId === a.id}
+                                        className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? 'hover:!bg-neutral-200 dark:hover:!bg-neutral-700' : ''}`}
+                                        onClick={() => setSelectedAgentId(a.id)}
+                                    >
+                                        <div className="flex-1 flex items-center justify-between overflow-hidden min-w-0">
+                                            <div className="text-left overflow-hidden min-w-0">
+                                                <div className="truncate">{a.name}</div>
+                                                <div className="truncate"><Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text></div>
+                                            </div>
+
+                                            {provider?.capabilities && (
+                                                <div className="flex justify-center gap-1.5 shrink-0 opacity-70 w-16">
+                                                    {provider.capabilities.vision && <EyeIcon small={true} />}
+                                                    {provider.capabilities.trained_for_tool_use && <ToolIcon small={true} />}
+                                                    {provider.capabilities.reasoning && <BrainIcon small={true} />}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Button>
+                                );
+                            })
                         )}
                     </Card>
 

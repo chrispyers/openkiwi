@@ -62,7 +62,7 @@ export default function Button(props: ButtonProps) {
             )}
 
             {props.themed || props.variant === "danger" ? props.children :
-                <Text className={`font-semibold`} size={props.size || "md"}>
+                <Text className={`font-semibold flex-1 min-w-0 flex items-center`} size={props.size || "md"}>
                     {props.children}
                 </Text>
             }

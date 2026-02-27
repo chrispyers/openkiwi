@@ -1,6 +1,7 @@
 import React from "react";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCheck, faX } from "@fortawesome/free-solid-svg-icons";
+import { Tooltip } from "./Tooltip";
 
 interface ToggleProps {
     checked: boolean;
@@ -13,8 +14,8 @@ interface ToggleProps {
 }
 
 export default function Toggle(props: ToggleProps) {
-    return (
-        <div className={`relative group/toggle inline-block ${props.className || ''}`}>
+    const toggleContent = (
+        <div className={`relative inline-block ${props.className || ''}`}>
             <label className={`relative inline-flex items-center ${props.disabled ? 'cursor-not-allowed' : 'cursor-pointer'} z-0`}>
                 <div className={`flex items-center ${props.disabled ? 'opacity-50 pointer-events-none' : ''}`}>
                     <input
@@ -55,17 +56,20 @@ export default function Toggle(props: ToggleProps) {
                 </div>
             </label>
 
-            {/* Custom Tooltip - Matched with CapabilityIcons.tsx */}
-            {props.title && (
-                <div className="absolute bottom-full mb-2 px-3 py-1.5 bg-neutral-800 text-white text-xs rounded-lg opacity-0 group-hover/toggle:opacity-100 pointer-events-none transition-all duration-100 whitespace-nowrap z-[100] shadow-xl border border-white/10 -translate-y-1 group-hover/toggle:translate-y-0 right-0">
-                    {props.title}
-                </div>
-            )}
-
-            {/* Overlay to capture tooltips and show correct cursor when disabled */}
+            {/* Overlay to handle cursor when disabled */}
             {props.disabled && (
                 <div className="absolute inset-0 z-10 cursor-not-allowed" />
             )}
         </div>
     );
+
+    if (props.title) {
+        return (
+            <Tooltip content={props.title} className="inline-block">
+                {toggleContent}
+            </Tooltip>
+        );
+    }
+
+    return toggleContent;
 }
