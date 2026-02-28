@@ -20,9 +20,10 @@ interface SidebarProps {
     hasAgents: boolean;
     hasModels: boolean;
     hasActiveAgents: boolean;
+    onSettingsClick?: () => void;
 }
 
-export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels, hasActiveAgents }: SidebarProps) {
+export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels, hasActiveAgents, onSettingsClick }: SidebarProps) {
     const navigate = useNavigate();
     const { theme } = useTheme();
 
@@ -48,6 +49,7 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession, i
                                 key={item.id}
                                 onClick={() => {
                                     if (item.id === 'chat') createNewSession();
+                                    if (item.id === 'settings' && onSettingsClick) onSettingsClick();
                                     navigate('/' + item.id);
                                 }}
                                 className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-50 group relative flex items-center gap-4 ${activeView === item.id

@@ -125,7 +125,7 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'about'>('agents');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'about'>('about');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -998,6 +998,7 @@ function App() {
           hasAgents={agents.length > 0}
           hasModels={(config?.providers?.length ?? 0) > 0}
           hasActiveAgents={hasActiveAgents}
+          onSettingsClick={() => setActiveSettingsSection('about')}
         />
 
         {/* Secondary Sidebar (Chat Sessions) */}

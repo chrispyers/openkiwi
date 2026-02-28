@@ -47,10 +47,11 @@ export function signUrl(url: string): string {
 export function signMarkdown(content: string): string {
     if (!content || typeof content !== 'string') return content;
 
-    // Regex matches /screenshots/... or /workspace-files/... but only if not already prefixed with /api/files/
-    return content.replace(/(\/screenshots\/|\/workspace-files\/)([^? \n\)]+)/g, (match) => {
-        if (match.includes('?sig=')) return match;
-        return signUrl(match);
+    // Regex matches /screenshots/... or /workspace-files/..., and checks if it's preceded by /api/files
+    return content.replace(/(\/api\/files)?(\/screenshots\/|\/workspace-files\/)([^ \n\)]+)/g, (match, prefix, type, fileAndQuery) => {
+        if (prefix || match.includes('?sig=')) return match;
+        // Reconstruct the base url to sign
+        return signUrl(`${type}${fileAndQuery}`);
     });
 }
 
