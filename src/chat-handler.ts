@@ -65,6 +65,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     isAuthenticated = true;
                     clearTimeout(authTimeout);
                     ws.send(JSON.stringify({ type: 'auth_success' }));
+                    ws.send(JSON.stringify({ type: 'initial_agent_states', states: AgentManager.getAllAgentStates() }));
                     console.log(`[Auth] Client authenticated: ${hostname} (${ip})`);
                     return;
                 } else {
@@ -212,26 +213,38 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             });
 
             let fullContent = '';
-            const { finalResponse: finalAiResponse, lastTps, usage: totalUsage, chatHistory } = await runAgentLoop({
-                agentId: effectiveAgentId,
-                sessionId: sessionId || "unknown",
-                llmConfig,
-                messages: payload,
-                visionEnabled: !!providerConfig?.capabilities?.vision,
-                maxLoops: 5,
-                signToolUrls: true,
-                onDelta: (content: string) => {
-                    if (!fullContent) console.log('[WS] Received first delta from LLM');
-                    fullContent += content;
-                    ws.send(JSON.stringify({ type: 'delta', content }));
-                },
-                onUsage: (usageStats: any) => {
-                    ws.send(JSON.stringify({ type: 'usage', usage: usageStats }));
-                },
-                onToolCall: (toolCall: any) => {
-                    ws.send(JSON.stringify({ type: 'tool_call', toolCall }));
-                }
-            });
+
+            AgentManager.setAgentState(effectiveAgentId, 'chatting', 'Processing user prompt');
+            let finalAiResponse, lastTps, totalUsage, chatHistory;
+            try {
+                const result = await runAgentLoop({
+                    agentId: effectiveAgentId,
+                    sessionId: sessionId || "unknown",
+                    llmConfig,
+                    messages: payload,
+                    visionEnabled: !!providerConfig?.capabilities?.vision,
+                    maxLoops: 5,
+                    signToolUrls: true,
+                    onDelta: (content: string) => {
+                        if (!fullContent) console.log('[WS] Received first delta from LLM');
+                        fullContent += content;
+                        ws.send(JSON.stringify({ type: 'delta', content }));
+                    },
+                    onUsage: (usageStats: any) => {
+                        ws.send(JSON.stringify({ type: 'usage', usage: usageStats }));
+                    },
+                    onToolCall: (toolCall: any) => {
+                        ws.send(JSON.stringify({ type: 'tool_call', toolCall }));
+                    }
+                });
+
+                finalAiResponse = result.finalResponse;
+                lastTps = result.lastTps;
+                totalUsage = result.usage;
+                chatHistory = result.chatHistory;
+            } finally {
+                AgentManager.setAgentState(effectiveAgentId, 'idle');
+            }
 
             logger.log({
                 type: 'response',

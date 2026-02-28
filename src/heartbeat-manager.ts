@@ -147,6 +147,7 @@ Please execute these instructions now.
             ];
 
             // Execute Loop
+            AgentManager.setAgentState(agent.id, 'working', 'Processing scheduled task');
             const { finalResponse: fullContent } = await runAgentLoop({
                 agentId: agent.id,
                 sessionId: 'heartbeat',
@@ -204,6 +205,7 @@ Please execute these instructions now.
         } catch (error) {
             console.error(`❌ Error during heartbeat execution for ${agent.name}:`, error);
         } finally {
+            AgentManager.setAgentState(agent.id, 'idle');
             this.executingAgents.delete(agentId);
             logger.log({
                 type: 'system',

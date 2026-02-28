@@ -40,6 +40,12 @@ export interface Agent {
     provider?: string;
 }
 
+export interface AgentState {
+    status: 'idle' | 'chatting' | 'working' | string;
+    details?: string;
+    since: number;
+}
+
 export interface Session {
     id: string;
     agentId: string;

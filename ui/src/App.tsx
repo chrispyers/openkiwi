@@ -75,7 +75,7 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
 import SessionGroup from './components/SessionGroup'
-import { Agent, Message, Session, Model, Config } from './types'
+import { Message, Agent, Session, Model, Config, AgentState } from './types';
 
 
 
@@ -148,6 +148,7 @@ function App() {
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [tools, setTools] = useState<ToolDefinition[]>([]);
   const [connectedClients, setConnectedClients] = useState<any[]>([]);
+  const [agentStates, setAgentStates] = useState<Record<string, AgentState>>({});
 
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
@@ -251,6 +252,13 @@ function App() {
               setIsGatewayConnected(true);
               // Refresh client list immediately on connection
               if (activeView === 'gateway') fetchConnectedClients();
+            } else if (msg.type === 'initial_agent_states') {
+              setAgentStates(msg.states || {});
+            } else if (msg.type === 'agent_status_update') {
+              setAgentStates(prev => ({
+                ...prev,
+                [msg.agentId]: msg.state
+              }));
             }
           } catch (e) { }
         };
@@ -1090,7 +1098,7 @@ function App() {
               saveConfig={saveConfig}
             />
           ) : activeView === 'activity' ? (
-            <ActivityPage />
+            <ActivityPage agents={agents} agentStates={agentStates} />
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}

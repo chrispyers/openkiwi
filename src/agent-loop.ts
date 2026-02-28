@@ -3,6 +3,30 @@ import { streamChatCompletion } from './llm-provider.js';
 import { logger } from './logger.js';
 import { signUrl } from './security.js';
 import { processVisionMessages } from './vision.js';
+import { AgentManager } from './agent-manager.js';
+
+function getToolDetails(name: string, args: any): string {
+    switch (name) {
+        case 'web_browser':
+            return `Browsing ${args.url || 'web'}...`;
+        case 'google_search':
+            return `Searching Google for "${args.query}"...`;
+        case 'read_file':
+            return `Reading file ${args.path}...`;
+        case 'write_file':
+            return `Writing to file ${args.path}...`;
+        case 'list_directory':
+            return `Scanning directory ${args.path}...`;
+        case 'terminal':
+            return `Running command...`;
+        case 'memory_search':
+            return `Searching memory for "${args.query}"...`;
+        case 'memory_store':
+            return `Storing memory...`;
+        default:
+            return `Using tool ${name}...`;
+    }
+}
 
 export interface AgentLoopOptions {
     agentId: string;
@@ -167,7 +191,16 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                         options.onToolCall(toolCall);
                     }
 
-                    let result = await ToolManager.callTool(name, args, { agentId: options.agentId });
+                    const prevState = AgentManager.getAgentState(options.agentId);
+                    const details = getToolDetails(name, args);
+                    AgentManager.setAgentState(options.agentId, 'working', details);
+
+                    let result;
+                    try {
+                        result = await ToolManager.callTool(name, args, { agentId: options.agentId });
+                    } finally {
+                        AgentManager.setAgentState(options.agentId, prevState.status, prevState.details);
+                    }
 
                     if (options.signToolUrls && result && typeof result === 'object') {
                         if (result.screenshot_url) result.screenshot_url = signUrl(result.screenshot_url);
