@@ -4,6 +4,8 @@ import { AgentManager } from '../agent-manager.js';
 export const memory_search = {
     definition: {
         name: 'memory_search',
+        displayName: "Memory: Search",
+        pluginType: 'skill',
         description: 'Search the agent\'s long-term memory (MEMORY.md) for relevant information. Use this to recall facts, preferences, or past decisions.',
         parameters: {
             type: 'object',
@@ -57,6 +59,7 @@ export const memory_search = {
 export const memory_get = {
     definition: {
         name: 'memory_get',
+        displayName: 'Memory: Get',
         description: 'Read a specific section of MEMORY.md. Use this when you need to read the full context around a search result.',
         parameters: {
             type: 'object',
@@ -99,6 +102,7 @@ export const memory_get = {
 export const save_to_memory = {
     definition: {
         name: 'save_to_memory',
+        displayName: 'Memory: Save',
         description: 'Save important information to the agent\'s long-term memory (MEMORY.md). Use this to remember user preferences, important facts, or context that should persist across sessions.',
         parameters: {
             type: 'object',

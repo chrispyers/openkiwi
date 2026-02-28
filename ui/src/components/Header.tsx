@@ -14,11 +14,9 @@ import Button from './Button';
 interface HeaderProps {
     isGatewayConnected: boolean;
     onMenuClick?: () => void;
-    updateAvailable?: boolean;
-    onUpdateClick?: () => void;
 }
 
-const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, updateAvailable, onUpdateClick }) => {
+const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick }) => {
     const { theme } = useTheme();
     return (
         <header className="h-14 border-b border-border-color bg-white dark:bg-bg-primary flex items-center justify-between px-6 z-[60] shadow-sm">
@@ -42,23 +40,6 @@ const Header: React.FC<HeaderProps> = ({ isGatewayConnected, onMenuClick, update
                     </h1>
                 </div>
             </div>
-
-            {updateAvailable && (
-                <div className="absolute left-1/2 -translate-x-1/2">
-                    <button
-                        onClick={onUpdateClick}
-                        className="hover:scale-105 transition-transform duration-100 active:scale-95"
-                        title="Click to see upgrade steps"
-                    >
-                        <Button
-                            icon={faInfoCircle}
-                            themed={true}
-                        >
-                            <Text className="text-white dark:text-neutral-600" bold={true}>UPDATE AVAILABLE</Text>
-                        </Button>
-                    </button>
-                </div>
-            )}
 
             <div className="flex items-center gap-4">
                 {/* Connection Status */}

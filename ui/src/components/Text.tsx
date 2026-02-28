@@ -37,7 +37,12 @@ const Text: React.FC<TextProps> = ({
     const sizeClass = sizeMap[size] || 'text-base';
     const boldClass = bold ? 'font-bold' : 'font-normal';
     const codeClass = code ? 'font-mono' : '';
-    const colorClass = secondary ? "text-neutral-400 dark:text-neutral-400" : "text-neutral-600 dark:text-neutral-100";
+
+    // Check if className contains a text color utility (e.g., text-red-500, text-white, etc.)
+    const hasCustomColor = /\btext-(?:[a-z]+-\d+|[a-z]+)\b/.test(className);
+    const colorClass = secondary
+        ? "text-neutral-400 dark:text-neutral-400"
+        : (hasCustomColor ? "" : "text-neutral-600 dark:text-neutral-100");
 
     return (
         <span className={`${sizeClass} ${boldClass} ${codeClass} ${colorClass} ${className} antialiased`}>

@@ -3,7 +3,9 @@ import { getBrowser } from '../browser_utils.js';
 
 export default {
     definition: {
-        name: 'CISA Reporter',
+        name: 'cisa_reporter',
+        displayName: 'CISA Reporter',
+        pluginType: 'tool',
         description: 'Tool for scraping CISA bulletins for vulnerability data.',
         parameters: {
             type: 'object',

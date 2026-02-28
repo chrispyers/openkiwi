@@ -109,7 +109,7 @@ export default function ChatPage({
                     </div>
                 ) : (
                     <div className="flex items-center gap-4 w-full">
-                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-800 flex items-center justify-center text-xl font-bold dark:text-white">
+                        <div className="w-10 h-10 flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center text-xl font-bold dark:text-white">
                             {currentAgent?.emoji || (currentAgent ? getInitials(currentAgent.name) : <Bot size={20} className="text-neutral-400" />)}
                         </div>
                         <div>
@@ -152,7 +152,7 @@ export default function ChatPage({
 
                 {messages.map((msg, i) => {
                     if (msg.role === 'reasoning' && !config?.chat.showReasoning) return null;
-                    if (msg.role === 'system') return null;
+                    if (msg.role === 'system' || msg.role === 'tool') return null;
 
                     if (msg.role === 'user') {
                         return (
@@ -214,12 +214,12 @@ export default function ChatPage({
                         {isStreaming && <Loader2 size={18} className="animate-spin" />}
                     </Button>
                 </form>
-                <div className="mt-2 text-xs text-center flex items-center justify-center gap-1">
-                    <Text secondary={true} size="xs">Press</Text>
+                <div className="mt-2 text-center flex items-center justify-center gap-1">
+                    <Text secondary={true} size="sm">Press</Text>
                     <Badge><Text secondary={true} size="xs" bold={true}>Enter</Text></Badge>
-                    <Text secondary={true} size="xs">to send,</Text>
+                    <Text secondary={true} size="sm">to send,</Text>
                     <Badge><Text secondary={true} size="xs" bold={true}>Shift + Enter</Text></Badge>
-                    <Text secondary={true} size="xs">for a new line</Text>
+                    <Text secondary={true} size="sm">for a new line</Text>
                 </div>
             </div>
         </div>

@@ -10,6 +10,8 @@ export interface ToolDefinition {
         properties: Record<string, any>;
         required?: string[];
     };
+    displayName?: string;
+    pluginType?: string;
     filename?: string;
     hasReadme?: boolean;
 }
@@ -127,7 +129,10 @@ export class ToolManager {
     }
 
     static getToolReadme(filename: string): string | null {
-        const fullPath = path.join(TOOLS_DIR, filename);
+        const fullPath = path.resolve(TOOLS_DIR, filename);
+        if (!fullPath.startsWith(TOOLS_DIR + path.sep)) {
+            return null;
+        }
         const toolDir = path.dirname(fullPath);
         const readmePath = path.join(toolDir, 'README.md');
 

@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { logger } from '../logger.js';
 import { loadConfig } from '../config-manager.js';
 import { listModels } from '../llm-provider.js';
+import { checkForUpdates } from '../services/update-service.js';
 
 const router = Router();
 
@@ -51,6 +52,15 @@ router.post('/models', async (req, res) => {
         res.json({ data: models });
     } catch (error) {
         console.error('[Models] Fetch error:', error);
+        res.status(500).json({ error: String(error) });
+    }
+});
+
+router.post('/update', async (req, res) => {
+    try {
+        await checkForUpdates();
+        res.json({ success: true });
+    } catch (error) {
         res.status(500).json({ error: String(error) });
     }
 });

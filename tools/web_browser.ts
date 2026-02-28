@@ -30,7 +30,9 @@ if (!fs.existsSync(SCREENSHOTS_DIR)) {
 
 export default {
     definition: {
-        name: 'Web Browser',
+        name: 'web_browser',
+        displayName: 'Web Browser',
+        pluginType: 'tool',
         description: 'Perform web searches, image searches, or browse specific URLs. Returns text content, a screenshot URL, and for "search_images", a list of image_results. You MUST display the screenshot in your response using Markdown image syntax (e.g. ![Screenshot](url)).',
         parameters: {
             type: 'object',

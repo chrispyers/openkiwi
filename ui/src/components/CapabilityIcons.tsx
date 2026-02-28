@@ -9,26 +9,42 @@ interface IconProps {
     tooltip: string;
     ariaLabel: string;
     small?: boolean;
+    noTooltip?: boolean;
 }
 
-const Icon = ({ className = '', children, tooltip, ariaLabel, small = false }: IconProps) => {
+const Icon = ({ className = '', children, tooltip, ariaLabel, small = false, noTooltip = false }: IconProps) => {
+    // Only apply default backgrounds if not provided in className
+    const hasBg = /\bbg-/.test(className);
+    const hasDarkBg = /\bdark:bg-/.test(className);
+
+    const bgDefaults = `${!hasBg ? 'bg-neutral-100' : ''} ${!hasDarkBg ? 'dark:bg-white/5' : ''}`;
+
+    const content = (
+        <div
+            className={`${small ? 'w-5 h-5 rounded-md text-[10px]' : 'w-8 h-8 rounded-lg'} inline-flex items-center justify-center transition-colors ${bgDefaults} ${className}`}
+            aria-label={ariaLabel}
+        >
+            {children}
+        </div>
+    );
+
+    if (noTooltip) {
+        return content;
+    }
+
     return (
         <Tooltip content={tooltip}>
-            <div
-                className={`${small ? 'w-5 h-5 rounded-md text-[10px]' : 'w-8 h-8 rounded-lg'} inline-flex items-center justify-center bg-neutral-100 dark:bg-white/5 transition-colors ${className}`}
-                aria-label={ariaLabel}
-            >
-                {children}
-            </div>
+            {content}
         </Tooltip>
     );
 };
 
-export const EyeIcon = ({ small }: { small?: boolean }) => (
+export const EyeIcon = ({ small, noTooltip }: { small?: boolean, noTooltip?: boolean }) => (
     <Icon
         small={small}
-        className="text-sky-500/70 bg-sky-100
-            dark:text-sky-400 dark:bg-sky-800/70"
+        noTooltip={noTooltip}
+        className="text-sky-600 bg-sky-100
+            dark:text-sky-400 dark:bg-neutral-700"
         tooltip="This model can process image inputs"
         ariaLabel="Vision Capable"
     >
@@ -36,11 +52,12 @@ export const EyeIcon = ({ small }: { small?: boolean }) => (
     </Icon>
 );
 
-export const BrainIcon = ({ small }: { small?: boolean }) => (
+export const BrainIcon = ({ small, noTooltip }: { small?: boolean, noTooltip?: boolean }) => (
     <Icon
         small={small}
-        className="text-violet-500/80 bg-violet-100
-            dark:text-violet-400 dark:bg-violet-500/30"
+        noTooltip={noTooltip}
+        className="text-violet-500 bg-violet-100
+            dark:text-violet-400 dark:bg-neutral-700"
         tooltip="This model supports reasoning"
         ariaLabel="Reasoning Capable"
     >
@@ -48,11 +65,12 @@ export const BrainIcon = ({ small }: { small?: boolean }) => (
     </Icon>
 );
 
-export const ToolIcon = ({ small }: { small?: boolean }) => (
+export const ToolIcon = ({ small, noTooltip }: { small?: boolean, noTooltip?: boolean }) => (
     <Icon
         small={small}
-        className="text-neutral-600/80 bg-neutral-200/50
-            dark:text-neutral-300 dark:bg-neutral-600/70"
+        noTooltip={noTooltip}
+        className="text-neutral-500 bg-neutral-200
+            dark:text-neutral-400 dark:bg-neutral-700"
         tooltip="This model has been trained for tool use"
         ariaLabel="Tool Use Capable"
     >

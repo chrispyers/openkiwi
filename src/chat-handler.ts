@@ -65,6 +65,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     isAuthenticated = true;
                     clearTimeout(authTimeout);
                     ws.send(JSON.stringify({ type: 'auth_success' }));
+                    ws.send(JSON.stringify({ type: 'initial_agent_states', states: AgentManager.getAllAgentStates() }));
                     console.log(`[Auth] Client authenticated: ${hostname} (${ip})`);
                     return;
                 } else {
@@ -144,7 +145,10 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             const agent = AgentManager.getAgent(effectiveAgentId);
 
             const payload: any[] = [];
-            const systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
+            let systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
+
+            // Anti-hallucination directive
+            systemPrompt += "\n\nCRITICAL INSTRUCTION: If you intend to take an action (like modifying a file, searching memory, etc.), you MUST use the provided tools to do so. NEVER claim to have updated a file or taken an action unless you have explicitly called the corresponding tool and received a successful response. DO NOT hallucinate actions.";
 
             if (systemPrompt) {
                 const now = new Date();
@@ -209,23 +213,38 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             });
 
             let fullContent = '';
-            const { finalResponse: finalAiResponse, lastTps, usage: totalUsage } = await runAgentLoop({
-                agentId: effectiveAgentId,
-                sessionId: sessionId || "unknown",
-                llmConfig,
-                messages: payload,
-                visionEnabled: !!providerConfig?.capabilities?.vision,
-                maxLoops: 5,
-                signToolUrls: true,
-                onDelta: (content: string) => {
-                    if (!fullContent) console.log('[WS] Received first delta from LLM');
-                    fullContent += content;
-                    ws.send(JSON.stringify({ type: 'delta', content }));
-                },
-                onUsage: (usageStats: any) => {
-                    ws.send(JSON.stringify({ type: 'usage', usage: usageStats }));
-                }
-            });
+
+            AgentManager.setAgentState(effectiveAgentId, 'chatting', 'Processing user prompt');
+            let finalAiResponse, lastTps, totalUsage, chatHistory;
+            try {
+                const result = await runAgentLoop({
+                    agentId: effectiveAgentId,
+                    sessionId: sessionId || "unknown",
+                    llmConfig,
+                    messages: payload,
+                    visionEnabled: !!providerConfig?.capabilities?.vision,
+                    maxLoops: 5,
+                    signToolUrls: true,
+                    onDelta: (content: string) => {
+                        if (!fullContent) console.log('[WS] Received first delta from LLM');
+                        fullContent += content;
+                        ws.send(JSON.stringify({ type: 'delta', content }));
+                    },
+                    onUsage: (usageStats: any) => {
+                        ws.send(JSON.stringify({ type: 'usage', usage: usageStats }));
+                    },
+                    onToolCall: (toolCall: any) => {
+                        ws.send(JSON.stringify({ type: 'tool_call', toolCall }));
+                    }
+                });
+
+                finalAiResponse = result.finalResponse;
+                lastTps = result.lastTps;
+                totalUsage = result.usage;
+                chatHistory = result.chatHistory;
+            } finally {
+                AgentManager.setAgentState(effectiveAgentId, 'idle');
+            }
 
             logger.log({
                 type: 'response',
@@ -249,21 +268,25 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     updatedAt: timestamp
                 };
 
-                const newMessages = [...userMessages];
-                if (finalAiResponse) {
-                    newMessages.push({
-                        role: 'assistant',
-                        content: finalAiResponse,
-                        timestamp: Math.floor(timestamp / 1000),
-                        stats: {
-                            tps: lastTps,
-                            tokens: totalUsage.completion_tokens,
-                            inputTokens: totalUsage.prompt_tokens,
-                            outputTokens: totalUsage.completion_tokens,
-                            totalTokens: totalUsage.total_tokens
-                        } as any
-                    });
-                }
+                // Overwrite newMessages with the full filtered chat history from runAgentLoop
+                // Filter out 'system' messages and any 'reasoning' messages that might be present
+                const newMessages = chatHistory.filter((msg: any) => msg.role !== 'system' && msg.role !== 'reasoning').map((msg: any, index, arr) => {
+                    const isLast = index === arr.length - 1;
+                    if (isLast && msg.role === 'assistant' && finalAiResponse) {
+                        return {
+                            ...msg,
+                            timestamp: Math.floor(timestamp / 1000),
+                            stats: {
+                                tps: lastTps,
+                                tokens: totalUsage.completion_tokens,
+                                inputTokens: totalUsage.prompt_tokens,
+                                outputTokens: totalUsage.completion_tokens,
+                                totalTokens: totalUsage.total_tokens
+                            }
+                        };
+                    }
+                    return { ...msg, timestamp: msg.timestamp || Math.floor(timestamp / 1000) };
+                });
 
                 existing.messages = newMessages;
                 SessionManager.saveSession(existing);

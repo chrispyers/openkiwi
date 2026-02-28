@@ -51,7 +51,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
     const gatewayToken = localStorage.getItem('gateway_token') || '';
 
     // Pre-process content to fix common LLM formatting issues and inject auth for images
-    const processedContent = content
+    const processedContent = (content || '')
         // Ensure space after hash for headings
         .replace(/^(#{1,6})([^# \n])/gm, '$1 $2')
         // Rewrite image URLs to use the authenticated proxy

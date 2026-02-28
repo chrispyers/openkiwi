@@ -1,8 +1,18 @@
 
 export interface Message {
-    role: 'user' | 'assistant' | 'reasoning' | 'system';
+    role: 'user' | 'assistant' | 'reasoning' | 'system' | 'tool';
     content: string;
     timestamp?: number;
+    name?: string; // used for tool
+    tool_calls?: {
+        id?: string;
+        type?: string;
+        name?: string;
+        displayName?: string;
+        pluginType?: string;
+        arguments?: string;
+        function?: { name: string; arguments: string }
+    }[];
     stats?: {
         tps?: number;
         tokens?: number;
@@ -28,6 +38,12 @@ export interface Agent {
     };
     systemPrompt: string;
     provider?: string;
+}
+
+export interface AgentState {
+    status: 'idle' | 'chatting' | 'working' | string;
+    details?: string;
+    since: number;
 }
 
 export interface Session {

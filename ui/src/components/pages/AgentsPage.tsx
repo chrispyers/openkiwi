@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
 import Card from '../Card'
@@ -184,19 +184,28 @@ export default function AgentsPage({
                                         className={`w-full !justify-start gap-3 !px-4 !py-3 ${selectedAgentId !== a.id ? 'hover:!bg-neutral-200 dark:hover:!bg-neutral-700' : ''}`}
                                         onClick={() => setSelectedAgentId(a.id)}
                                     >
-                                        <div className="flex-1 flex items-center justify-between overflow-hidden min-w-0">
-                                            <div className="text-left overflow-hidden min-w-0">
-                                                <div className="truncate">{a.name}</div>
-                                                <div className="truncate"><Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text></div>
-                                            </div>
-
-                                            {provider?.capabilities && (
-                                                <div className="flex justify-center gap-1.5 shrink-0 opacity-70 w-16">
-                                                    {provider.capabilities.vision && <EyeIcon small={true} />}
-                                                    {provider.capabilities.trained_for_tool_use && <ToolIcon small={true} />}
-                                                    {provider.capabilities.reasoning && <BrainIcon small={true} />}
+                                        <div className="flex-1 text-left overflow-hidden min-w-0">
+                                            <div className="flex items-center justify-between gap-2">
+                                                <div className="truncate font-medium">
+                                                    {a.name}
+                                                    {a.heartbeat?.enabled && (
+                                                        <span className="opacity-50 ml-1.5 text-xs">
+                                                            <FontAwesomeIcon icon={faClockFour} />
+                                                        </span>
+                                                    )}
                                                 </div>
-                                            )}
+
+                                                {provider?.capabilities && (
+                                                    <div className="flex gap-1 shrink-0 opacity-70">
+                                                        {provider.capabilities.vision && <EyeIcon small={true} noTooltip={true} />}
+                                                        {provider.capabilities.trained_for_tool_use && <ToolIcon small={true} noTooltip={true} />}
+                                                        {provider.capabilities.reasoning && <BrainIcon small={true} noTooltip={true} />}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            <div className="truncate -mt-1">
+                                                <Text secondary={true} size="sm">{a.provider || 'Global Default'}</Text>
+                                            </div>
                                         </div>
                                     </Button>
                                 );
@@ -242,9 +251,9 @@ export default function AgentsPage({
                                             <div className="flex justify-between items-center">
                                                 <div>
                                                     <Text bold={true}>
-                                                        <FontAwesomeIcon className="mr-2" icon={faHeartPulse} />Proactive Heartbeat</Text>
+                                                        <FontAwesomeIcon className="mr-2" icon={faClockFour} />Scheduled Tasks</Text>
                                                     <div className="mb-2">
-                                                        <Text size="sm" secondary={true}>Allows the agent to wake up on a schedule</Text>
+                                                        <Text size="sm" secondary={true}>Allows the agent to perform automated tasks on a schedule</Text>
                                                     </div>
                                                 </div>
                                                 <Toggle
@@ -260,7 +269,7 @@ export default function AgentsPage({
                                             </div>
 
                                             {(agentForm.heartbeat?.enabled) && (
-                                                <div className="space-y-3 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
                                                     <Input
                                                         label="Cron Schedule"
                                                         icon={faClock}

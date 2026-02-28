@@ -3,6 +3,7 @@ import path from 'node:path';
 import { loadConfig } from './config-manager.js';
 import { MemoryIndexManager } from './memory/manager.js';
 import { logger } from './logger.js';
+import { broadcastMessage } from './state.js';
 
 export interface Agent {
     id: string;
@@ -22,6 +23,11 @@ export interface Agent {
     };
 }
 
+export interface AgentState {
+    status: 'idle' | 'chatting' | 'working' | string;
+    details?: string;
+    since: number; // Timestamp when this status was set
+}
 
 const AGENTS_DIR = path.resolve(process.cwd(), 'agents');
 const TEMPLATE_DIR = path.resolve(process.cwd(), 'agent_template');
@@ -173,6 +179,32 @@ ${globalSystemPrompt}`.trim();
         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf-8');
     }
 
+    private static agentStates = new Map<string, AgentState>();
+
+    static getAgentState(id: string): AgentState {
+        return this.agentStates.get(id) || { status: 'idle', since: Date.now() };
+    }
+
+    static getAllAgentStates(): Record<string, AgentState> {
+        const states: Record<string, AgentState> = {};
+        for (const id of this.listAgents()) {
+            states[id] = this.getAgentState(id);
+        }
+        return states;
+    }
+
+    static setAgentState(id: string, status: string, details?: string) {
+        const currentState = this.getAgentState(id);
+        const now = Date.now();
+
+        // Only update 'since' if the status itself changed
+        const since = (currentState.status === status) ? currentState.since : now;
+
+        const state = { status, details, since };
+        this.agentStates.set(id, state);
+        broadcastMessage({ type: 'agent_status_update', agentId: id, state });
+    }
+
     private static memoryManagers = new Map<string, MemoryIndexManager>();
 
     private static readFile(filePath: string): string {
@@ -258,6 +290,7 @@ ${globalSystemPrompt}`.trim();
             fs.rmSync(agentDir, { recursive: true, force: true });
         }
         this.memoryManagers.delete(id);
+        this.agentStates.delete(id);
         logger.log({ type: 'system', level: 'info', message: `[AgentManager] Deleted agent ${id}` });
     }
 }
