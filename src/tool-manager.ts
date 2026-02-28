@@ -43,7 +43,7 @@ export class ToolManager {
 
         for (const toolFile of files) {
             const file = toolFile.filename;
-            if (!enabledTools[file]) {
+            if (enabledTools[file] === false) {
                 console.log(`[ToolManager] Skipping disabled tool file: ${file}`);
                 continue;
             }
@@ -106,25 +106,28 @@ export class ToolManager {
         if (!fs.existsSync(TOOLS_DIR)) return [];
 
         const files: ToolFile[] = [];
-        const items = fs.readdirSync(TOOLS_DIR, { withFileTypes: true });
 
-        for (const item of items) {
-            if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js'))) {
-                files.push({ filename: item.name, hasReadme: false });
-            } else if (item.isDirectory()) {
-                const subDir = path.join(TOOLS_DIR, item.name);
-                const hasReadme = fs.existsSync(path.join(subDir, 'README.md'));
-                const subItems = fs.readdirSync(subDir, { withFileTypes: true });
-                for (const subItem of subItems) {
-                    if (subItem.isFile() && (subItem.name.endsWith('.ts') || subItem.name.endsWith('.js'))) {
-                        files.push({
-                            filename: path.join(item.name, subItem.name),
-                            hasReadme
-                        });
-                    }
+        function scanDir(dir: string, relativePath: string = '') {
+            const items = fs.readdirSync(dir, { withFileTypes: true });
+
+            for (const item of items) {
+                const itemRelativePath = path.join(relativePath, item.name);
+                const itemFullPath = path.join(dir, item.name);
+
+                if (item.isDirectory()) {
+                    scanDir(itemFullPath, itemRelativePath);
+                } else if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js'))) {
+                    // Check if there is a README.md in the same directory as the tool
+                    const hasReadme = fs.existsSync(path.join(path.dirname(itemFullPath), 'README.md'));
+                    files.push({
+                        filename: itemRelativePath,
+                        hasReadme
+                    });
                 }
             }
         }
+
+        scanDir(TOOLS_DIR);
         return files;
     }
 

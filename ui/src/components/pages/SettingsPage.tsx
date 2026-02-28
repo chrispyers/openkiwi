@@ -521,15 +521,55 @@ export default function SettingsPage({
                                     These are the capabilities currently discovered by the Gateway. Agents can autonomously choose use these tools to interact with your environment.
                                 </Text>
 
-                                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-4 text-left">
+                                <div className="space-y-3 text-left">
                                     {tools.map(tool => (
-                                        <div key={tool.name} className="p-6 bg-white dark:bg-bg-primary rounded-2xl space-y-3 group hover:border-accent-primary/50 transition-all relative">
-                                            <div className="flex justify-between items-start pr-12">
-                                                <div className="flex items-center gap-2">
-                                                    <Text bold={true} size="lg">{tool.displayName || tool.name}</Text>
-                                                    <Badge>Plugin</Badge>
+                                        <div key={tool.name} className="p-4 bg-white dark:bg-bg-primary rounded-2xl space-y-0 group transition-all relative">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-2 min-w-0 flex-1">
+                                                    <Text bold={true} size="lg" className="truncate">{tool.displayName || tool.name}</Text>
+                                                    <Badge className="shrink-0">Plugin</Badge>
                                                 </div>
-                                                <div className="absolute top-5 right-0">
+
+                                                <div className="flex-1 flex justify-center">
+                                                    {tool.hasReadme && tool.filename && (
+                                                        <Button
+                                                            size="sm"
+                                                            icon={faInfoCircle}
+                                                            onClick={(e) => {
+                                                                e.preventDefault();
+                                                                setLoadingReadme(true);
+                                                                fetch(`${gatewayAddr.replace(/\/$/, '')}/api/tools/readme?path=${encodeURIComponent(tool.filename!)}`, {
+                                                                    headers: {
+                                                                        'Authorization': `Bearer ${gatewayToken}`
+                                                                    }
+                                                                })
+                                                                    .then(res => res.json())
+                                                                    .then(data => {
+                                                                        if (data.content) {
+                                                                            const toolDir = tool.filename!.split(/[\/\\]/).slice(0, -1).join('/');
+                                                                            const processedContent = data.content.replace(/!\[(.*?)\]\((?!http|https|\/)(.*?)\)/g, (match: string, alt: string, imagePath: string) => {
+                                                                                const fullImagePath = toolDir ? `${toolDir}/${imagePath}` : imagePath;
+                                                                                return `![${alt}](/api/tools/files?path=${encodeURIComponent(fullImagePath)})`;
+                                                                            });
+                                                                            setViewingReadme({ name: tool.name, content: processedContent });
+                                                                        } else {
+                                                                            toast.error("Failed to load README content");
+                                                                        }
+                                                                    })
+                                                                    .catch(err => {
+                                                                        console.error(err);
+                                                                        toast.error("Error fetching README");
+                                                                    })
+                                                                    .finally(() => setLoadingReadme(false));
+                                                            }}
+                                                            disabled={loadingReadme}
+                                                        >
+                                                            Read Documentation
+                                                        </Button>
+                                                    )}
+                                                </div>
+
+                                                <div className="flex items-center shrink-0">
                                                     <Toggle
                                                         checked={tool.filename ? (config?.enabledTools?.[tool.filename] ?? false) : true}
                                                         onChange={() => {
@@ -558,57 +598,18 @@ export default function SettingsPage({
                                                     />
                                                 </div>
                                             </div>
-                                            <div className="pt-0">
+
+                                            <div>
                                                 <Text size="sm" secondary={true}>{tool.description}</Text>
                                             </div>
 
-                                            {tool.hasReadme && tool.filename && (
-                                                <div className="pt-1">
-                                                    <Button
-                                                        size="sm"
-                                                        icon={faInfoCircle}
-                                                        onClick={(e) => {
-                                                            e.preventDefault();
-                                                            setLoadingReadme(true);
-                                                            fetch(`${gatewayAddr.replace(/\/$/, '')}/api/tools/readme?path=${encodeURIComponent(tool.filename!)}`, {
-                                                                headers: {
-                                                                    'Authorization': `Bearer ${gatewayToken}`
-                                                                }
-                                                            })
-                                                                .then(res => res.json())
-                                                                .then(data => {
-                                                                    if (data.content) {
-                                                                        // Rewrite relative image paths to authenticated API endpoints
-                                                                        const toolDir = tool.filename!.split(/[\/\\]/).slice(0, -1).join('/');
-                                                                        const processedContent = data.content.replace(/!\[(.*?)\]\((?!http|https|\/)(.*?)\)/g, (match: string, alt: string, imagePath: string) => {
-                                                                            const fullImagePath = toolDir ? `${toolDir}/${imagePath}` : imagePath;
-                                                                            return `![${alt}](/api/tools/files?path=${encodeURIComponent(fullImagePath)})`;
-                                                                        });
-                                                                        setViewingReadme({ name: tool.name, content: processedContent });
-                                                                    } else {
-                                                                        toast.error("Failed to load README content");
-                                                                    }
-                                                                })
-                                                                .catch(err => {
-                                                                    console.error(err);
-                                                                    toast.error("Error fetching README");
-                                                                })
-                                                                .finally(() => setLoadingReadme(false));
-                                                        }}
-                                                        disabled={loadingReadme}
-                                                    >
-                                                        Read Documentation
-                                                    </Button>
-                                                </div>
-                                            )}
-
-                                            <div className="pt-0">
-                                                <Text className="uppercase" size="xs" bold={true}>Parameters</Text>
-                                                <div className="flex flex-wrap gap-2 mt-1">
+                                            <div className="pt-4 flex items-center gap-3">
+                                                <Text className="uppercase shrink-0" size="xs" bold={true}>Parameters</Text>
+                                                <div className="flex flex-wrap gap-2">
                                                     {Object.keys(tool.parameters.properties).map(prop => (
-                                                        <Badge key={prop} className="font-mono">
+                                                        <Badge key={prop} className="font-mono py-0 text-[10px]">
                                                             {prop}
-                                                            {tool.parameters.required?.includes(prop) && <span className="text-red-500 ml-1">*</span>}
+                                                            {tool.parameters.required?.includes(prop) && <span className="text-red-500 ml-0.5">*</span>}
                                                         </Badge>
                                                     ))}
                                                 </div>

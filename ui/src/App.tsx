@@ -794,10 +794,10 @@ function App() {
             });
           }
         } else {
-          processed.push(msg);
+          processed.push({ ...msg });
         }
       } else {
-        processed.push(msg);
+        processed.push({ ...msg });
       }
     });
 

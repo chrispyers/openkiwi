@@ -89,8 +89,10 @@ export const ChatBubble = ({
                                             <Badge>
                                                 {tc.pluginType === 'tool' ? (
                                                     <FontAwesomeIcon icon={faWrench} className="w-3 h-3 mr-1" />
-                                                ) : tc.pluginType === 'skill' ? (
+                                                ) : tc.pluginType === 'skill' && (tc.displayName || tc.function?.name || tc.name)?.toLowerCase().includes('memory') ? (
                                                     <FontAwesomeIcon icon={faBrain} className="w-3 h-3 mr-1" />
+                                                ) : tc.pluginType === 'skill' ? (
+                                                    <FontAwesomeIcon icon={faBoltLightning} className="w-3 h-3 mr-1" />
                                                 ) : (
                                                     <><FontAwesomeIcon icon={faBoltLightning} className="w-3 h-3 mr-1" />{tc.pluginType}</>
                                                 )}
@@ -193,7 +195,7 @@ export const AgentChatBubble = ({
 export const StreamingChatBubble = ({ agent }: { agent?: Agent }) => (
     <div className="flex justify-start animate-in fade-in slide-in-from-bottom-2 duration-300">
         <div className="flex gap-4 items-start">
-            <div className="bg-neutral-200/50 dark:bg-neutral-700 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white shadow-sm">
+            <div className="border border-neutral-200 bg-neutral-100 dark:bg-neutral-700 w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg text-white">
                 <Text>
                     {agent?.emoji ? <span>{agent.emoji}</span> : <span className="text-lg font-bold">{getInitials(agent?.name)}</span>}
                 </Text>

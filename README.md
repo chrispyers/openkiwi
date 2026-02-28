@@ -60,7 +60,7 @@ How is OpenKIWI different?
 
 Start messaging agents from your phone:
 
-<img src="docs/images/whatsapp-3.png" width="200"/>
+<img style="border-radius: 10px;" src="docs/images/whatsapp-3.png" width="200"/>
 
 ### Onboarding Complete 🎉
 * Start chatting with your agent
@@ -68,7 +68,10 @@ Start messaging agents from your phone:
 * Write code
 * Build websites
 * Schedule ongoing tasks for your agents
+* Import your ChatGPT history
 * And much more
+
+<img style="border-radius: 10px;" src="tools/chatgpt/importer/chatgpt_importer.png" width="400"/>
 
 ![](docs/images/chat-1.png)
 ![](docs/images/chat-2.png)

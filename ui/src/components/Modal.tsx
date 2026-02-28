@@ -38,7 +38,7 @@ const Modal: React.FC<ModalProps> = ({
 
     return createPortal(
         <div
-            className="fixed inset-0 bg-black/50 backdrop-blur-md flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-100"
+            className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[1000] p-4 animate-in fade-in duration-100"
             onClick={onClose}
         >
             <div
