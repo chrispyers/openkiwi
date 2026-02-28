@@ -964,6 +964,7 @@ function App() {
   };
 
   const activeAgentInSettings = agents.find(a => a.id === settingsAgentId);
+  const hasActiveAgents = agents.some(agent => (agentStates[agent.id]?.status || 'idle') !== 'idle');
 
   return (
     <div className="flex flex-col h-screen w-full overflow-hidden">
@@ -996,6 +997,7 @@ function App() {
           isGatewayConnected={isGatewayConnected}
           hasAgents={agents.length > 0}
           hasModels={(config?.providers?.length ?? 0) > 0}
+          hasActiveAgents={hasActiveAgents}
         />
 
         {/* Secondary Sidebar (Chat Sessions) */}

@@ -19,15 +19,16 @@ interface SidebarProps {
     isGatewayConnected: boolean;
     hasAgents: boolean;
     hasModels: boolean;
+    hasActiveAgents: boolean;
 }
 
-export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels }: SidebarProps) {
+export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels, hasActiveAgents }: SidebarProps) {
     const navigate = useNavigate();
     const { theme } = useTheme();
 
     const navItems = [
         { id: 'chat', icon: faComments, label: 'Chat' },
-        { id: 'activity', icon: faArrowsSpin, label: 'Activity' },
+        { id: 'activity', icon: faArrowsSpin, label: 'Activity', showActive: hasActiveAgents },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
@@ -60,6 +61,9 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession, i
                                     {item.showAlert && !isNavExpanded && (
                                         <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-bg-sidebar animate-pulse" />
                                     )}
+                                    {item.showActive && !isNavExpanded && (
+                                        <div className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-emerald-500 rounded-full border-2 border-bg-sidebar animate-pulse" />
+                                    )}
                                 </div>
 
                                 {isNavExpanded && (
@@ -69,6 +73,9 @@ export default function Sidebar({ isNavExpanded, activeView, createNewSession, i
                                         </span>
                                         {item.showAlert && (
                                             <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(239,68,68,0.5)]" />
+                                        )}
+                                        {item.showActive && (
+                                            <div className="w-2 h-2 bg-emerald-500 rounded-full animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.5)]" />
                                         )}
                                     </div>
                                 )}
