@@ -879,7 +879,7 @@ function App() {
       const payload = {
         sessionId: sessionToUse,
         agentId: selectedAgentId,
-        messages: newMessages.map(m => ({ role: m.role, content: m.content })),
+        messages: newMessages.map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
         shouldSummarize: config?.chat.generateSummaries || false
       };
       setLogs(prev => prev); // Removed local logging
@@ -954,6 +954,9 @@ function App() {
       } else if (data.type === 'done') {
         setIsStreaming(false);
         socket.close();
+        if (data.messages && data.messages.length > 0) {
+          setMessages(processSessionMessages(data.messages));
+        }
         fetchSessions();
       } else if (data.type === 'error') {
         setIsStreaming(false);

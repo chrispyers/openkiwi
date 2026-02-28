@@ -40,47 +40,63 @@ export default {
                 fs.mkdirSync(targetPath, { recursive: true });
             }
 
-            // 3. Fetch History API
-            // Assuming the endpoint used is the ChatGPT backend API endpoint that returns conversations
-            const listResponse = await fetch('https://chatgpt.com/backend-api/conversations?offset=0&limit=100', {
-                headers: {
-                    'Authorization': `Bearer ${authToken}`,
-                    'Content-Type': 'application/json'
-                }
-            });
-
-            if (!listResponse.ok) {
-                const errorText = await listResponse.text();
-                throw new Error(`Failed to fetch chat history list: ${listResponse.status} ${listResponse.statusText}. Details: ${errorText}`);
-            }
-
-            const listData = await listResponse.json();
-            const items = listData.items || []; // Use items from backend-api JSON response
-
+            // 3. Fetch and Process Conversations in Batches
+            let offset = 0;
+            const limit = 100;
+            let hasMore = true;
             let savedCount = 0;
 
-            // 4. Write Sessions to Disk
-            for (const item of items) {
-                const conversationId = item.id;
+            console.log(`[chatgpt_importer] Fetching and processing conversation lists in batches...`);
 
-                // Fetch full conversation details for each session
-                const detailResponse = await fetch(`https://chatgpt.com/backend-api/conversation/${conversationId}`, {
+            while (hasMore) {
+                console.log(`[chatgpt_importer] Fetching conversation headers at offset ${offset}...`);
+                const listResponse = await fetch(`https://chatgpt.com/backend-api/conversations?offset=${offset}&limit=${limit}`, {
                     headers: {
                         'Authorization': `Bearer ${authToken}`,
                         'Content-Type': 'application/json'
                     }
                 });
 
-                if (detailResponse.ok) {
-                    const detailData = await detailResponse.json();
+                if (!listResponse.ok) {
+                    const errorText = await listResponse.text();
+                    throw new Error(`Failed to fetch chat history list at offset ${offset}: ${listResponse.status} ${listResponse.statusText}. Details: ${errorText}`);
+                }
 
-                    const safeFilename = `${conversationId}.json`;
-                    const sessionPath = path.join(targetPath, safeFilename);
+                const listData = await listResponse.json();
+                const items = listData.items || [];
 
-                    fs.writeFileSync(sessionPath, JSON.stringify(detailData, null, 2), 'utf-8');
-                    savedCount++;
+                console.log(`[chatgpt_importer] Processing ${items.length} conversations from this batch...`);
+
+                // 4. Write Sessions to Disk
+                for (const item of items) {
+                    const conversationId = item.id;
+
+                    // Fetch full conversation details for each session
+                    const detailResponse = await fetch(`https://chatgpt.com/backend-api/conversation/${conversationId}`, {
+                        headers: {
+                            'Authorization': `Bearer ${authToken}`,
+                            'Content-Type': 'application/json'
+                        }
+                    });
+
+                    if (detailResponse.ok) {
+                        const detailData = await detailResponse.json();
+
+                        const safeFilename = `${conversationId}.json`;
+                        const sessionPath = path.join(targetPath, safeFilename);
+
+                        fs.writeFileSync(sessionPath, JSON.stringify(detailData, null, 2), 'utf-8');
+                        savedCount++;
+                    } else {
+                        console.warn(`[chatgpt_importer] Failed to fetch details for conversation ${conversationId}`);
+                    }
+                }
+
+                // If we got fewer items than the limit, we've reached the end
+                if (items.length < limit || (listData.total !== undefined && offset + items.length >= listData.total)) {
+                    hasMore = false;
                 } else {
-                    console.warn(`[chatgpt_importer] Failed to fetch details for conversation ${conversationId}`);
+                    offset += limit;
                 }
             }
 

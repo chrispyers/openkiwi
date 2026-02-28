@@ -179,7 +179,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         });
 
         if (actualToolCalls.length > 0) {
-            const assistantMsg = { role: 'assistant', content: fullContent || '', tool_calls: actualToolCalls };
+            const assistantMsg = {
+                role: 'assistant',
+                content: fullContent || '',
+                tool_calls: actualToolCalls,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
             chatHistory.push(assistantMsg);
 
             for (const toolCall of actualToolCalls) {
@@ -220,7 +225,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                         role: 'tool',
                         tool_call_id: toolCall.id,
                         name: name,
-                        content: JSON.stringify(result)
+                        content: JSON.stringify(result),
+                        timestamp: Math.floor(Date.now() / 1000)
                     });
                 } catch (err) {
                     logger.log({
@@ -236,13 +242,18 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                         role: 'tool',
                         tool_call_id: toolCall.id,
                         name: name,
-                        content: JSON.stringify({ error: String(err) })
+                        content: JSON.stringify({ error: String(err) }),
+                        timestamp: Math.floor(Date.now() / 1000)
                     });
                 }
             }
         } else {
             // Final response with no more tool calls
-            const assistantMsg = { role: 'assistant', content: fullContent || '' };
+            const assistantMsg = {
+                role: 'assistant',
+                content: fullContent || '',
+                timestamp: Math.floor(Date.now() / 1000)
+            };
             chatHistory.push(assistantMsg);
             finalAiResponse = fullContent;
             toolLoop = false;

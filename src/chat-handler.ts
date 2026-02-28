@@ -255,27 +255,27 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 data: finalAiResponse
             });
 
-            ws.send(JSON.stringify({ type: 'done' }));
-
             // Persistence logic
+            const completionTimestamp = Math.floor(Date.now() / 1000);
+            let finalizedMessages: any[] = [];
+
             if (sessionId) {
-                const timestamp = Date.now();
                 const existing = SessionManager.getSession(sessionId) || {
                     id: sessionId,
                     agentId: effectiveAgentId,
-                    title: userMessages[0].content.slice(0, 30) + '...',
+                    title: userMessages[0]?.content?.slice(0, 30) + '...' || 'New Chat',
                     messages: [],
-                    updatedAt: timestamp
+                    updatedAt: Date.now()
                 };
 
-                // Overwrite newMessages with the full filtered chat history from runAgentLoop
                 // Filter out 'system' messages and any 'reasoning' messages that might be present
-                const newMessages = chatHistory.filter((msg: any) => msg.role !== 'system' && msg.role !== 'reasoning').map((msg: any, index, arr) => {
+                finalizedMessages = chatHistory.filter((msg: any) => msg.role !== 'system' && msg.role !== 'reasoning').map((msg: any, index, arr) => {
                     const isLast = index === arr.length - 1;
+                    // If this is the turn we just finished, ensure it has stats and the latest timestamp
                     if (isLast && msg.role === 'assistant' && finalAiResponse) {
                         return {
                             ...msg,
-                            timestamp: Math.floor(timestamp / 1000),
+                            timestamp: completionTimestamp,
                             stats: {
                                 tps: lastTps,
                                 tokens: totalUsage.completion_tokens,
@@ -285,58 +285,59 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                             }
                         };
                     }
-                    return { ...msg, timestamp: msg.timestamp || Math.floor(timestamp / 1000) };
+                    // Respect existing timestamps from the frontend or the agent loop
+                    return { ...msg, timestamp: msg.timestamp || completionTimestamp };
                 });
 
-                existing.messages = newMessages;
+                existing.messages = finalizedMessages;
                 SessionManager.saveSession(existing);
-
-                // Background Summarization if requested
-                if (shouldSummarize && finalAiResponse) {
-                    (async () => {
-                        try {
-                            const summaryPrompt = [
-                                { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
-                                {
-                                    role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${newMessages
-                                        .filter(m => m.role !== 'reasoning')
-                                        .map(m => {
-                                            const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
-                                            return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
-                                        })
-                                        .filter(Boolean)
-                                        .join('\n')}`
-                                }
-                            ];
-                            const completion = await getChatCompletion(llmConfig, summaryPrompt);
-                            const rawSummary = completion.content;
-
-                            if (completion.usage) {
-                                logger.log({
-                                    type: 'usage',
-                                    level: 'info',
-                                    agentId: effectiveAgentId,
-                                    sessionId,
-                                    message: 'Summary token usage',
-                                    data: completion.usage
-                                });
-                            }
-                            const cleanSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
-
-                            const updatedSession = SessionManager.getSession(sessionId);
-                            if (updatedSession) {
-                                updatedSession.summary = cleanSummary;
-                                SessionManager.saveSession(updatedSession);
-                                // Optional: notify client via WS that summary is ready? 
-                                // For now, the next time they fetch sessions it will be there.
-                            }
-                        } catch (err) {
-                            console.error('[Summary] Failed to generate summary:', err);
-                        }
-                    })();
-                }
             }
 
+            ws.send(JSON.stringify({ type: 'done', messages: finalizedMessages }));
+
+            if (sessionId && finalizedMessages.length > 0) {
+                (async () => {
+                    try {
+                        const summaryPrompt = [
+                            { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
+                            {
+                                role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${finalizedMessages
+                                    .filter(m => m.role !== 'reasoning')
+                                    .map(m => {
+                                        const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+                                        return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
+                                    })
+                                    .filter(Boolean)
+                                    .join('\n')}`
+                            }
+                        ];
+                        const completion = await getChatCompletion(llmConfig, summaryPrompt);
+                        const rawSummary = completion.content;
+
+                        if (completion.usage) {
+                            logger.log({
+                                type: 'usage',
+                                level: 'info',
+                                agentId: effectiveAgentId,
+                                sessionId,
+                                message: 'Summary token usage',
+                                data: completion.usage
+                            });
+                        }
+                        const cleanSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
+                        const updatedSession = SessionManager.getSession(sessionId);
+                        if (updatedSession) {
+                            updatedSession.summary = cleanSummary;
+                            SessionManager.saveSession(updatedSession);
+                            // Optional: notify client via WS that summary is ready? 
+                            // For now, the next time they fetch sessions it will be there.
+                        }
+                    } catch (err) {
+                        console.error('[Summary] Failed to generate summary:', err);
+                    }
+                })();
+            }
         } catch (error) {
             console.error('WS Error:', error);
 
