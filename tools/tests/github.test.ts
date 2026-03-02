@@ -9,7 +9,7 @@ vi.mock('node:child_process', () => ({
 const mockedExecFile = vi.mocked(execFile);
 
 // Import tool (module-level env reads only affect description, handler re-reads at call time)
-import tool from './github_blog.js';
+import tool from '../github.js';
 
 // Helper: make execFile resolve with given stdout
 function mockGhSuccess(stdout: string | object) {
@@ -44,7 +44,7 @@ function getGhArgs(callIndex = 0): string[] {
     return call?.[1] as string[] ?? [];
 }
 
-describe('github_blog tool', () => {
+describe('github tool', () => {
     beforeEach(() => {
         process.env.GH_TOKEN = 'ghp_test_token_123';
         process.env.GITHUB_ALLOWED_REPOS = 'owner/blog,owner/docs';
@@ -54,7 +54,7 @@ describe('github_blog tool', () => {
 
     describe('definition', () => {
         it('should export a valid tool definition', () => {
-            expect(tool.definition.name).toBe('github_blog');
+            expect(tool.definition.name).toBe('github');
             expect(tool.definition.parameters.type).toBe('object');
             expect(tool.definition.parameters.required).toContain('action');
             expect(tool.definition.parameters.required).toContain('repo');

@@ -3,10 +3,10 @@ import { promisify } from 'node:util';
 
 const execFileAsync = promisify(execFile);
 
-const DEBUG = process.env.GITHUB_BLOG_DEBUG === 'true' || process.env.GITHUB_BLOG_DEBUG === '1';
+const DEBUG = process.env.GITHUB_DEBUG === 'true' || process.env.GITHUB_DEBUG === '1';
 
 function debug(...args: unknown[]) {
-    if (DEBUG) console.log('[GitHubBlog:DEBUG]', ...args);
+    if (DEBUG) console.log('[GitHub:DEBUG]', ...args);
 }
 
 const allowedReposList = (process.env.GITHUB_ALLOWED_REPOS || '')
@@ -46,7 +46,7 @@ async function ghApi(...args: string[]): Promise<any> {
 
 export default {
     definition: {
-        name: 'github_blog',
+        name: 'github',
         description: toolDescription,
         parameters: {
             type: 'object',
@@ -241,8 +241,8 @@ export default {
 
             return { error: `Unknown action: "${action}". Valid actions: create, update, read, list.` };
         } catch (err: any) {
-            console.error('[GitHubBlog] Error:', err);
-            return { error: `GitHub blog operation failed: ${err.message}` };
+            console.error('[GitHub] Error:', err);
+            return { error: `GitHub operation failed: ${err.message}` };
         }
     }
 };
