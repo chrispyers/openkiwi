@@ -26,6 +26,21 @@ router.use('/config', configRouter);
 router.use('/tools', toolsRouter);
 router.use('/system', systemRouter);
 
+// Telegram routes
+router.get('/telegram/status', (req, res) => {
+    res.json(TelegramManager.getInstance().getStatus());
+});
+
+router.post('/telegram/connect', async (req, res) => {
+    await TelegramManager.getInstance().connect();
+    res.json({ success: true });
+});
+
+router.post('/telegram/disconnect', async (req, res) => {
+    await TelegramManager.getInstance().disconnect();
+    res.json({ success: true });
+});
+
 export default router;
 export { connectedClients } from './state.js';
 export { ConnectedClient } from './state.js';
