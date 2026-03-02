@@ -7,6 +7,7 @@ import configRouter from './routes/config.js';
 import toolsRouter from './routes/tools.js';
 import systemRouter from './routes/system.js';
 import filesRouter from './routes/files.js';
+import { TelegramManager } from './telegram-manager.js';
 
 const router = Router();
 
