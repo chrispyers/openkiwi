@@ -46,13 +46,15 @@ COPY tsconfig.json ./
 COPY config/config.json.template ./config/
 COPY agent_template ./agent_template
 
-# Create necessary data directories
-RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth
+# Create necessary data directories and key file placeholder
+RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth && \
+    touch .openkiwi.key
 
 # Hardening: Only give the node user ownership of the data directories.
 # The app code (dist, src, etc.) remains owned by root and read-only for the node user.
-RUN chown -R node:node agents sessions workspace logs screenshots config whatsapp_auth && \
-    chmod -R 770 agents sessions workspace logs screenshots config whatsapp_auth
+RUN chown -R node:node agents sessions workspace logs screenshots config whatsapp_auth .openkiwi.key && \
+    chmod -R 770 agents sessions workspace logs screenshots config whatsapp_auth && \
+    chmod 660 .openkiwi.key
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]
