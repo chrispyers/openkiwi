@@ -10,7 +10,8 @@
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
-    "test:ui": "vitest --ui"
+    "test:ui": "vitest --ui",
+    "setup:google": "tsx scripts/google-auth.ts"
   },
   "keywords": [],
   "author": "",
@@ -20,6 +21,7 @@
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "googleapis": "^146.0.0",
     "node-cron": "^4.2.1",
     "puppeteer": "^24.37.3",
     "qrcode": "^1.5.4",
