@@ -129,6 +129,90 @@ OpenKIWI ships with several built-in tools that extend your agents' capabilities
 
 See [tools/README.md](tools/README.md) for the full list and how to create your own.
 
+## Heartbeats
+
+Heartbeats let agents run autonomously on a schedule — no user prompt required. Each heartbeat reads the agent's `HEARTBEAT.md` file, executes the instructions via the LLM (with full tool access), and delivers the response to configured channels.
+
+### How it works
+
+1. The Heartbeat Manager reads each agent's `config.json` at startup
+2. Agents with `heartbeat.enabled: true` are scheduled using their cron expression
+3. When the cron fires, the agent's `HEARTBEAT.md` is loaded as the prompt
+4. The agent runs a full agent loop (including tool calls) and produces a response
+5. The response is delivered to all configured channels
+6. A session is saved so the conversation history is preserved
+
+### Configuration
+
+In the agent's `config.json`:
+
+```json
+{
+  "name": "Oracle (Analyst)",
+  "emoji": "📊",
+  "provider": "qwen3-30b-a3b-thinking-2507-mlx",
+  "heartbeat": {
+    "enabled": true,
+    "schedule": "0 16 * * 5",
+    "channels": [
+      { "type": "telegram", "chatId": "123456789" },
+      { "type": "whatsapp", "jid": "123456789@s.whatsapp.net" },
+      { "type": "websocket" }
+    ]
+  }
+}
+```
+
+### Schedule format
+
+Uses standard [cron syntax](https://crontab.guru/) (5 fields: minute, hour, day-of-month, month, day-of-week):
+
+| Example | Meaning |
+|---------|---------|
+| `0 9 * * *` | Every day at 09:00 |
+| `0 16 * * 5` | Every Friday at 16:00 |
+| `0 23,1,3,5,7 * * *` | Every 2 hours overnight (23:00-07:00) |
+| `15 8,17 * * *` | Twice daily at 08:15 and 17:15 |
+| `0 9 * * 1` | Every Monday at 09:00 |
+
+### Delivery channels
+
+| Channel | Config | Description |
+|---------|--------|-------------|
+| **Telegram** | `{ "type": "telegram", "chatId": "123456789" }` | Sends message to a Telegram chat. Requires `TELEGRAM_BOT_TOKEN` in `.env`. |
+| **WhatsApp** | `{ "type": "whatsapp", "jid": "123456789@s.whatsapp.net" }` | Sends message via WhatsApp. Requires WhatsApp integration to be connected. |
+| **WebSocket** | `{ "type": "websocket" }` | Broadcasts to all connected UI clients in real time. |
+
+Multiple channels can be configured — the response is delivered to all of them. If one channel fails (e.g. Telegram disconnected), the others still receive the message.
+
+### Writing HEARTBEAT.md
+
+The `HEARTBEAT.md` file in the agent's directory contains the instructions the agent will execute on each heartbeat. Write it as you would a user prompt:
+
+```markdown
+# Weekly Summary
+
+Review what happened this week and produce a summary.
+
+## What to Do
+1. Check Google Tasks for completed and overdue items
+2. Review GitHub activity across the repos
+3. Identify wins and misses
+4. Suggest adjustments for next week
+5. End with a 3-5 bullet executive summary
+
+Always sign off with your name and emoji.
+```
+
+The agent has full access to its configured tools during heartbeat execution, so it can call GitHub, Google Tasks, Qdrant, or any other enabled tool.
+
+### Behaviour notes
+
+- Heartbeats won't overlap — if a previous execution is still running, the next trigger is skipped
+- Thinking/reasoning tags (`<think>...</think>`) are stripped from channel messages but preserved in saved sessions
+- Sessions are persisted per channel (e.g. `tg-123456789_analyst`) so conversation history accumulates over time
+- The agent's state is set to "working" during execution and returns to "idle" when finished
+
 ### Onboarding Complete 🎉
 * Start chatting with your agent
 * Analyze images
