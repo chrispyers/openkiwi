@@ -12,9 +12,14 @@ function loadOrCreateEncryptionKey(): Buffer {
     }
     const keyPath = path.resolve(process.cwd(), '.openkiwi.key');
     if (fs.existsSync(keyPath)) {
-        const existing = fs.readFileSync(keyPath, 'utf-8').trim();
-        if (existing.length === 64) {
-            return Buffer.from(existing, 'hex');
+        const stat = fs.statSync(keyPath);
+        if (stat.isDirectory()) {
+            fs.rmdirSync(keyPath);
+        } else {
+            const existing = fs.readFileSync(keyPath, 'utf-8').trim();
+            if (existing.length === 64) {
+                return Buffer.from(existing, 'hex');
+            }
         }
     }
     const key = crypto.randomBytes(32);

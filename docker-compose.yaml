@@ -12,7 +12,6 @@ services:
       - ./agents:/app/agents
       - ./config:/app/config
       - ./config.json:/app/config.json.legacy
-      - ./.openkiwi.key:/app/.openkiwi.key
       - ./sessions:/app/sessions
       - ./tools:/app/tools
       - ./workspace:/app/workspace
