@@ -62,6 +62,73 @@ Start messaging agents from your phone:
 
 <img style="border-radius: 10px;" src="docs/images/whatsapp-3.png" width="200"/>
 
+### 6. (optional) Setup Telegram integration
+
+Connect a Telegram bot so you can message your agents from Telegram.
+
+#### Create a bot
+
+1. Open Telegram and message [@BotFather](https://t.me/BotFather)
+2. Send `/newbot` and follow the prompts to name your bot
+3. Copy the **bot token** BotFather gives you
+
+#### Configure environment
+
+Add to your `.env` file:
+
+```
+TELEGRAM_BOT_TOKEN=your_bot_token_here
+```
+
+#### (Recommended) Restrict access
+
+By default, anyone who finds your bot can message it. Add an allowlist to restrict access to specific users:
+
+```
+TELEGRAM_ALLOW_LIST=123456789, @yourusername
+```
+
+Accepts comma-separated Telegram user IDs and/or `@usernames`. To find your user ID, message [@userinfobot](https://t.me/userinfobot) on Telegram.
+
+#### Messaging agents
+
+- Send any message to your bot — it goes to the default agent
+- Mention a specific agent by name: `@Oracle what happened this week?`
+- Use `/agents` to list all available agents
+
+#### Heartbeat delivery
+
+Agents can send scheduled heartbeat messages to Telegram. Add a channel to the agent's `config.json`:
+
+```json
+{
+  "heartbeat": {
+    "enabled": true,
+    "schedule": "0 16 * * 5",
+    "channels": [
+      { "type": "telegram", "chatId": "123456789" }
+    ]
+  }
+}
+```
+
+The `chatId` is the Telegram chat where messages will be delivered (usually your user ID).
+
+### 7. (optional) Enable tools
+
+OpenKIWI ships with several built-in tools that extend your agents' capabilities. Enable them in the Settings page:
+
+| Tool | Description | Docs |
+|------|-------------|------|
+| GitHub | Read/write files in GitHub repos | [tools/github/](tools/github/README.md) |
+| Google Tasks | Manage Google Tasks lists and items | [tools/google_tasks/](tools/google_tasks/README.md) |
+| Qdrant | Semantic search across vector stores | [tools/qdrant/](tools/qdrant/README.md) |
+| Filesystem | Read/write workspace files | Built-in |
+| Vision | Analyse images | Built-in |
+| Web Browser | Browse and extract web content | Built-in |
+
+See [tools/README.md](tools/README.md) for the full list and how to create your own.
+
 ### Onboarding Complete 🎉
 * Start chatting with your agent
 * Analyze images
