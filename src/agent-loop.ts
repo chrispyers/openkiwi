@@ -1,5 +1,6 @@
 import { ToolManager } from './tool-manager.js';
 import { streamChatCompletion } from './llm-provider.js';
+import { loadConfig } from './config-manager.js';
 import { logger } from './logger.js';
 import { signUrl } from './security.js';
 import { processVisionMessages } from './vision.js';
@@ -36,6 +37,7 @@ export interface AgentLoopOptions {
     visionEnabled?: boolean;
     maxLoops?: number;
     signToolUrls?: boolean;
+    agentToolsConfig?: Record<string, any>;
     onDelta?: (content: string) => void;
     onUsage?: (usageStats: any) => void;
     onToolCall?: (toolCall: any) => void;
@@ -200,9 +202,13 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                     const details = getToolDetails(name, args);
                     AgentManager.setAgentState(options.agentId, 'working', details);
 
+                    // Resolve per-tool config: agent config overrides global entirely
+                    const globalToolsConfig = loadConfig().tools;
+                    const toolConfig = options.agentToolsConfig?.[name] ?? globalToolsConfig?.[name];
+
                     let result;
                     try {
-                        result = await ToolManager.callTool(name, args, { agentId: options.agentId });
+                        result = await ToolManager.callTool(name, args, { agentId: options.agentId, toolConfig });
                     } finally {
                         AgentManager.setAgentState(options.agentId, prevState.status, prevState.details);
                     }

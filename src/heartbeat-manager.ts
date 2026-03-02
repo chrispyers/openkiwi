@@ -158,7 +158,8 @@ Please execute these instructions now.
                 llmConfig,
                 messages: messages,
                 maxLoops: 10,
-                signToolUrls: false
+                signToolUrls: false,
+                agentToolsConfig: agent.tools
             });
 
             // Parse thinking content
