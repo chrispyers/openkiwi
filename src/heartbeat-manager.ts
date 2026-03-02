@@ -71,7 +71,7 @@ export class HeartbeatManager {
         }
     }
 
-    private static async executeHeartbeat(agentId: string) {
+    static async executeHeartbeat(agentId: string) {
         if (this.executingAgents.has(agentId)) {
             console.log(`⚠️ Heartbeat skipped for ${agentId}: Previous execution still running.`);
             return;

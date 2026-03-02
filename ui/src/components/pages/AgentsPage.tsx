@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour, faPlay } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
 import Card from '../Card'
@@ -13,7 +13,8 @@ import AgentFileButton from '../AgentFileButton'
 import Code from '../Code'
 import { EyeIcon, BrainIcon, ToolIcon } from '../CapabilityIcons'
 
-import { Agent } from '../../types'
+import { toast } from 'sonner'
+import { Agent, AgentState } from '../../types'
 
 
 interface AgentsPageProps {
@@ -49,8 +50,10 @@ export default function AgentsPage({
     selectedAgentId: selectedAgentIdFromParent,
     setSelectedAgentId: setSelectedAgentIdFromParent,
     providers,
-    agents
-}: AgentsPageProps & { agents: Agent[] }) {
+    agents,
+    allowManualHeartbeat,
+    agentStates
+}: AgentsPageProps & { agents: Agent[], allowManualHeartbeat: boolean, agentStates: Record<string, AgentState> }) {
     // Remove local agents state
     // const [agents, setAgents] = useState<Agent[]>([])
     // Remove local loading state as we rely on parent's data or we can keep it if we want to show loading while fetching
@@ -61,6 +64,8 @@ export default function AgentsPage({
     const [error, setError] = useState<string | null>(null)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [deletingAgent, setDeletingAgent] = useState(false)
+    const [isHeartbeatModalOpen, setIsHeartbeatModalOpen] = useState(false)
+    const [triggeringHeartbeat, setTriggeringHeartbeat] = useState(false)
 
     // Use selectedAgentId from props
     const selectedAgentId = selectedAgentIdFromParent
@@ -142,6 +147,36 @@ export default function AgentsPage({
             setError(error instanceof Error ? error.message : 'Failed to delete agent')
         } finally {
             setDeletingAgent(false)
+        }
+    }
+
+    const handleTriggerHeartbeat = async () => {
+        if (!selectedAgentId) return
+
+        try {
+            setTriggeringHeartbeat(true)
+            const response = await fetch(`${gatewayAddr}/api/agents/${selectedAgentId}/heartbeat`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${gatewayToken}`
+                }
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Failed to trigger heartbeat')
+            }
+
+            toast.success(`Heartbeat triggered for ${selectedAgent?.name}`, {
+                description: 'The scheduled task is now running in the background.'
+            })
+            setIsHeartbeatModalOpen(false)
+        } catch (error) {
+            toast.error('Failed to trigger heartbeat', {
+                description: error instanceof Error ? error.message : 'Unknown error'
+            })
+        } finally {
+            setTriggeringHeartbeat(false)
         }
     }
 
@@ -335,6 +370,25 @@ export default function AgentsPage({
                                                         </div>
                                                     </div>
 
+                                                    {allowManualHeartbeat && (() => {
+                                                        const agentState = selectedAgentId ? agentStates[selectedAgentId] : undefined
+                                                        const isRunning = agentState?.status === 'working'
+                                                        return (
+                                                            <Button
+                                                                size="md"
+                                                                className={`w-full ${isRunning
+                                                                    ? '!bg-amber-500/10 !text-amber-600 dark:!text-amber-400'
+                                                                    : '!bg-emerald-500/10 hover:!bg-emerald-500/20 dark:!bg-emerald-500/10 dark:hover:!bg-emerald-500/20 !text-emerald-600 dark:!text-emerald-400'
+                                                                }`}
+                                                                onClick={() => setIsHeartbeatModalOpen(true)}
+                                                                icon={faPlay}
+                                                                disabled={isRunning}
+                                                            >
+                                                                {isRunning ? 'Running...' : 'Run Now'}
+                                                            </Button>
+                                                        )
+                                                    })()}
+
                                                 </div>
                                             )}
                                         </div>
@@ -491,6 +545,48 @@ export default function AgentsPage({
                             ) : (
                                 'Create Agent'
                             )}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Trigger Heartbeat Confirmation Modal */}
+            <Modal
+                isOpen={isHeartbeatModalOpen}
+                onClose={() => setIsHeartbeatModalOpen(false)}
+                title="Run Scheduled Task"
+                className="!max-w-md"
+            >
+                <div className="p-6 space-y-6 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 text-2xl">
+                            <FontAwesomeIcon icon={faPlay} />
+                        </div>
+                        <div className="space-y-1">
+                            <Text bold={true} size="lg">Run heartbeat now?</Text>
+                            <Text secondary={true} size="sm">
+                                This will immediately execute the scheduled task for <b>{selectedAgent?.name}</b> using its HEARTBEAT.md instructions.
+                            </Text>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                        <Button
+                            themed={false}
+                            className="flex-1"
+                            onClick={() => setIsHeartbeatModalOpen(false)}
+                            disabled={triggeringHeartbeat}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            themed={true}
+                            className="flex-1"
+                            onClick={handleTriggerHeartbeat}
+                            disabled={triggeringHeartbeat}
+                            icon={triggeringHeartbeat ? undefined : faPlay}
+                        >
+                            {triggeringHeartbeat ? 'Triggering...' : 'Run Now'}
                         </Button>
                     </div>
                 </div>
