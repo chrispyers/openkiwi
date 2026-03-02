@@ -137,10 +137,8 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             if (!userMessages) return;
 
             const currentConfig = loadConfig();
-            // Resolve agent ID (default to 'luna' or first available if not specified)
-            const availableAgents = AgentManager.listAgents();
-            const defaultAgentId = availableAgents.find(id => id === 'luna') || availableAgents[0];
-            const effectiveAgentId = agentId || defaultAgentId || 'luna';
+            // Resolve agent ID (default to luna, then oldest, then first alphabetically)
+            const effectiveAgentId = agentId || AgentManager.getDefaultAgentId() || 'assistant';
 
             const agent = AgentManager.getAgent(effectiveAgentId);
 

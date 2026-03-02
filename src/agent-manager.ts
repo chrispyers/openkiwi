@@ -48,6 +48,31 @@ export class AgentManager {
         });
     }
 
+    /**
+     * Returns the default agent ID: prefers 'luna', then oldest agent by
+     * directory creation time, then first alphabetically.
+     */
+    static getDefaultAgentId(): string | null {
+        const agents = this.listAgents();
+        if (agents.length === 0) return null;
+
+        const luna = agents.find(id => id.toLowerCase() === 'luna');
+        if (luna) return luna;
+
+        // Sort by directory birthtime (oldest first)
+        try {
+            const withBirth = agents.map(id => ({
+                id,
+                birthtime: fs.statSync(path.join(AGENTS_DIR, id)).birthtimeMs
+            }));
+            withBirth.sort((a, b) => a.birthtime - b.birthtime);
+            return withBirth[0].id;
+        } catch {
+            // If stat fails, fall back to first alphabetically
+            return agents[0];
+        }
+    }
+
     static getAgent(id: string): Agent | null {
         const agentDir = path.join(AGENTS_DIR, id);
         if (!fs.existsSync(agentDir)) return null;
