@@ -8,9 +8,6 @@ OpenKIWI tools extend agent capabilities by connecting them to external services
 
 | Tool | File | Description |
 |------|------|-------------|
-| [GitHub](github/README.md) | `github.ts` | Manage files in GitHub repositories (list, read, create, update) |
-| [Google Tasks](google_tasks/README.md) | `google_tasks.ts` | Manage Google Tasks (list, add, update, complete) |
-| [Qdrant](qdrant/README.md) | `qdrant.ts` | Semantic search across Qdrant vector stores |
 | Filesystem | `filesystem.ts` | Read and write files in the workspace directory |
 | Vision | `vision.ts` | Analyse images using vision-capable models |
 | Weather | `weather.ts` | Get current weather information |
@@ -20,6 +17,9 @@ OpenKIWI tools extend agent capabilities by connecting them to external services
 
 | Tool | Directory | Description |
 |------|-----------|-------------|
+| [GitHub](github/README.md) | `github.ts` | Manage files in GitHub repositories (list, read, create, update) |
+| [Google Tasks](google_tasks/README.md) | `google_tasks.ts` | Manage Google Tasks (list, add, update, complete) |
+| [Qdrant](qdrant/README.md) | `qdrant.ts` | Semantic search across Qdrant vector stores |
 | [ChatGPT Authenticator](chatgpt/authenticator/README.md) | `chatgpt/authenticator/` | Authenticate with ChatGPT for token retrieval |
 | [ChatGPT Importer](chatgpt/importer/README.md) | `chatgpt/importer/` | Import ChatGPT conversation history |
 | [CISA Reporter](cisa_reporter/README.md) | `cisa_reporter/` | Retrieve and display CVEs from CISA |

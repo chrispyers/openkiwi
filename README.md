@@ -120,12 +120,12 @@ OpenKIWI ships with several built-in tools that extend your agents' capabilities
 
 | Tool | Description | Docs |
 |------|-------------|------|
-| GitHub | Read/write files in GitHub repos | [tools/github/](tools/github/README.md) |
-| Google Tasks | Manage Google Tasks lists and items | [tools/google_tasks/](tools/google_tasks/README.md) |
-| Qdrant | Semantic search across vector stores | [tools/qdrant/](tools/qdrant/README.md) |
 | Filesystem | Read/write workspace files | Built-in |
 | Vision | Analyse images | Built-in |
 | Web Browser | Browse and extract web content | Built-in |
+| GitHub | Read/write files in GitHub repos | [tools/github/](tools/github/README.md) |
+| Google Tasks | Manage Google Tasks lists and items | [tools/google_tasks/](tools/google_tasks/README.md) |
+| Qdrant | Semantic search across vector stores | [tools/qdrant/](tools/qdrant/README.md) |
 
 See [tools/README.md](tools/README.md) for the full list and how to create your own.
 
