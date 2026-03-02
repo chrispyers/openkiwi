@@ -21,6 +21,11 @@ interface QdrantArgs {
     query: string;
     limit?: number;
     score_threshold?: number;
+    filter?: {
+        must?: Record<string, unknown>[];
+        should?: Record<string, unknown>[];
+        must_not?: Record<string, unknown>[];
+    };
     _context?: {
         agentId?: string;
         toolConfig?: {
@@ -160,13 +165,17 @@ export default {
                     type: 'number',
                     description: 'Minimum similarity score threshold for results.',
                 },
+                filter: {
+                    type: 'object',
+                    description: 'Qdrant filter object with must/should/must_not arrays. Example: { "must": [{ "key": "metadata.type", "match": { "value": "article" } }] }',
+                },
             },
             required: ['action', 'store', 'query'],
         },
     },
 
     handler: async (args: QdrantArgs) => {
-        const { action, store: storeName, query, limit = 5, score_threshold, _context } = args;
+        const { action, store: storeName, query, limit = 5, score_threshold, filter, _context } = args;
 
         debug('handler called:', { action, store: storeName, query: query?.slice(0, 80), limit, score_threshold });
         debug('toolConfig stores:', _context?.toolConfig?.stores ? Object.keys(_context.toolConfig.stores) : 'none');
@@ -227,6 +236,9 @@ export default {
             };
             if (score_threshold !== undefined) {
                 searchParams.score_threshold = score_threshold;
+            }
+            if (filter !== undefined) {
+                searchParams.filter = filter;
             }
             debug('search params:', { vectorDims: vector.length, limit, score_threshold });
 
