@@ -55,12 +55,49 @@ How is OpenKIWI different?
 ![](docs/images/agents-1.png)
 
 ### 5. (optional) Setup WhatsApp integration
+
+Connect WhatsApp so you can message your agents from your phone.
+
+#### Pairing
+
+1. Go to the Settings page and click the WhatsApp tab
+2. Scan the QR code with your phone (WhatsApp > Linked Devices > Link a Device)
+3. Once paired, the status will show as connected
+
 ![](docs/images/whatsapp-1.png)
 ![](docs/images/whatsapp-2.png)
 
 Start messaging agents from your phone:
 
 <img style="border-radius: 10px;" src="docs/images/whatsapp-3.png" width="200"/>
+
+#### (Recommended) Restrict access
+
+By default, any WhatsApp number that messages the linked account can interact with agents. Add an allowlist to restrict access:
+
+```
+WHATSAPP_ALLOW_LIST=447958673279, 1234567890
+```
+
+Accepts comma-separated phone numbers (digits only, no `+` prefix required). Numbers not on the list are silently ignored. LID-based JIDs (used by some WhatsApp versions) are automatically resolved to phone numbers for matching.
+
+#### Heartbeat delivery
+
+Agents can send scheduled heartbeat messages to WhatsApp. Add a channel to the agent's `config.json`:
+
+```json
+{
+  "heartbeat": {
+    "enabled": true,
+    "schedule": "0 9 * * 1",
+    "channels": [
+      { "type": "whatsapp", "jid": "447958673279@s.whatsapp.net" }
+    ]
+  }
+}
+```
+
+The `jid` is the recipient's phone number followed by `@s.whatsapp.net`. WhatsApp must be connected for delivery to work — if disconnected, the channel is skipped and a warning is logged.
 
 ### 6. (optional) Setup Telegram integration
 
@@ -212,6 +249,34 @@ The agent has full access to its configured tools during heartbeat execution, so
 - Thinking/reasoning tags (`<think>...</think>`) are stripped from channel messages but preserved in saved sessions
 - Sessions are persisted per channel (e.g. `tg-123456789_analyst`) so conversation history accumulates over time
 - The agent's state is set to "working" during execution and returns to "idle" when finished
+
+## Security: Allowlists
+
+OpenKIWI supports allowlists for both messaging platforms to control who can interact with your agents. Without an allowlist, anyone who can reach the bot/linked account can send messages.
+
+### Configuration
+
+Add to your `.env` file:
+
+| Variable | Format | Example |
+|----------|--------|---------|
+| `TELEGRAM_ALLOW_LIST` | Comma-separated user IDs and/or `@usernames` | `123456789, @johndoe` |
+| `WHATSAPP_ALLOW_LIST` | Comma-separated phone numbers (digits only) | `447958673279, 1234567890` |
+
+### Behaviour
+
+| | Telegram | WhatsApp |
+|---|---------|----------|
+| **Accepts** | Numeric user IDs, `@usernames` | Phone numbers (digits only) |
+| **If not set** | All users allowed | All numbers allowed |
+| **Blocked messages** | Silently ignored (logged) | Silently ignored (logged) |
+| **LID resolution** | N/A | Automatic — LID JIDs are resolved to phone numbers for matching |
+
+### Finding your IDs
+
+- **Telegram user ID**: Message [@userinfobot](https://t.me/userinfobot) on Telegram
+- **Telegram chat ID**: Same as user ID for direct messages; for groups, use [@getidsbot](https://t.me/getidsbot)
+- **WhatsApp JID**: Your phone number in international format without the `+` prefix, followed by `@s.whatsapp.net` (e.g. `447958673279@s.whatsapp.net`)
 
 ### Onboarding Complete 🎉
 * Start chatting with your agent
