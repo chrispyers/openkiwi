@@ -40,6 +40,7 @@ const AgentActivityRow: React.FC<{ agent: Agent, state: AgentState }> = ({ agent
 
     return (
         <div className={`grid grid-cols-12 items-center ${isIdle ? 'bg-bg-primary/20' : 'bg-emerald-500/10 border-l-4 border-l-emerald-500'} hover:bg-bg-primary/40 border border-white/5 rounded-xl p-4 transition-all group`}>
+
             <div className="col-span-4 flex items-center gap-4">
                 <div className={`w-10 h-10 ${isIdle ? 'bg-neutral-500/10 grayscale' : 'bg-emerald-500/10'} rounded-full flex items-center justify-center text-xl transition-all`}>
                     {agent.emoji || ''}
@@ -51,20 +52,21 @@ const AgentActivityRow: React.FC<{ agent: Agent, state: AgentState }> = ({ agent
                     )}
                 </div>
             </div>
-            <div className="col-span-3 text-center">
+
+            <div className="col-span-4 text-center">
                 <Text secondary size="sm" className="opacity-60">{agent.provider || 'AI Assistant'}</Text>
             </div>
-            <div className="col-span-2 flex items-center justify-center gap-2">
+            <div className="col-span-4 flex items-center justify-center gap-2">
                 <span className={`w-2 h-2 rounded-full ${isIdle ? 'bg-amber-500/50' : 'bg-emerald-500 animate-pulse'}`} />
                 <Text className={isIdle ? 'text-amber-500' : 'text-emerald-500'} bold={!isIdle}>
                     {state.status.charAt(0).toUpperCase() + state.status.slice(1)}
                 </Text>
             </div>
-            <div className="col-span-3 text-right">
+            {/* <div className="col-span-3 text-right">
                 <Text secondary size="sm" className="font-mono opacity-50">
                     {isIdle ? 'Idle for: ' : 'Active for: '} {formatDuration(duration)}
                 </Text>
-            </div>
+            </div> */}
         </div>
     );
 };

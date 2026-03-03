@@ -7,6 +7,9 @@ import configRouter from './routes/config.js';
 import toolsRouter from './routes/tools.js';
 import systemRouter from './routes/system.js';
 import filesRouter from './routes/files.js';
+import collaborationRouter from './routes/collaboration.js';
+import projectsRouter from './routes/projects.js';
+import { TelegramManager } from './telegram-manager.js';
 
 const router = Router();
 
@@ -25,6 +28,23 @@ router.use('/whatsapp', whatsappRouter);
 router.use('/config', configRouter);
 router.use('/tools', toolsRouter);
 router.use('/system', systemRouter);
+router.use('/collaboration', collaborationRouter);
+router.use('/projects', projectsRouter);
+
+// Telegram routes
+router.get('/telegram/status', (req, res) => {
+    res.json(TelegramManager.getInstance().getStatus());
+});
+
+router.post('/telegram/connect', async (req, res) => {
+    await TelegramManager.getInstance().connect();
+    res.json({ success: true });
+});
+
+router.post('/telegram/disconnect', async (req, res) => {
+    await TelegramManager.getInstance().disconnect();
+    res.json({ success: true });
+});
 
 // Telegram routes
 router.get('/telegram/status', (req, res) => {

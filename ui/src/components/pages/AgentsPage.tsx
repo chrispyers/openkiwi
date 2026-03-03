@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour, faUsers, faPlay } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../Button'
 import Card from '../Card'
@@ -13,15 +13,16 @@ import AgentFileButton from '../AgentFileButton'
 import Code from '../Code'
 import { EyeIcon, BrainIcon, ToolIcon } from '../CapabilityIcons'
 
-import { Agent } from '../../types'
+import { toast } from 'sonner'
+import { Agent, AgentState } from '../../types'
 
 
 interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } }>>;
+    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>>
     saveAgentConfig: () => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -36,6 +37,10 @@ interface AgentsPageProps {
             trained_for_tool_use?: boolean;
         }
     }[];
+    isAgentCollaborationEnabled: boolean;
+    agents: Agent[];
+    allowManualHeartbeat: boolean;
+    agentStates: Record<string, AgentState>;
 }
 
 export default function AgentsPage({
@@ -49,18 +54,25 @@ export default function AgentsPage({
     selectedAgentId: selectedAgentIdFromParent,
     setSelectedAgentId: setSelectedAgentIdFromParent,
     providers,
-    agents
-}: AgentsPageProps & { agents: Agent[] }) {
+    agents,
+    isAgentCollaborationEnabled,
+    allowManualHeartbeat,
+    agentStates
+}: AgentsPageProps) {
     // Remove local agents state
     // const [agents, setAgents] = useState<Agent[]>([])
     // Remove local loading state as we rely on parent's data or we can keep it if we want to show loading while fetching
     const [loading, setLoading] = useState(false) // Default to false as data typically passed from parent
     const [isModalOpen, setIsModalOpen] = useState(false)
     const [newAgentName, setNewAgentName] = useState('')
+    const [newAgentPersona, setNewAgentPersona] = useState('Generic')
+    const [personas, setPersonas] = useState<string[]>(['Generic'])
     const [creating, setCreating] = useState(false)
     const [error, setError] = useState<string | null>(null)
     const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false)
     const [deletingAgent, setDeletingAgent] = useState(false)
+    const [isHeartbeatModalOpen, setIsHeartbeatModalOpen] = useState(false)
+    const [triggeringHeartbeat, setTriggeringHeartbeat] = useState(false)
 
     // Use selectedAgentId from props
     const selectedAgentId = selectedAgentIdFromParent
@@ -75,7 +87,8 @@ export default function AgentsPage({
                 name: selectedAgent.name,
                 emoji: selectedAgent.emoji,
                 provider: selectedAgent.provider || '',
-                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *' }
+                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false },
+                collaboration: selectedAgent.collaboration || { enabled: false, schedule: '* * * * *' }
             })
         }
     }, [selectedAgent, setAgentForm])
@@ -97,7 +110,7 @@ export default function AgentsPage({
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${gatewayToken}`
                 },
-                body: JSON.stringify({ name: newAgentName.trim() })
+                body: JSON.stringify({ name: newAgentName.trim(), persona: newAgentPersona })
             })
 
             if (!response.ok) {
@@ -111,6 +124,7 @@ export default function AgentsPage({
             setSelectedAgentId(newAgent.id)
             setIsModalOpen(false)
             setNewAgentName('')
+            setNewAgentPersona('Generic')
         } catch (error) {
             setError(error instanceof Error ? error.message : 'Failed to create agent')
         } finally {
@@ -145,8 +159,46 @@ export default function AgentsPage({
         }
     }
 
+    const handleTriggerHeartbeat = async () => {
+        if (!selectedAgentId) return
+
+        try {
+            setTriggeringHeartbeat(true)
+            const response = await fetch(`${gatewayAddr}/api/agents/${selectedAgentId}/heartbeat`, {
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${gatewayToken}`
+                }
+            })
+
+            if (!response.ok) {
+                const errorData = await response.json()
+                throw new Error(errorData.error || 'Failed to trigger heartbeat')
+            }
+
+            toast.success(`Heartbeat triggered for ${selectedAgent?.name}`, {
+                description: 'The scheduled task is now running in the background.'
+            })
+            setIsHeartbeatModalOpen(false)
+        } catch (error) {
+            toast.error('Failed to trigger heartbeat', {
+                description: error instanceof Error ? error.message : 'Unknown error'
+            })
+        } finally {
+            setTriggeringHeartbeat(false)
+        }
+    }
+
     useEffect(() => {
         fetchAgents()
+        fetch(`${gatewayAddr}/api/agents/personas`, {
+            headers: { 'Authorization': `Bearer ${gatewayToken}` }
+        })
+            .then(r => r.json())
+            .then(data => {
+                if (Array.isArray(data)) setPersonas(data);
+            })
+            .catch(console.error)
     }, [])
 
     if (loading) {
@@ -247,141 +299,251 @@ export default function AgentsPage({
                                                 inputClassName="!mt-0 font-emoji text-center pl-0"
                                             />
                                         </div>
-                                        <div className="mb-4 bg-white dark:bg-bg-primary rounded-xl p-4">
-                                            <div className="flex justify-between items-center">
-                                                <div>
-                                                    <Text bold={true}>
-                                                        <FontAwesomeIcon className="mr-2" icon={faClockFour} />Scheduled Tasks</Text>
-                                                    <div className="mb-2">
-                                                        <Text size="sm" secondary={true}>Allows the agent to perform automated tasks on a schedule</Text>
-                                                    </div>
-                                                </div>
-                                                <Toggle
-                                                    checked={agentForm.heartbeat?.enabled || false}
-                                                    onChange={() => setAgentForm({
-                                                        ...agentForm,
-                                                        heartbeat: {
-                                                            schedule: agentForm.heartbeat?.schedule || '* * * * *',
-                                                            enabled: !(agentForm.heartbeat?.enabled)
-                                                        }
-                                                    })}
-                                                />
-                                            </div>
 
-                                            {(agentForm.heartbeat?.enabled) && (
-                                                <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                    <Input
-                                                        label="Cron Schedule"
-                                                        icon={faClock}
-                                                        currentText={agentForm.heartbeat?.schedule || ''}
-                                                        onChange={e => setAgentForm({
-                                                            ...agentForm,
-                                                            heartbeat: {
-                                                                ...agentForm.heartbeat!,
-                                                                schedule: e.target.value
-                                                            }
-                                                        })}
-                                                        clearText={() => setAgentForm({
-                                                            ...agentForm,
-                                                            heartbeat: {
-                                                                ...agentForm.heartbeat!,
-                                                                schedule: ''
-                                                            }
-                                                        })}
-                                                        placeholder="e.g. */10 * * * *"
-                                                        className="!mt-0"
-                                                    />
-                                                    <div className="flex flex-wrap gap-2">
-                                                        {[
-                                                            { label: 'Every 10m', val: '*/10 * * * *' },
-                                                            { label: 'Hourly', val: '0 * * * *' },
-                                                            { label: 'Every 4h', val: '0 */4 * * *' },
-                                                            { label: 'Every 12h', val: '0 */12 * * *' },
-                                                            { label: 'Midnight', val: '0 0 * * *' }
-                                                        ].map(opt => (
-                                                            <Button
-                                                                size="sm"
-                                                                key={opt.label}
-                                                                onClick={() => setAgentForm({
-                                                                    ...agentForm,
-                                                                    heartbeat: {
-                                                                        ...agentForm.heartbeat!,
-                                                                        schedule: opt.val
-                                                                    }
-                                                                })}
-                                                            >
-                                                                {opt.label}
-                                                            </Button>
-                                                        ))}
-                                                    </div>
-                                                    <div className="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg  dark:border-neutral-700/50">
-                                                        <Text size="xs" bold={true} className="uppercase mb-2 block opacity-70">Cron Reference</Text>
-                                                        <div className="grid grid-cols-5 gap-1 text-[10px] font-mono text-center uppercase text-neutral-500 dark:text-neutral-400 mb-1">
-                                                            <div>min</div>
-                                                            <div>hour</div>
-                                                            <div>day</div>
-                                                            <div>month</div>
-                                                            <div>week</div>
-                                                        </div>
-                                                        <div className="grid grid-cols-5 gap-1 font-mono text-center py-1 bg-neutral-100 dark:bg-neutral-900/50 rounded border border-neutral-200 dark:border-neutral-800">
-                                                            <Text>*</Text>
-                                                            <Text>*</Text>
-                                                            <Text>*</Text>
-                                                            <Text>*</Text>
-                                                            <Text>*</Text>
-                                                        </div>
-                                                        <div className="mt-2 text-center">
-                                                            <Text size="sm" secondary={true}>e.g., <Code>0 12 * * *</Code> runs every day at noon.</Text>
-                                                        </div>
-                                                    </div>
 
-                                                </div>
-                                            )}
-                                        </div>
-
-                                        <div className="mb-4">
-                                            <Select
-                                                label="Model"
-                                                value={agentForm.provider || ''}
-                                                onChange={(e) => setAgentForm({ ...agentForm, provider: e.target.value })}
-                                                options={[
-                                                    { value: '', label: 'Use Global Default' },
-                                                    ...providers.map(p => ({
-                                                        value: p.description,
-                                                        label: p.description
-                                                    }))
-                                                ]}
-                                            />
-                                        </div>
-                                        <Button
-                                            themed={true}
-                                            className="w-full"
-                                            onClick={saveAgentConfig}
-                                            icon={faSave}
-                                        >
-                                            Update Agent Profile
-                                        </Button>
                                     </div>
+
+                                    <div className="mb-4">
+                                        <Select
+                                            label="Model"
+                                            value={agentForm.provider || ''}
+                                            onChange={(e) => setAgentForm({ ...agentForm, provider: e.target.value })}
+                                            options={[
+                                                { value: '', label: 'Use Global Default' },
+                                                ...providers.map(p => ({
+                                                    value: p.description,
+                                                    label: p.description
+                                                }))
+                                            ]}
+                                        />
+                                    </div>
+                                    <Button
+                                        themed={true}
+                                        className="w-full"
+                                        onClick={saveAgentConfig}
+                                        icon={faSave}
+                                    >
+                                        Update Agent Profile
+                                    </Button>
                                 </div>
                             </Card>
+
+                            <Card className="space-y-6 mb-6">
+                                <div className="bg-white dark:bg-bg-primary rounded-xl p-4">
+                                    <div className="flex justify-between items-center">
+                                        <div>
+                                            <Text bold={true}>
+                                                <FontAwesomeIcon className="mr-2" icon={faClockFour} />Scheduled Tasks</Text>
+                                            <div className="mb-2">
+                                                <Text size="sm" secondary={true}>Allows the agent to perform automated tasks on a schedule</Text>
+                                            </div>
+                                        </div>
+                                        <Toggle
+                                            checked={agentForm.heartbeat?.enabled || false}
+                                            onChange={() => setAgentForm({
+                                                ...agentForm,
+                                                heartbeat: {
+                                                    schedule: agentForm.heartbeat?.schedule || '* * * * *',
+                                                    enabled: !(agentForm.heartbeat?.enabled)
+                                                }
+                                            })}
+                                        />
+                                    </div>
+
+                                    {(agentForm.heartbeat?.enabled) && (
+                                        <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                            <Input
+                                                label="Cron Schedule"
+                                                icon={faClock}
+                                                currentText={agentForm.heartbeat?.schedule || ''}
+                                                onChange={e => setAgentForm({
+                                                    ...agentForm,
+                                                    heartbeat: {
+                                                        ...agentForm.heartbeat!,
+                                                        schedule: e.target.value
+                                                    }
+                                                })}
+                                                clearText={() => setAgentForm({
+                                                    ...agentForm,
+                                                    heartbeat: {
+                                                        ...agentForm.heartbeat!,
+                                                        schedule: ''
+                                                    }
+                                                })}
+                                                placeholder="e.g. */10 * * * *"
+                                                className="!mt-0"
+                                            />
+                                            <div className="flex flex-wrap gap-2">
+                                                {[
+                                                    { label: 'Every 10m', val: '*/10 * * * *' },
+                                                    { label: 'Hourly', val: '0 * * * *' },
+                                                    { label: 'Every 4h', val: '0 */4 * * *' },
+                                                    { label: 'Every 12h', val: '0 */12 * * *' },
+                                                    { label: 'Midnight', val: '0 0 * * *' }
+                                                ].map(opt => (
+                                                    <Button
+                                                        size="sm"
+                                                        key={opt.label}
+                                                        onClick={() => setAgentForm({
+                                                            ...agentForm,
+                                                            heartbeat: {
+                                                                ...agentForm.heartbeat!,
+                                                                schedule: opt.val
+                                                            }
+                                                        })}
+                                                    >
+                                                        {opt.label}
+                                                    </Button>
+                                                ))}
+                                            </div>
+                                            <div className="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg  dark:border-neutral-700/50">
+                                                <Text size="xs" bold={true} className="uppercase mb-2 block opacity-70">Cron Reference</Text>
+                                                <div className="grid grid-cols-5 gap-1 text-[10px] font-mono text-center uppercase text-neutral-500 dark:text-neutral-400 mb-1">
+                                                    <div>min</div>
+                                                    <div>hour</div>
+                                                    <div>day</div>
+                                                    <div>month</div>
+                                                    <div>week</div>
+                                                </div>
+                                                <div className="grid grid-cols-5 gap-1 font-mono text-center py-1 bg-neutral-100 dark:bg-neutral-900/50 rounded border border-neutral-200 dark:border-neutral-800">
+                                                    <Text>*</Text>
+                                                    <Text>*</Text>
+                                                    <Text>*</Text>
+                                                    <Text>*</Text>
+                                                    <Text>*</Text>
+                                                </div>
+                                                <div className="mt-2 text-center">
+                                                    <Text size="sm" secondary={true}>e.g., <Code>0 12 * * *</Code> runs every day at noon.</Text>
+                                                </div>
+                                            </div>
+
+                                        </div>
+                                    )}
+
+                                    {(allowManualHeartbeat || selectedAgent?.heartbeat?.allowManualTrigger) && (() => {
+                                        const agentState = selectedAgentId ? agentStates[selectedAgentId] : undefined
+                                        const isRunning = agentState?.status === 'working'
+                                        return (
+                                            <Button
+                                                size="md"
+                                                themed={true}
+                                                className={`w-full ${isRunning
+                                                    ? '!bg-amber-500/10 !text-amber-600 dark:!text-amber-400'
+                                                    : '!bg-emerald-500/10 hover:!bg-emerald-500/20 dark:!bg-emerald-500/10 dark:hover:!bg-emerald-500/20 !text-emerald-600 dark:!text-emerald-400'
+                                                    } mt-4`}
+                                                onClick={() => setIsHeartbeatModalOpen(true)}
+                                                icon={faPlay}
+                                                disabled={isRunning}
+                                            >
+                                                {isRunning ? 'Running...' : 'Run Now'}
+                                            </Button>
+                                        )
+                                    })()}
+                                </div>
+
+                                {isAgentCollaborationEnabled && (
+                                    <div className="bg-white dark:bg-bg-primary rounded-xl p-4">
+                                        <div className="flex justify-between items-center">
+                                            <div>
+                                                <Text bold={true}>
+                                                    <FontAwesomeIcon className="mr-2" icon={faUsers} />Agent Collaboration</Text>
+                                                <div className="mb-2">
+                                                    <Text size="sm" secondary={true}>Allows the agent to participate in multi-step workflows with other agents</Text>
+                                                </div>
+                                            </div>
+                                            <Toggle
+                                                checked={agentForm.collaboration?.enabled || false}
+                                                onChange={() => setAgentForm({
+                                                    ...agentForm,
+                                                    collaboration: {
+                                                        schedule: agentForm.collaboration?.schedule || '* * * * *',
+                                                        enabled: !(agentForm.collaboration?.enabled)
+                                                    }
+                                                })}
+                                            />
+                                        </div>
+
+                                        {(agentForm.collaboration?.enabled) && (
+                                            <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
+                                                <Input
+                                                    label="Collaboration Check Interval (Cron)"
+                                                    icon={faClock}
+                                                    currentText={agentForm.collaboration?.schedule || ''}
+                                                    onChange={e => setAgentForm({
+                                                        ...agentForm,
+                                                        collaboration: {
+                                                            ...agentForm.collaboration!,
+                                                            schedule: e.target.value
+                                                        }
+                                                    })}
+                                                    clearText={() => setAgentForm({
+                                                        ...agentForm,
+                                                        collaboration: {
+                                                            ...agentForm.collaboration!,
+                                                            schedule: ''
+                                                        }
+                                                    })}
+                                                    placeholder="e.g. */10 * * * *"
+                                                    className="!mt-0"
+                                                />
+                                                <div className="flex flex-wrap gap-2">
+                                                    {[
+                                                        { label: 'Every 5m', val: '*/5 * * * *' },
+                                                        { label: 'Every 15m', val: '*/15 * * * *' },
+                                                        { label: 'Hourly', val: '0 * * * *' }
+                                                    ].map(opt => (
+                                                        <Button
+                                                            size="sm"
+                                                            key={opt.label}
+                                                            onClick={() => setAgentForm({
+                                                                ...agentForm,
+                                                                collaboration: {
+                                                                    ...agentForm.collaboration!,
+                                                                    schedule: opt.val
+                                                                }
+                                                            })}
+                                                        >
+                                                            {opt.label}
+                                                        </Button>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                )}
+                            </Card>
+
+
                             <Card className="space-y-6">
 
                                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 gap-4">
-                                    <AgentFileButton
-                                        title="IDENTITY.md"
-                                        description="Core instructions"
-                                        icon={faIdBadge}
-                                        iconColorClass="bg-neutral-800/10"
-                                        onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity, isEditing: true, agentId: selectedAgent.id })}
-                                    />
+                                    {selectedAgent.persona ? (
+                                        <AgentFileButton
+                                            title="PERSONA.md"
+                                            description="Core personality"
+                                            icon={faIdBadge}
+                                            iconColorClass="bg-neutral-800/10"
+                                            onClick={() => setViewingFile({ title: 'PERSONA.md', content: selectedAgent.persona!, isEditing: true, agentId: selectedAgent.id })}
+                                        />
+                                    ) : (
+                                        <AgentFileButton
+                                            title="IDENTITY.md"
+                                            description="Core instructions"
+                                            icon={faIdBadge}
+                                            iconColorClass="bg-neutral-800/10"
+                                            onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity!, isEditing: true, agentId: selectedAgent.id })}
+                                        />
+                                    )}
 
-                                    <AgentFileButton
-                                        title="SOUL.md"
-                                        description="Moral values"
-                                        icon={faMicrochip}
-                                        iconColorClass="bg-teal-400/20"
-                                        onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul, isEditing: true, agentId: selectedAgent.id })}
-                                    />
+                                    {!selectedAgent.persona && (
+                                        <AgentFileButton
+                                            title="SOUL.md"
+                                            description="Moral values"
+                                            icon={faMicrochip}
+                                            iconColorClass="bg-teal-400/20"
+                                            onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul!, isEditing: true, agentId: selectedAgent.id })}
+                                        />
+                                    )}
 
                                     <AgentFileButton
                                         title="MEMORY.md"
@@ -400,11 +562,11 @@ export default function AgentsPage({
                                     />
 
                                     <AgentFileButton
-                                        title="AGENT.md"
+                                        title={selectedAgent.persona ? "RULES.md" : "AGENT.md"}
                                         description="Rules & Guardrails"
                                         icon={faShield}
                                         iconColorClass="bg-sky-400/20"
-                                        onClick={() => setViewingFile({ title: 'AGENT.md', content: selectedAgent.rules || '', isEditing: true, agentId: selectedAgent.id })}
+                                        onClick={() => setViewingFile({ title: selectedAgent.persona ? 'RULES.md' : 'AGENT.md', content: selectedAgent.rules || '', isEditing: true, agentId: selectedAgent.id })}
                                     />
 
                                 </div>
@@ -433,6 +595,7 @@ export default function AgentsPage({
                 onClose={() => {
                     setIsModalOpen(false)
                     setNewAgentName('')
+                    setNewAgentPersona('Generic')
                     setError(null)
                 }}
                 title={
@@ -457,6 +620,13 @@ export default function AgentsPage({
                         inputClassName="!mt-0"
                     />
 
+                    <Select
+                        label="Personas"
+                        value={newAgentPersona}
+                        onChange={(e) => setNewAgentPersona(e.target.value)}
+                        options={personas.map(p => ({ label: p, value: p }))}
+                    />
+
                     {error && (
                         <div className="bg-rose-500/10 border border-rose-500/20 rounded-lg px-4 py-3">
                             <p className="text-sm text-rose-500">{error}</p>
@@ -470,6 +640,7 @@ export default function AgentsPage({
                             onClick={() => {
                                 setIsModalOpen(false)
                                 setNewAgentName('')
+                                setNewAgentPersona('Generic')
                                 setError(null)
                             }}
                             disabled={creating}
@@ -491,6 +662,48 @@ export default function AgentsPage({
                             ) : (
                                 'Create Agent'
                             )}
+                        </Button>
+                    </div>
+                </div>
+            </Modal>
+
+            {/* Trigger Heartbeat Confirmation Modal */}
+            <Modal
+                isOpen={isHeartbeatModalOpen}
+                onClose={() => setIsHeartbeatModalOpen(false)}
+                title="Run Scheduled Task"
+                className="!max-w-md"
+            >
+                <div className="p-6 space-y-6 text-center">
+                    <div className="flex flex-col items-center gap-4">
+                        <div className="w-16 h-16 bg-emerald-500/10 rounded-full flex items-center justify-center text-emerald-500 text-2xl">
+                            <FontAwesomeIcon icon={faPlay} />
+                        </div>
+                        <div className="space-y-1">
+                            <Text bold={true} size="lg">Run heartbeat now?</Text>
+                            <Text secondary={true} size="sm">
+                                This will immediately execute the scheduled task for <b>{selectedAgent?.name}</b> using its HEARTBEAT.md instructions.
+                            </Text>
+                        </div>
+                    </div>
+
+                    <div className="flex gap-3 mt-6">
+                        <Button
+                            themed={false}
+                            className="flex-1"
+                            onClick={() => setIsHeartbeatModalOpen(false)}
+                            disabled={triggeringHeartbeat}
+                        >
+                            Cancel
+                        </Button>
+                        <Button
+                            themed={true}
+                            className="flex-1"
+                            onClick={handleTriggerHeartbeat}
+                            disabled={triggeringHeartbeat}
+                            icon={triggeringHeartbeat ? undefined : faPlay}
+                        >
+                            {triggeringHeartbeat ? 'Triggering...' : 'Run Now'}
                         </Button>
                     </div>
                 </div>

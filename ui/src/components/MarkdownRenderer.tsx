@@ -4,6 +4,7 @@ import remarkGfm from 'remark-gfm';
 import remarkBreaks from 'remark-breaks';
 import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
 import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
+import rehypeRaw from 'rehype-raw';
 import Code from './Code';
 
 interface MarkdownRendererProps {
@@ -67,6 +68,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
         <div className={`prose dark:prose-invert prose-chat max-w-none leading-relaxed select-text ${className}`}>
             <ReactMarkdown
                 remarkPlugins={plugins as any}
+                rehypePlugins={[rehypeRaw] as any}
                 components={{
                     img: AuthImage,
                     pre: ({ children }) => <>{children}</>,

@@ -1,0 +1,9 @@
+- Analyze codebase for documentation coverage
+- Check for missing docstrings, type hints, and inline comments
+- Check for missing API documentation
+- Check for missing user documentation
+- Check for missing examples
+- Check for missing tutorials
+- Check for missing troubleshooting guides
+- Generate documentation coverage report with percentage by module
+- Identify areas of improvement

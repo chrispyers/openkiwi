@@ -15,8 +15,9 @@ export interface Agent {
     name: string;
     emoji: string;
     path: string;
-    identity: string;
-    soul: string;
+    identity?: string;
+    soul?: string;
+    persona?: string;
     memory: string;
     rules: string;
     heartbeatInstructions: string;
@@ -25,7 +26,12 @@ export interface Agent {
     heartbeat?: {
         enabled: boolean;
         schedule: string;
+        allowManualTrigger?: boolean;
         channels?: HeartbeatChannel[];
+    };
+    collaboration?: {
+        enabled: boolean;
+        schedule: string;
     };
     tools?: Record<string, any>;
 }
@@ -37,7 +43,6 @@ export interface AgentState {
 }
 
 const AGENTS_DIR = path.resolve(process.cwd(), 'agents');
-const TEMPLATE_DIR = path.resolve(process.cwd(), 'agent_template');
 
 export class AgentManager {
     static listAgents(): string[] {
@@ -48,15 +53,44 @@ export class AgentManager {
         });
     }
 
+    /**
+     * Returns the default agent ID: prefers 'luna', then oldest agent by
+     * directory creation time, then first alphabetically.
+     */
+    static getDefaultAgentId(): string | null {
+        const agents = this.listAgents();
+        if (agents.length === 0) return null;
+
+        const luna = agents.find(id => id.toLowerCase() === 'luna');
+        if (luna) return luna;
+
+        // Sort by directory birthtime (oldest first)
+        try {
+            const withBirth = agents.map(id => ({
+                id,
+                birthtime: fs.statSync(path.join(AGENTS_DIR, id)).birthtimeMs
+            }));
+            withBirth.sort((a, b) => a.birthtime - b.birthtime);
+            return withBirth[0].id;
+        } catch {
+            // If stat fails, fall back to first alphabetically
+            return agents[0];
+        }
+    }
+
     static getAgent(id: string): Agent | null {
         const agentDir = path.join(AGENTS_DIR, id);
         if (!fs.existsSync(agentDir)) return null;
 
-        const identity = this.readFile(path.join(agentDir, 'IDENTITY.md'));
-        const soul = this.readFile(path.join(agentDir, 'SOUL.md'));
+        const personaPath = path.join(agentDir, 'PERSONA.md');
+        const hasPersona = fs.existsSync(personaPath);
+
+        const persona = hasPersona ? this.readFile(personaPath) : undefined;
+        const identity = !hasPersona ? this.readFile(path.join(agentDir, 'IDENTITY.md')) : undefined;
+        const soul = !hasPersona ? this.readFile(path.join(agentDir, 'SOUL.md')) : undefined;
         const memory = this.readFile(path.join(agentDir, 'MEMORY.md'));
         const heartbeatInstructions = this.readFile(path.join(agentDir, 'HEARTBEAT.md'));
-        const rules = this.readFile(path.join(agentDir, 'AGENT.md'));
+        const rules = this.readFile(path.join(agentDir, hasPersona ? 'RULES.md' : 'AGENT.md'));
 
         // Load agent-specific config if it exists
         const configPath = path.join(agentDir, 'config.json');
@@ -71,14 +105,27 @@ export class AgentManager {
         const globalConfig = loadConfig();
         const globalSystemPrompt = globalConfig.global?.systemPrompt || '';
 
+        let collaborationPrompt = '';
+        if (agentConfig.collaboration?.enabled) {
+            collaborationPrompt = `
+# COLLABORATION SYSTEM
+You are part of an Agent Collaboration System. You have the ability to work on multi-step workflows with other agents.
+Use the \`get_assigned_tasks\` tool to see what tasks you are currently assigned to.
+When working on a task, you can read its context via \`read_task\`.
+Communicate your progress, feedback, and decisions by leaving comments on the task using \`add_task_comment\`.
+When you have finished your work on a task for its current stage, move it to the next stage using \`update_task_state\`.
+Check your assigned tasks regularly, especially when asked for an update or when participating in a scheduled collaboration event.`;
+        }
+
         const systemPrompt = `
-${identity}
+${hasPersona ? persona : identity}
 
 ${rules}
-
-${soul}
+${hasPersona ? '' : '\n' + soul}
 
 ${memory || 'Your memory is currently empty.'}
+
+${collaborationPrompt}
 
 ${globalSystemPrompt}`.trim();
 
@@ -89,17 +136,19 @@ ${globalSystemPrompt}`.trim();
             path: agentDir,
             identity,
             soul,
+            persona,
             memory,
             rules,
             heartbeatInstructions,
             systemPrompt,
             provider: agentConfig.provider,
             heartbeat: agentConfig.heartbeat,
+            collaboration: agentConfig.collaboration,
             tools: agentConfig.tools
         };
     }
 
-    static createAgent(name: string): Agent {
+    static createAgent(name: string, personaName: string = 'Generic'): Agent {
         // Create a safe ID from the name
         const id = name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
 
@@ -120,32 +169,35 @@ ${globalSystemPrompt}`.trim();
         }
         fs.mkdirSync(agentDir);
 
-        // Copy all files from template directory if it exists
-        if (fs.existsSync(TEMPLATE_DIR)) {
-            const copyRecursive = (src: string, dest: string) => {
-                if (!fs.existsSync(dest)) {
-                    fs.mkdirSync(dest, { recursive: true });
+        const personasDir = path.resolve(process.cwd(), 'agent_personas');
+        const specificPersonaDir = path.join(personasDir, personaName);
+
+        const filesToCopy = ['PERSONA.md', 'RULES.md', 'MEMORY.md', 'HEARTBEAT.md'];
+
+        for (const file of filesToCopy) {
+            const specificPath = path.join(specificPersonaDir, file);
+            const fallbackPath = path.join(personasDir, file);
+            let sourcePath = null;
+
+            if (fs.existsSync(specificPath)) {
+                sourcePath = specificPath;
+            } else if (fs.existsSync(fallbackPath)) {
+                sourcePath = fallbackPath;
+            }
+
+            if (sourcePath) {
+                let content = fs.readFileSync(sourcePath, 'utf-8');
+                if (file === 'PERSONA.md') {
+                    content = content.replace(/\${name}/g, name);
                 }
-                const entries = fs.readdirSync(src, { withFileTypes: true });
-                for (const entry of entries) {
-                    const srcPath = path.join(src, entry.name);
-                    const destPath = path.join(dest, entry.name);
-                    if (entry.isDirectory()) {
-                        copyRecursive(srcPath, destPath);
-                    } else if (entry.isFile()) {
-                        let content: string | Buffer = fs.readFileSync(srcPath);
-                        // Apply replacements for specific text files
-                        if (entry.name === 'IDENTITY.md') {
-                            let textContent = content.toString('utf-8');
-                            textContent = textContent.replace(/\${name}/g, name);
-                            fs.writeFileSync(destPath, textContent, 'utf-8');
-                        } else {
-                            fs.writeFileSync(destPath, content);
-                        }
-                    }
+                fs.writeFileSync(path.join(agentDir, file), content, 'utf-8');
+            } else if (file !== 'HEARTBEAT.md') {
+                if (file === 'PERSONA.md') {
+                    fs.writeFileSync(path.join(agentDir, file), `You are ${name}.`, 'utf-8');
+                } else {
+                    fs.writeFileSync(path.join(agentDir, file), '', 'utf-8');
                 }
-            };
-            copyRecursive(TEMPLATE_DIR, agentDir);
+            }
         }
 
         // Create config if it doesn't exist (it might have been copied from template)

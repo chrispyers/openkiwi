@@ -44,8 +44,8 @@ function decrypt(text: string): string {
         decrypted += decipher.final('utf8');
         return decrypted;
     } catch (e) {
-        console.error('Failed to decrypt value:', e);
-        return text;
+        console.warn('[Config] Failed to decrypt a value (key mismatch or corrupted data). Resetting to empty.');
+        return '';
     }
 }
 
@@ -85,6 +85,9 @@ const ConfigSchema = z.object({
         version: z.string().default("2026-02-18"),
         latestVersion: z.string().default(""),
     }).passthrough().default({ version: "2026-02-18", latestVersion: "" }),
+    heartbeat: z.object({
+        allowManualTrigger: z.boolean().default(false),
+    }).passthrough().default({ allowManualTrigger: false }),
     enabledTools: z.record(z.string(), z.boolean()).default({}),
     tools: z.record(z.string(), z.any()).default({}),
 }).passthrough();
@@ -220,6 +223,9 @@ export function loadConfig(): Config {
             system: {
                 version: "2026-02-18",
                 latestVersion: "",
+            },
+            heartbeat: {
+                allowManualTrigger: false,
             },
             enabledTools: {},
             tools: {}

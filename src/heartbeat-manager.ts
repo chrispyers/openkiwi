@@ -23,8 +23,13 @@ export class HeartbeatManager {
         const agentIds = AgentManager.listAgents();
         for (const id of agentIds) {
             const agent = AgentManager.getAgent(id);
-            if (agent && agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
-                this.scheduleHeartbeat(agent);
+            if (agent) {
+                if (agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
+                    this.scheduleHeartbeat(agent, 'heartbeat');
+                }
+                if (agent.collaboration && agent.collaboration.enabled && agent.collaboration.schedule) {
+                    this.scheduleHeartbeat(agent, 'collaboration');
+                }
             }
         }
         console.log(`💓 Heartbeat Manager: Scheduled ${this.jobs.size} agents.`);
@@ -36,43 +41,58 @@ export class HeartbeatManager {
     }
 
     static refreshAgent(agentId: string) {
-        // Stop existing job if any
-        if (this.jobs.has(agentId)) {
-            this.jobs.get(agentId).stop();
-            this.jobs.delete(agentId);
-            console.log(`💓 Heartbeat Manager: Stopped existing job for ${agentId}`);
-        }
+        // Stop existing jobs if any
+        ['heartbeat', 'collaboration'].forEach(type => {
+            const key = `${agentId}:${type}`;
+            if (this.jobs.has(key)) {
+                this.jobs.get(key).stop();
+                this.jobs.delete(key);
+                console.log(`💓 Heartbeat Manager: Stopped existing job for ${key}`);
+            }
+        });
 
         // Get updated agent config
         const agent = AgentManager.getAgent(agentId);
-        if (agent && agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
-            this.scheduleHeartbeat(agent);
+        if (agent) {
+            if (agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
+                this.scheduleHeartbeat(agent, 'heartbeat');
+            }
+            if (agent.collaboration && agent.collaboration.enabled && agent.collaboration.schedule) {
+                this.scheduleHeartbeat(agent, 'collaboration');
+            }
         }
     }
 
-    private static scheduleHeartbeat(agent: Agent) {
-        if (!agent.heartbeat?.schedule) return;
+    private static scheduleHeartbeat(agent: Agent, type: 'heartbeat' | 'collaboration') {
+        const schedule = type === 'heartbeat' ? agent.heartbeat?.schedule : agent.collaboration?.schedule;
+        if (!schedule) return;
 
         try {
             // Validate cron expression
-            if (!cron.validate(agent.heartbeat.schedule)) {
-                console.error(`❌ Invalid cron schedule for agent ${agent.name}: ${agent.heartbeat.schedule}`);
+            if (!cron.validate(schedule)) {
+                console.error(`❌ Invalid cron schedule for agent ${agent.name} (${type}): ${schedule}`);
                 return;
             }
 
-            const job = cron.schedule(agent.heartbeat.schedule, () => {
-                this.executeHeartbeat(agent.id);
+            const job = cron.schedule(schedule, () => {
+                if (type === 'heartbeat') {
+                    this.executeHeartbeat(agent.id);
+                } else {
+                    this.executeCollaborationHeartbeat(agent.id);
+                }
             });
 
-            this.jobs.set(agent.id, job);
-            console.log(`✅ Scheduled heartbeat for ${agent.name} (${agent.heartbeat.schedule})`);
+            const key = `${agent.id}:${type}`;
+            this.jobs.set(key, job);
+            console.log(`✅ Scheduled ${type} for ${agent.name} (${schedule})`);
         } catch (error) {
-            console.error(`❌ Failed to schedule heartbeat for ${agent.name}:`, error);
+            console.error(`❌ Failed to schedule ${type} for ${agent.name}:`, error);
         }
     }
 
-    private static async executeHeartbeat(agentId: string) {
-        if (this.executingAgents.has(agentId)) {
+    static async executeHeartbeat(agentId: string) {
+        const taskKey = `${agentId}:heartbeat`;
+        if (this.executingAgents.has(taskKey)) {
             console.log(`⚠️ Heartbeat skipped for ${agentId}: Previous execution still running.`);
             return;
         }
@@ -80,7 +100,7 @@ export class HeartbeatManager {
         const agent = AgentManager.getAgent(agentId);
         if (!agent) return;
 
-        this.executingAgents.add(agentId);
+        this.executingAgents.add(taskKey);
 
         logger.log({
             type: 'system',
@@ -217,13 +237,151 @@ Please execute these instructions now.
             console.error(`❌ Error during heartbeat execution for ${agent.name}:`, error);
         } finally {
             AgentManager.setAgentState(agent.id, 'idle');
-            this.executingAgents.delete(agentId);
+            this.executingAgents.delete(`${agent.id}:heartbeat`);
             logger.log({
                 type: 'system',
                 level: 'info',
                 agentId: agent.id,
                 sessionId: 'heartbeat',
                 message: '[Heartbeat] Session ended',
+                data: null
+            });
+        }
+    }
+
+    private static async executeCollaborationHeartbeat(agentId: string) {
+        const taskKey = `${agentId}:collaboration`;
+        if (this.executingAgents.has(taskKey)) {
+            console.log(`⚠️ Collaboration skipped for ${agentId}: Previous execution still running.`);
+            return;
+        }
+
+        const agent = AgentManager.getAgent(agentId);
+        if (!agent) return;
+
+        this.executingAgents.add(taskKey);
+
+        logger.log({
+            type: 'system',
+            level: 'info',
+            agentId: agent.id,
+            sessionId: 'collaboration',
+            message: '[Collaboration] Session started',
+            data: null
+        });
+
+        console.log(`🤝 Executing collaboration heartbeat for ${agent.name}...`);
+
+        try {
+            // Prepare LLM Request
+            const currentConfig = loadConfig();
+            const providerName = agent.provider;
+            let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
+
+            if (!providerConfig && currentConfig.providers.length > 0) {
+                providerConfig = currentConfig.providers[0];
+            }
+
+            if (!providerConfig) {
+                console.error(`❌ No provider available for ${agent.name} collaboration.`);
+                return;
+            }
+
+            const llmConfig = {
+                baseUrl: providerConfig.endpoint,
+                modelId: providerConfig.model,
+                apiKey: providerConfig.apiKey,
+                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
+            };
+
+            const now = new Date();
+            const currentTimestampUTC = now.toISOString();
+            const currentTimestampLocal = now.toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: 'full', timeStyle: 'long' });
+
+            const messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[] = [
+                { role: 'system', content: agent.systemPrompt },
+                {
+                    role: 'user',
+                    content: `SYSTEM COLLABORATION CALL: It is time to process your assigned tasks and collaborate with other agents.
+
+# CURRENT TIME
+- UTC: ${currentTimestampUTC}
+- Local: ${currentTimestampLocal}
+                
+# INSTRUCTIONS
+You have been woken up to work on the Agent Collaboration System.
+1. Use the \`get_assigned_tasks\` tool to check for tasks assigned to you.
+2. If there are tasks, read them using \`read_task\`.
+3. Perform the necessary work to progress the task, including researching, thinking, reading files, etc.
+4. When you make progress, use \`add_task_comment\` to explain what you did and your feedback.
+5. If the current workflow state is complete, use \`update_task_state\` to move the task to the next state according to the workflow.
+6. If there are no assignments, or you are finished, just output a short status summary.
+`
+                }
+            ];
+
+            // Execute Loop
+            AgentManager.setAgentState(agent.id, 'working', 'Processing collaboration tasks');
+            const { finalResponse: fullContent } = await runAgentLoop({
+                agentId: agent.id,
+                sessionId: 'collaboration',
+                llmConfig,
+                messages: messages,
+                maxLoops: 10,
+                signToolUrls: false
+            });
+
+            // Parse thinking content
+            let contentToLog = fullContent;
+            let thinkingContent = '';
+
+            const thinkStart = fullContent.indexOf('<think>');
+            const thinkEnd = fullContent.indexOf('</think>');
+
+            if (thinkStart !== -1) {
+                if (thinkEnd !== -1) {
+                    thinkingContent = fullContent.substring(thinkStart + 7, thinkEnd).trim();
+                    contentToLog = fullContent.substring(0, thinkStart) + fullContent.substring(thinkEnd + 8);
+                } else {
+                    thinkingContent = fullContent.substring(thinkStart + 7).trim();
+                    contentToLog = fullContent.substring(0, thinkStart);
+                }
+            }
+            contentToLog = contentToLog.trim();
+
+            if (thinkingContent && currentConfig.chat.showReasoning) {
+                logger.log({
+                    type: 'thinking',
+                    level: 'info',
+                    agentId: agent.id,
+                    sessionId: 'collaboration',
+                    message: `[Collaboration] Thinking process`,
+                    data: thinkingContent
+                });
+            }
+
+            if (contentToLog) {
+                logger.log({
+                    type: 'response',
+                    level: 'info',
+                    agentId: agent.id,
+                    sessionId: 'collaboration',
+                    message: `[Collaboration] Completed execution`,
+                    data: contentToLog
+                });
+            }
+            console.log(`🤝 Collaboration finished for ${agent.name}:`, contentToLog.substring(0, 100) + '...');
+        } catch (error) {
+            console.error(`❌ Error during collaboration execution for ${agent.name}:`, error);
+        } finally {
+            AgentManager.setAgentState(agent.id, 'idle');
+            this.executingAgents.delete(taskKey);
+            logger.log({
+                type: 'system',
+                level: 'info',
+                agentId: agent.id,
+                sessionId: 'collaboration',
+                message: '[Collaboration] Session ended',
                 data: null
             });
         }

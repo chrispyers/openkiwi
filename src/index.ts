@@ -29,7 +29,7 @@ const wss = new WebSocketServer({
         const currentConfig = loadConfig();
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
-        if (allowed.includes(origin) && origin !== '*') {
+        if (allowed.includes('*') || allowed.includes(origin)) {
             callback(true);
         } else {
             console.warn(`[WebSocket] Blocked connection from unauthorized origin: ${origin}`);
@@ -79,7 +79,7 @@ app.use(cors({
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
         // Prevent wildcard usage with credentials
-        if (allowed.includes(origin) && origin !== '*') {
+        if (allowed.includes('*') || allowed.includes(origin)) {
             callback(null, true);
         } else {
             console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);

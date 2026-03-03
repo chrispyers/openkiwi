@@ -49,6 +49,8 @@ import GatewayPage from './components/pages/GatewayPage'
 import SettingsPage from './components/pages/SettingsPage'
 import ChatPage from './components/pages/ChatPage'
 import ActivityPage from './components/pages/ActivityPage'
+import WorkflowsPage from './components/pages/WorkflowsPage'
+import ProjectsPage from './components/pages/ProjectsPage'
 import Sidebar from './components/Sidebar'
 import { TABLE, TH, TR, TD } from './components/Table'
 import {
@@ -71,7 +73,8 @@ import {
   faFolder,
   faCube,
   faRobot,
-  faFileLines
+  faFileLines,
+  faFlask
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
 import SessionGroup from './components/SessionGroup'
@@ -125,7 +128,7 @@ function App() {
     }
   }, [location.pathname, navigate]);
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'about'>('about');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'about' | 'general' | 'gateway'>('about');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean, isInitializing?: boolean, botUsername?: string | null }>({ connected: false, isInitializing: false, botUsername: null });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
@@ -154,7 +157,7 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } }>({ name: '', emoji: '', provider: '', heartbeat: { enabled: false, schedule: '* * * * *' } });
+  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>({ name: '', emoji: '', provider: '', heartbeat: { enabled: false, schedule: '* * * * *', allowManualTrigger: false }, collaboration: { enabled: false, schedule: '* * * * *' } });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
@@ -162,6 +165,15 @@ function App() {
   const [inputText, setInputText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
   const [isGatewayConnected, setIsGatewayConnected] = useState(false);
+  const [isProjectManagementEnabled, setIsProjectManagementEnabled] = useState(() => {
+    return localStorage.getItem('experimental_projects') === 'true';
+  });
+  const [isAgentCollaborationEnabled, setIsAgentCollaborationEnabled] = useState(() => {
+    return localStorage.getItem('experimental_collaboration') === 'true';
+  });
+  const [isAgentActivityEnabled, setIsAgentActivityEnabled] = useState(() => {
+    return localStorage.getItem('experimental_activity') === 'true';
+  });
 
   const fetchLogs = async () => {
     try {
@@ -1054,6 +1066,8 @@ function App() {
           hasModels={(config?.providers?.length ?? 0) > 0}
           hasActiveAgents={hasActiveAgents}
           onSettingsClick={() => setActiveSettingsSection('about')}
+          isProjectManagementEnabled={isProjectManagementEnabled}
+          isAgentActivityEnabled={isAgentActivityEnabled}
         />
 
         {/* Secondary Sidebar (Chat Sessions) */}
@@ -1134,6 +1148,15 @@ function App() {
               setSelectedAgentId={setAgentsPageAgentId}
               providers={config?.providers || []}
               agents={agents}
+              isAgentCollaborationEnabled={isAgentCollaborationEnabled}
+              allowManualHeartbeat={config?.heartbeat?.allowManualTrigger || false}
+              agentStates={agentStates}
+            />
+          ) : activeView === 'workflows' ? (
+            <WorkflowsPage
+              gatewayAddr={gatewayAddr}
+              gatewayToken={gatewayToken}
+              agents={agents}
             />
           ) : activeView === 'models' ? (
             <ModelsPage
@@ -1157,6 +1180,8 @@ function App() {
             />
           ) : activeView === 'activity' ? (
             <ActivityPage agents={agents} agentStates={agentStates} />
+          ) : activeView === 'projects' ? (
+            <ProjectsPage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}
@@ -1186,6 +1211,12 @@ function App() {
               onDisconnectTelegram={onDisconnectTelegram}
               gatewayAddr={gatewayAddr}
               gatewayToken={gatewayToken}
+              isProjectManagementEnabled={isProjectManagementEnabled}
+              setIsProjectManagementEnabled={setIsProjectManagementEnabled}
+              isAgentCollaborationEnabled={isAgentCollaborationEnabled}
+              setIsAgentCollaborationEnabled={setIsAgentCollaborationEnabled}
+              isAgentActivityEnabled={isAgentActivityEnabled}
+              setIsAgentActivityEnabled={setIsAgentActivityEnabled}
             />
           )}
         </main>

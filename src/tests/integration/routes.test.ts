@@ -1,13 +1,39 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import request from 'supertest';
 import express from 'express';
-import routes from '../../routes';
-import * as configManager from '../../config-manager';
 
-vi.mock('../../config-manager', () => ({
+// Mock all sub-routers and dependencies before importing routes
+vi.mock('../../routes/agents.js', () => ({ default: express.Router() }));
+vi.mock('../../routes/sessions.js', () => ({ default: express.Router() }));
+vi.mock('../../routes/whatsapp.js', () => ({ default: express.Router() }));
+vi.mock('../../routes/config.js', () => {
+    const router = express.Router();
+    router.get('/public', (_req, res) => res.json({ public: true }));
+    router.get('/', (_req, res) => res.json({ config: true }));
+    router.post('/', (_req, res) => res.json({ saved: true }));
+    return { default: router };
+});
+vi.mock('../../routes/tools.js', () => ({ default: express.Router() }));
+vi.mock('../../routes/system.js', () => ({ default: express.Router() }));
+vi.mock('../../routes/files.js', () => ({ default: express.Router() }));
+vi.mock('../../telegram-manager.js', () => ({
+    TelegramManager: {
+        getInstance: () => ({
+            getStatus: () => ({ connected: false }),
+            connect: vi.fn(),
+            disconnect: vi.fn(),
+        }),
+    },
+}));
+
+import * as configManager from '../../config-manager.js';
+
+vi.mock('../../config-manager.js', () => ({
     loadConfig: vi.fn(),
     saveConfig: vi.fn(),
 }));
+
+import routes from '../../routes.js';
 
 // Create a basic express app to test the router
 const app = express();
@@ -28,9 +54,6 @@ describe('API Endpoints Output & Auth', () => {
 
     it('should allow GET /api/config/public without auth', async () => {
         const res = await request(app).get('/api/config/public');
-        // Even if the route itself is not fully mocked, it should pass auth middleware 
-        // and return something (prob 404 if route not actually exported completely or 200). 
-        // We just want to check it doesn't return 401.
         expect(res.status).not.toBe(401);
     });
 
@@ -45,7 +68,6 @@ describe('API Endpoints Output & Auth', () => {
             .get('/api/config')
             .set('Authorization', 'Bearer valid-token');
 
-        // As long as it bypasses the 401
         expect(res.status).not.toBe(401);
     });
 

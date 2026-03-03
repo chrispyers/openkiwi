@@ -423,6 +423,38 @@ describe('qdrant tool', () => {
             const searchParams = mockSearch.mock.calls[0][1];
             expect(searchParams).not.toHaveProperty('score_threshold');
         });
+
+        it('should pass filter when provided', async () => {
+            const filter = {
+                must: [{ key: 'metadata.chunk_type', match: { value: 'large' } }],
+            };
+
+            await tool.handler({
+                action: 'search',
+                store: 'kb',
+                query: 'test',
+                filter,
+                _context: storeContext({ kb: { url: 'http://q:6333', collection: 'c' } }),
+            });
+
+            expect(mockSearch).toHaveBeenCalledWith('c', {
+                vector: [0.1, 0.2, 0.3],
+                limit: 5,
+                filter,
+            });
+        });
+
+        it('should not include filter when not provided', async () => {
+            await tool.handler({
+                action: 'search',
+                store: 'kb',
+                query: 'test',
+                _context: storeContext({ kb: { url: 'http://q:6333', collection: 'c' } }),
+            });
+
+            const searchParams = mockSearch.mock.calls[0][1];
+            expect(searchParams).not.toHaveProperty('filter');
+        });
     });
 
     describe('dimensions truncation', () => {

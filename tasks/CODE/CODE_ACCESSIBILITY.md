@@ -1,0 +1,3 @@
+- Analyze codebase for accessibility issues
+- Check for missing alt text, keyboard navigation support, color contrast, and ARIA labels
+- Generate WCAG 2.1 AA compliance report with security levels, affected components, and suggested fixes

@@ -1,0 +1,15 @@
+- Analyze codebase for code quality issues and calculate quality metrics for
+    - cyclomatic complexity
+    - code duplication
+    - dead code
+    - performance bottlenecks
+    - security vulnerabilities
+    - scalability issues
+    - maintainability issues
+    - testability issues
+    - documentation issues
+- Identify code smells
+- Identify anti-patterns
+- Generate code quality report with percentage by module
+- Identify areas of improvement
+- Suggest refactoring opportunities

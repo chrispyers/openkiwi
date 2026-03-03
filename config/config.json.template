@@ -23,6 +23,9 @@
   },
   "system": {
   },
+  "heartbeat": {
+    "allowManualTrigger": true
+  },
   "enabledTools": {
     "example_tool.ts": false,
     "vision.ts": true,
