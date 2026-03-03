@@ -722,10 +722,15 @@ export default function SettingsPage({
                                                                         .then(data => {
                                                                             if (data.content) {
                                                                                 const toolDir = tool.filename!.split(/[\/\\]/).slice(0, -1).join('/');
-                                                                                const processedContent = data.content.replace(/!\[(.*?)\]\((?!http|https|\/)(.*?)\)/g, (match: string, alt: string, imagePath: string) => {
-                                                                                    const fullImagePath = toolDir ? `${toolDir}/${imagePath}` : imagePath;
-                                                                                    return `![${alt}](/api/tools/files?path=${encodeURIComponent(fullImagePath)})`;
-                                                                                });
+                                                                                const processedContent = data.content
+                                                                                    .replace(/!\[(.*?)\]\((?!http|https|\/)(.*?)\)/g, (match: string, alt: string, imagePath: string) => {
+                                                                                        const fullImagePath = toolDir ? `${toolDir}/${imagePath}` : imagePath;
+                                                                                        return `![${alt}](/api/tools/files?path=${encodeURIComponent(fullImagePath)})`;
+                                                                                    })
+                                                                                    .replace(/<img([^>]*)\ssrc=["']((?!http|https|\/)[^"']+)["']([^>]*)>/g, (match: string, before: string, imagePath: string, after: string) => {
+                                                                                        const fullImagePath = toolDir ? `${toolDir}/${imagePath}` : imagePath;
+                                                                                        return `<img${before} src="/api/tools/files?path=${encodeURIComponent(fullImagePath)}"${after}>`;
+                                                                                    });
                                                                                 setViewingReadme({ name: tool.name, content: processedContent });
                                                                             } else {
                                                                                 toast.error("Failed to load README content");

@@ -34,6 +34,7 @@ async function ghApi(...args: string[]): Promise<any> {
 export default {
     definition: {
         name: 'github',
+        displayName: "GitHub",
         description: toolDescription,
         parameters: {
             type: 'object',

@@ -54,10 +54,10 @@ export class ToolManager {
                 if (toolModule.default && toolModule.default.definition && toolModule.default.handler) {
                     toolModule.default.definition.filename = file;
 
-                    // Check for README.md in the tool's directory
+                    // Check for README.md in the tool's directory (only if it's not the root tools dir)
                     const toolDir = path.dirname(fullPath);
                     const readmePath = path.join(toolDir, 'README.md');
-                    toolModule.default.definition.hasReadme = fs.existsSync(readmePath);
+                    toolModule.default.definition.hasReadme = toolDir !== TOOLS_DIR && fs.existsSync(readmePath);
 
                     this.registerTool(toolModule.default);
                     console.log(`[ToolManager] Loaded external tool: ${toolModule.default.definition.name} (${file})`);
@@ -128,8 +128,9 @@ export class ToolManager {
                 if (item.isDirectory()) {
                     scanDir(itemFullPath, itemRelativePath);
                 } else if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js')) && !item.name.includes('.test.')) {
-                    // Check if there is a README.md in the same directory as the tool
-                    const hasReadme = fs.existsSync(path.join(path.dirname(itemFullPath), 'README.md'));
+                    // Check if there is a README.md in the same directory as the tool (only if not root tools dir)
+                    const toolDir = path.dirname(itemFullPath);
+                    const hasReadme = toolDir !== TOOLS_DIR && fs.existsSync(path.join(toolDir, 'README.md'));
                     files.push({
                         filename: itemRelativePath,
                         hasReadme
@@ -150,7 +151,7 @@ export class ToolManager {
         const toolDir = path.dirname(fullPath);
         const readmePath = path.join(toolDir, 'README.md');
 
-        if (fs.existsSync(readmePath)) {
+        if (toolDir !== TOOLS_DIR && fs.existsSync(readmePath)) {
             return fs.readFileSync(readmePath, 'utf-8');
         }
         return null;

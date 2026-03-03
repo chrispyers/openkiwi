@@ -1,4 +1,5 @@
 import { google } from 'googleapis';
+import { displayvideo } from 'googleapis/build/src/apis/displayvideo';
 
 type Action = 'list_tasklists' | 'list_tasks' | 'add_task' | 'update_task';
 
@@ -33,6 +34,7 @@ function toRfc3339(dateStr: string): string {
 export default {
     definition: {
         name: 'google_tasks',
+        displayName: 'Google Tasks',
         description: 'Manage Google Tasks: list task lists, list tasks, add tasks, and update tasks.',
         parameters: {
             type: 'object',
