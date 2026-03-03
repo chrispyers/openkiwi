@@ -143,6 +143,7 @@ if (availableStores.length > 0) {
 export default {
     definition: {
         name: 'qdrant',
+        displayName: 'Qdrant Search',
         description: `Search a Qdrant vector store semantically. Provide a natural language query and store name.${availableStores.length > 0 ? ` Available stores: ${availableStores.join(', ')}` : ''}`,
         parameters: {
             type: 'object',
