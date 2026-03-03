@@ -1,0 +1,10 @@
+- Analyze codebase for security vulnerabilities including
+    - SQL injection
+    - Cross-site scripting (XSS)
+    - CSRF
+    - Insecure dependencies
+    - Insecure configurations
+    - Hardcoded secrets
+    - Weak authentication
+- Generate detailed security report with severity levels, affected components, and suggested fixes
+- Include code examples of vulnerabilities and fixes

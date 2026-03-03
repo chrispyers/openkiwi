@@ -1,0 +1,25 @@
+- Analyze application architecture
+- Identify design patterns used
+- Evaluate separation of concerns
+- Evaluate state management
+- Evaluate data flow
+- Evaluate error handling
+- Evaluate security
+- Evaluate performance
+- Evaluate scalability
+- Evaluate maintainability
+- Evaluate testability
+- Evaluate documentation
+- Check for tight coupling
+- Check for code duplication
+- Check for dead code
+- Check for performance bottlenecks
+- Check for security vulnerabilities
+- Check for scalability issues
+- Check for maintainability issues
+- Check for testability issues
+- Check for documentation issues
+- Identify architectural issues
+- Recommend improvements for better maintainability, scalability, performance, and testability
+- Identify areas of improvement
+- Suggest refactoring opportunities

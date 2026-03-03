@@ -83,6 +83,17 @@ export class ToolManager {
         } catch (err) {
             console.error('Failed to load memory tools', err);
         }
+
+        try {
+            const module = await import('./tools/collaboration_tools.js');
+            this.registerTool(module.get_assigned_tasks);
+            this.registerTool(module.read_task);
+            this.registerTool(module.add_task_comment);
+            this.registerTool(module.update_task_state);
+            this.registerTool(module.create_task);
+        } catch (err) {
+            console.error('Failed to load collaboration tools', err);
+        }
     }
 
     static registerTool(tool: any) {

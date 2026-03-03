@@ -27,12 +27,17 @@ export interface Agent {
     name: string;
     emoji: string;
     path: string;
-    identity: string;
-    soul: string;
+    identity?: string;
+    soul?: string;
+    persona?: string;
     memory?: string;
     rules: string;
     heartbeatInstructions?: string;
     heartbeat?: {
+        enabled: boolean;
+        schedule: string;
+    };
+    collaboration?: {
         enabled: boolean;
         schedule: string;
     };
@@ -119,3 +124,40 @@ export interface Config {
     enabledTools?: Record<string, boolean>;
 }
 
+export interface Workflow {
+    id: string;
+    name: string;
+    description: string;
+    created_at: number;
+}
+
+export interface WorkflowState {
+    id: string;
+    workflow_id: string;
+    name: string;
+    order_index: number;
+    assigned_agent_id: string | null;
+    instructions?: string | null;
+}
+
+export interface Task {
+    id: string;
+    workflow_id: string;
+    state_id: string;
+    parent_task_id?: string | null;
+    title: string;
+    description: string;
+    document_content?: string | null; // Note backend doesn't have this but we can keep it
+    locked_by: string | null;
+    locked_at: number | null;
+    created_at: number;
+    updated_at: number;
+}
+
+export interface TaskComment {
+    id: string;
+    task_id: string;
+    agent_id: string | null;
+    content: string;
+    created_at: number;
+}

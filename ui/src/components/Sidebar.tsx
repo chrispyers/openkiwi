@@ -9,7 +9,9 @@ import {
     faCube,
     faFileLines,
     faGear,
-    faArrowsSpin
+    faArrowsSpin,
+    faDiagramProject,
+    faFolder
 } from '@fortawesome/free-solid-svg-icons';
 
 interface SidebarProps {
@@ -21,22 +23,31 @@ interface SidebarProps {
     hasModels: boolean;
     hasActiveAgents: boolean;
     onSettingsClick?: () => void;
+    isProjectManagementEnabled?: boolean;
+    isAgentActivityEnabled?: boolean;
 }
 
-export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels, hasActiveAgents, onSettingsClick }: SidebarProps) {
+export default function Sidebar({ isNavExpanded, activeView, createNewSession, isGatewayConnected, hasAgents, hasModels, hasActiveAgents, onSettingsClick, isProjectManagementEnabled, isAgentActivityEnabled }: SidebarProps) {
     const navigate = useNavigate();
     const { theme } = useTheme();
 
     const navItems = [
         { id: 'chat', icon: faComments, label: 'Chat' },
-        { id: 'activity', icon: faArrowsSpin, label: 'Activity', showActive: hasActiveAgents },
+        { id: 'activity', icon: faArrowsSpin, label: 'Activity', showActive: hasActiveAgents, experimentalActivity: true },
+        { experimentalProjectManagement: true },
+        { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjectManagement: true },
+        { id: 'workflows', icon: faDiagramProject, label: 'Workflows', experimentalProjectManagement: true },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
         { id: 'models', icon: faCube, label: 'Models', showAlert: !hasModels },
         { id: 'logs', icon: faFileLines, label: 'Logs' },
         { id: 'settings', icon: faGear, label: 'Settings' },
-    ];
+    ].filter((item: any) => {
+        if (item.experimentalProjectManagement && !isProjectManagementEnabled) return false;
+        if (item.experimentalActivity && !isAgentActivityEnabled) return false;
+        return true;
+    });
 
     return (
         <nav className={`${isNavExpanded ? 'w-44' : 'w-16'} bg-bg-sidebar flex flex-col items-center py-6 gap-2 z-51 transition-all duration-300`}>

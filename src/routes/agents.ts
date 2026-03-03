@@ -14,23 +14,34 @@ router.get('/', (req, res) => {
         if (!agent) return null;
         return {
             ...agent,
-            identity: signMarkdown(agent.identity),
-            soul: signMarkdown(agent.soul),
-            memory: signMarkdown(agent.memory),
-            heartbeatInstructions: signMarkdown(agent.heartbeatInstructions),
-            systemPrompt: signMarkdown(agent.systemPrompt)
+            identity: signMarkdown(agent.identity || ''),
+            soul: signMarkdown(agent.soul || ''),
+            memory: signMarkdown(agent.memory || ''),
+            heartbeatInstructions: signMarkdown(agent.heartbeatInstructions || ''),
+            systemPrompt: signMarkdown(agent.systemPrompt || '')
         };
     }).filter(Boolean);
     res.json(agents);
 });
 
+router.get('/personas', (req, res) => {
+    try {
+        const personasDir = path.resolve(process.cwd(), 'agent_personas');
+        if (!fs.existsSync(personasDir)) return res.json(['Generic']);
+        const dirs = fs.readdirSync(personasDir).filter(f => fs.statSync(path.join(personasDir, f)).isDirectory());
+        res.json(dirs);
+    } catch (error) {
+        res.status(500).json({ error: String(error) });
+    }
+});
+
 router.post('/', (req, res) => {
     try {
-        const { name } = req.body;
+        const { name, persona } = req.body;
         if (!name || typeof name !== 'string' || name.trim().length === 0) {
             return res.status(400).json({ error: 'Agent name is required' });
         }
-        const agent = AgentManager.createAgent(name.trim());
+        const agent = AgentManager.createAgent(name.trim(), persona || 'Generic');
         res.json(agent);
     } catch (error) {
         res.status(400).json({ error: String(error) });
