@@ -4,7 +4,7 @@ dist
 .git
 .gitignore
 *.md
-!agent_template/**/*.md
+!agent_personas/**/*.md
 logs
 screenshots
 sessions

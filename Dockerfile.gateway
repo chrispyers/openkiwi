@@ -44,7 +44,8 @@ COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
 COPY config/config.json.template ./config/
-COPY agent_template ./agent_template
+# agent_template was renamed to agent_personas upstream
+COPY agent_personas ./agent_personas
 
 # Create necessary data directories
 RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth
