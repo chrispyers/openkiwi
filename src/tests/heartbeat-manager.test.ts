@@ -25,10 +25,12 @@ vi.mock('node:fs', () => ({
 // agent-manager
 const mockGetAgent = vi.fn();
 const mockListAgents = vi.fn();
+const mockSetAgentState = vi.fn();
 vi.mock('../agent-manager.js', () => ({
     AgentManager: {
         getAgent: (...args: any[]) => mockGetAgent(...args),
         listAgents: () => mockListAgents(),
+        setAgentState: (...args: any[]) => mockSetAgentState(...args),
     }
 }));
 

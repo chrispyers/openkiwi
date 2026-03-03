@@ -116,6 +116,9 @@ export interface Config {
         version: string;
         latestVersion: string;
     };
+    heartbeat?: {
+        allowManualTrigger?: boolean;
+    };
     enabledTools?: Record<string, boolean>;
 }
 

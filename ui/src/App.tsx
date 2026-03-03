@@ -1134,6 +1134,8 @@ function App() {
               setSelectedAgentId={setAgentsPageAgentId}
               providers={config?.providers || []}
               agents={agents}
+              allowManualHeartbeat={config?.heartbeat?.allowManualTrigger || false}
+              agentStates={agentStates}
             />
           ) : activeView === 'models' ? (
             <ModelsPage
