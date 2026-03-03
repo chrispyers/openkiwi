@@ -28,7 +28,18 @@
     "vision.ts": true,
     "filesystem.ts": true,
     "weather.ts": true,
-    "web_browser.ts": true
+    "web_browser.ts": true,
+    "qdrant.ts": false
   },
-  "tools": {}
+  "tools": {
+    "qdrant": {
+      "stores": {
+        "my-store": {
+          "url": "http://your-qdrant-server:6333",
+          "collection": "your_collection",
+          "dimensions": 768
+        }
+      }
+    }
+  }
 }

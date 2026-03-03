@@ -11,19 +11,23 @@
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "setup:google": "tsx scripts/google-auth.ts"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@qdrant/js-client-rest": "^1.17.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
+    "googleapis": "^146.0.0",
     "node-cron": "^4.2.1",
     "puppeteer": "^24.37.3",
     "qrcode": "^1.5.4",
+    "telegraf": "^4.16.3",
     "ws": "^8.19.0",
     "zod": "^4.3.6"
   },

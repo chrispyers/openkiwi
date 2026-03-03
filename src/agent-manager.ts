@@ -5,6 +5,11 @@ import { MemoryIndexManager } from './memory/manager.js';
 import { logger } from './logger.js';
 import { broadcastMessage } from './state.js';
 
+export interface HeartbeatChannelTelegram { type: 'telegram'; chatId: string; }
+export interface HeartbeatChannelWhatsApp { type: 'whatsapp'; jid: string; }
+export interface HeartbeatChannelWebSocket { type: 'websocket'; }
+export type HeartbeatChannel = HeartbeatChannelTelegram | HeartbeatChannelWhatsApp | HeartbeatChannelWebSocket;
+
 export interface Agent {
     id: string;
     name: string;
@@ -20,6 +25,7 @@ export interface Agent {
     heartbeat?: {
         enabled: boolean;
         schedule: string;
+        channels?: HeartbeatChannel[];
     };
     tools?: Record<string, any>;
 }
