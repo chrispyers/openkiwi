@@ -188,8 +188,6 @@ export class TelegramManager extends EventEmitter {
         };
     }
 
-<<<<<<< HEAD
-=======
     /**
      * Converts Markdown formatting to Telegram-compatible HTML.
      * Handles code blocks, inline code, bold, italic, strikethrough,
