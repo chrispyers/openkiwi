@@ -12,13 +12,24 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install Chromium, dependencies for Puppeteer, and dumb-init
+# Install Chromium, dependencies for Puppeteer, dumb-init, curl, and ca-certificates
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
     dumb-init \
+    curl \
+    ca-certificates \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
+
+# Install gh CLI
+RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+       -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
+       > /etc/apt/sources.list.d/github-cli.list && \
+    apt-get update && \
+    apt-get install -y gh --no-install-recommends && \
+    rm -rf /var/lib/apt/lists/*
 
 # Tell Puppeteer to skip installing Chrome. We'll use the installed package.
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
@@ -36,12 +47,12 @@ COPY config/config.json.template ./config/
 COPY agent_template ./agent_template
 
 # Create necessary data directories
-RUN mkdir -p agents sessions workspace logs screenshots config
+RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth
 
 # Hardening: Only give the node user ownership of the data directories.
 # The app code (dist, src, etc.) remains owned by root and read-only for the node user.
-RUN chown -R node:node agents sessions workspace logs screenshots config && \
-    chmod -R 770 agents sessions workspace logs screenshots config
+RUN chown -R node:node agents sessions workspace logs screenshots config whatsapp_auth && \
+    chmod -R 770 agents sessions workspace logs screenshots config whatsapp_auth
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]

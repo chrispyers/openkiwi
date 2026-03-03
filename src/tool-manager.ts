@@ -127,7 +127,7 @@ export class ToolManager {
 
                 if (item.isDirectory()) {
                     scanDir(itemFullPath, itemRelativePath);
-                } else if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js'))) {
+                } else if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js')) && !item.name.includes('.test.')) {
                     // Check if there is a README.md in the same directory as the tool
                     const hasReadme = fs.existsSync(path.join(path.dirname(itemFullPath), 'README.md'));
                     files.push({

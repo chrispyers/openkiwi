@@ -3,6 +3,7 @@ import path from 'node:path';
 import fs from 'node:fs';
 import { AgentManager } from '../agent-manager.js';
 import { HeartbeatManager } from '../heartbeat-manager.js';
+import { loadConfig } from '../config-manager.js';
 import { signMarkdown } from '../security.js';
 
 const router = Router();
@@ -66,6 +67,20 @@ router.post('/:id/config', validateAgentId, (req, res) => {
     } catch (error) {
         res.status(400).json({ error: String(error) });
     }
+});
+
+router.post('/:id/heartbeat', validateAgentId, (req, res) => {
+    const config = loadConfig();
+    if (!config.heartbeat?.allowManualTrigger) {
+        return res.status(403).json({ error: 'Manual heartbeat triggers are disabled. Enable heartbeat.allowManualTrigger in config.' });
+    }
+
+    const agent = AgentManager.getAgent(req.params.id);
+    if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    // Fire and forget — heartbeat runs in the background
+    HeartbeatManager.executeHeartbeat(req.params.id);
+    res.json({ success: true, message: `Heartbeat triggered for ${agent.name}` });
 });
 
 router.get('/:id/files', validateAgentId, (req, res) => {

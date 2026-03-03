@@ -1,69 +1,56 @@
-import { WAMessage, areJidsSameUser } from '@whiskeysockets/baileys';
-import { WhatsAppManager } from './whatsapp-manager.js';
+import { TelegramManager } from './telegram-manager.js';
 import { AgentManager } from './agent-manager.js';
 import { SessionManager } from './session-manager.js';
-import { ToolManager } from './tool-manager.js';
-import { streamChatCompletion } from './llm-provider.js';
 import { logger } from './logger.js';
 import { loadConfig } from './config-manager.js';
-import { signUrl } from './security.js';
-import { processVisionMessages } from './vision.js';
 import { runAgentLoop } from './agent-loop.js';
 
-/**
- * Extracts text content from various WhatsApp message types
- */
-export function getMessageText(msg: WAMessage): string | null {
-    if (!msg.message) return null;
-    const content = msg.message;
-
-    // Check for standard text types
-    let text = content.conversation ||
-        content.extendedTextMessage?.text ||
-        content.ephemeralMessage?.message?.extendedTextMessage?.text ||
-        content.ephemeralMessage?.message?.conversation ||
-        content.viewOnceMessage?.message?.listMessage?.description ||
-        content.viewOnceMessage?.message?.buttonsMessage?.contentText;
-
-    return text || null;
+interface TelegramMessage {
+    chatId: string;
+    userId: string;
+    username?: string;
+    text: string;
+    messageId: number;
 }
 
 /**
- * Initializes the WhatsApp message listener and handler logic
+ * Initializes the Telegram message listener and handler logic
  */
-export function initWhatsAppHandler() {
-    WhatsAppManager.getInstance().on('message', async (msg: WAMessage) => {
-        try {
-            let remoteJid = msg.key.remoteJid;
-            const text = getMessageText(msg);
+export function initTelegramHandler() {
+    const telegram = TelegramManager.getInstance();
 
-            // Debug log to understand message structure if text is missing
-            if (!text) {
-                logger.log({
-                    type: 'system',
-                    level: 'debug',
-                    message: `WhatsApp: Received message with no extractable text. Structure: ${JSON.stringify(msg.message).substring(0, 200)}...`
-                });
+    // Handle /agents command
+    telegram.on('command', async (cmd: { command: string; chatId: string }) => {
+        if (cmd.command !== 'agents') return;
+        try {
+            const agentIds = AgentManager.listAgents();
+            const agents = agentIds
+                .map(id => AgentManager.getAgent(id))
+                .filter(a => a !== null);
+
+            if (agents.length === 0) {
+                await TelegramManager.getInstance().sendMessage(cmd.chatId, 'No agents available.');
                 return;
             }
 
-            if (!remoteJid) return;
+            const lines = agents.map(a => `• @${a!.name}${a!.emoji ? ' ' + a!.emoji : ''}`);
+            const reply = `Available agents:\n\n${lines.join('\n')}\n\nMention an agent by name to chat with them, e.g. @${agents[0]!.name} hello`;
+            await TelegramManager.getInstance().sendMessage(cmd.chatId, reply);
+        } catch (err) {
+            logger.log({ type: 'error', level: 'error', message: `Telegram /agents command error: ${err}` });
+        }
+    });
 
-            // Fix for LID: If the message is from me (Note to Self sent via phone) and comes as LID,
-            // we should treat the chat session as being with the main phone number JID, not the LID.
-            const { myJid, myLid } = WhatsAppManager.getInstance().getUserJids();
+    telegram.on('message', async (msg: TelegramMessage) => {
+        try {
+            const { chatId, userId, username, text } = msg;
 
-            // If it's a self-message, normalize remoteJid to myJid (Phone Number) if available
-            if (msg.key.fromMe && myJid) {
-                if (areJidsSameUser(remoteJid, myJid) || (myLid && areJidsSameUser(remoteJid, myLid))) {
-                    remoteJid = myJid;
-                }
-            }
+            if (!text) return;
 
             logger.log({
                 type: 'system',
                 level: 'info',
-                message: `WhatsApp message from ${remoteJid}: ${text}`
+                message: `Telegram message from ${username ? '@' + username : userId} (chat ${chatId}): ${text}`
             });
 
             // Check for agent targeting (e.g. "@luna Hello")
@@ -118,10 +105,10 @@ export function initWhatsAppHandler() {
                 agentId = AgentManager.getDefaultAgentId() || agentId;
             }
 
-            const safeSessionId = `wa-${remoteJid.replace(/[^a-zA-Z0-9]/g, '_')}-${agentId}`;
+            const safeSessionId = `tg-${chatId}_${agentId}`;
             const agent = AgentManager.getAgent(agentId);
             if (!agent) {
-                logger.log({ type: 'error', level: 'error', message: `WhatsApp: Could not find agent ${agentId}` });
+                logger.log({ type: 'error', level: 'error', message: `Telegram: Could not find agent ${agentId}` });
                 return;
             }
 
@@ -135,22 +122,21 @@ export function initWhatsAppHandler() {
             }
 
             if (!providerConfig) {
-                logger.log({ type: 'error', level: 'error', message: `WhatsApp: No provider found for agent ${agentId}. Provider name: ${providerName}` });
-                await WhatsAppManager.getInstance().sendMessage(remoteJid, 'Error: No LLM provider configured.');
+                logger.log({ type: 'error', level: 'error', message: `Telegram: No provider found for agent ${agentId}. Provider name: ${providerName}` });
+                await TelegramManager.getInstance().sendMessage(chatId, 'Error: No LLM provider configured.');
                 return;
             }
 
             const llmConfig = {
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
-                apiKey: providerConfig.apiKey,
-                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
+                apiKey: providerConfig.apiKey
             };
 
             logger.log({
                 type: 'system',
                 level: 'info',
-                message: `Processing WhatsApp message to ${agentId} using provider ${providerConfig.model}`
+                message: `Processing Telegram message to ${agentId} using provider ${providerConfig.model}`
             });
 
             // Load or Create Session
@@ -199,7 +185,7 @@ export function initWhatsAppHandler() {
                 const cleanResponse = finalAiResponse.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
 
                 if (cleanResponse) {
-                    await WhatsAppManager.getInstance().sendMessage(remoteJid, cleanResponse);
+                    await TelegramManager.getInstance().sendMessage(chatId, cleanResponse);
                 }
 
                 session.messages.push({
@@ -211,7 +197,7 @@ export function initWhatsAppHandler() {
             }
 
         } catch (err) {
-            logger.log({ type: 'error', level: 'error', message: `WhatsApp handler error: ${err}` });
+            logger.log({ type: 'error', level: 'error', message: `Telegram handler error: ${err}` });
         }
     });
 }

@@ -8,8 +8,10 @@ import { AgentManager } from './agent-manager.js';
 import { ToolManager } from './tool-manager.js';
 import { HeartbeatManager } from './heartbeat-manager.js';
 import { WhatsAppManager } from './whatsapp-manager.js';
+import { TelegramManager } from './telegram-manager.js';
 import { SCREENSHOTS_DIR, WORKSPACE_DIR } from './security.js';
 import { initWhatsAppHandler } from './WhatsApp.js';
+import { initTelegramHandler } from './Telegram.js';
 import apiRouter from './routes.js';
 import { checkForUpdates } from './services/update-service.js';
 import { handleChatConnection } from './chat-handler.js';
@@ -27,7 +29,7 @@ const wss = new WebSocketServer({
         const currentConfig = loadConfig();
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
-        if (allowed.includes(origin) && origin !== '*') {
+        if (allowed.includes('*') || allowed.includes(origin)) {
             callback(true);
         } else {
             console.warn(`[WebSocket] Blocked connection from unauthorized origin: ${origin}`);
@@ -56,6 +58,12 @@ async function startServer() {
     WhatsAppManager.getInstance();
     initWhatsAppHandler();
 
+    // Initialize Telegram and its message handler
+    initTelegramHandler();
+    if (process.env.TELEGRAM_BOT_TOKEN?.trim()) {
+        TelegramManager.getInstance().connect();
+    }
+
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`Gateway service is hot and running on port ${PORT}`);
@@ -71,7 +79,7 @@ app.use(cors({
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
         // Prevent wildcard usage with credentials
-        if (allowed.includes(origin) && origin !== '*') {
+        if (allowed.includes('*') || allowed.includes(origin)) {
             callback(null, true);
         } else {
             console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);
@@ -88,6 +96,7 @@ app.use('/api', apiRouter);
 
 // WebSocket for Chat
 wss.on('connection', handleChatConnection);
+/* NOTE: agentToolsConfig pass-through needs to be added to chat-handler.ts */
 
 startServer().catch(err => {
     console.error('FATAL STARTUP ERROR:', err);

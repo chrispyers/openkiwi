@@ -32,7 +32,8 @@ import {
     faFileText,
     faFileCode,
     faGaugeHigh,
-    faFlask
+    faFlask,
+    faPaperPlane
 } from '@fortawesome/free-solid-svg-icons'
 import { Loader2 } from 'lucide-react'
 import Modal from '../Modal'
@@ -117,6 +118,9 @@ interface SettingsPageProps {
     whatsappStatus: { connected: boolean, qrCode: string | null, isInitializing?: boolean };
     onLogoutWhatsApp: () => Promise<void>;
     onConnectWhatsApp: () => Promise<void>;
+    telegramStatus: { connected: boolean, isInitializing?: boolean, botUsername?: string | null };
+    onConnectTelegram: () => Promise<void>;
+    onDisconnectTelegram: () => Promise<void>;
     gatewayAddr: string;
     gatewayToken: string;
     isProjectManagementEnabled: boolean;
@@ -150,6 +154,9 @@ export default function SettingsPage({
     whatsappStatus,
     onLogoutWhatsApp,
     onConnectWhatsApp,
+    telegramStatus,
+    onConnectTelegram,
+    onDisconnectTelegram,
     gatewayAddr,
     gatewayToken,
     isProjectManagementEnabled,
@@ -390,6 +397,78 @@ export default function SettingsPage({
                                                             </Button>
                                                             <span className="text-xs">WhatsApp is currently inactive.</span>
                                                         </div>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        )}
+                                    </div>
+                                </div>
+                            </Card>
+
+                            <Card className="space-y-8">
+                                <div>
+                                    <Text bold={true} size="lg">
+                                        <span className="w-10 h-10 rounded-full bg-[#0088cc] flex items-center justify-center text-white inline-flex">
+                                            <FontAwesomeIcon icon={faPaperPlane} />
+                                        </span>
+                                        <Text size="lg" bold={true} className="ml-3">Telegram Integration</Text>
+                                    </Text>
+
+                                    <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                                        {telegramStatus.connected ? (
+                                            <div className="flex flex-col items-center gap-4 text-center w-full">
+                                                <div className="w-20 h-20 rounded-full bg-sky-500/10 flex items-center justify-center text-sky-500">
+                                                    <FontAwesomeIcon icon={faLink} size="2x" />
+                                                </div>
+                                                <div>
+                                                    <h4 className="font-bold text-lg text-sky-500">Connected</h4>
+                                                    <p className="text-sm text-neutral-500 mt-1">
+                                                        {telegramStatus.botUsername
+                                                            ? <>Your Telegram bot <strong>@{telegramStatus.botUsername}</strong> is online and ready to receive messages.</>
+                                                            : 'Your Telegram bot is online and ready to receive messages.'}
+                                                    </p>
+                                                </div>
+                                                <Button
+                                                    themed={true}
+                                                    className="bg-red-500 text-white hover:bg-red-600 dark:bg-red-700 dark:hover:bg-red-800"
+                                                    onClick={onDisconnectTelegram}
+                                                    icon={faTrash}
+                                                >
+                                                    Disconnect
+                                                </Button>
+                                            </div>
+                                        ) : (
+                                            <div className="flex flex-col gap-6 w-full">
+                                                <div>
+                                                    <Text bold={true}>
+                                                        Connect a Telegram bot to receive and respond to messages.
+                                                    </Text>
+                                                    <Text>
+                                                        <br />
+                                                        1. Open Telegram and search for <strong>@BotFather</strong>
+                                                        <br />
+                                                        2. Send <code>/newbot</code> and follow the prompts
+                                                        <br />
+                                                        3. Copy the bot token and set it as <code>TELEGRAM_BOT_TOKEN</code> in your <code>.env</code> file
+                                                        <br />
+                                                        4. Restart the gateway, then click Connect below
+                                                    </Text>
+                                                </div>
+
+                                                <div className="flex items-center gap-4">
+                                                    {telegramStatus.isInitializing ? (
+                                                        <div className="flex items-center gap-2 text-neutral-400">
+                                                            <Loader2 className="animate-spin" size={16} />
+                                                            <span className="text-sm">Connecting...</span>
+                                                        </div>
+                                                    ) : (
+                                                        <Button
+                                                            themed={false}
+                                                            onClick={onConnectTelegram}
+                                                            icon={faLink}
+                                                        >
+                                                            Connect Bot
+                                                        </Button>
                                                     )}
                                                 </div>
                                             </div>

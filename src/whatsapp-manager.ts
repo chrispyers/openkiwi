@@ -6,7 +6,8 @@ import makeWASocket, {
     WAMessage,
     MessageUpsertType,
     jidNormalizedUser,
-    areJidsSameUser
+    areJidsSameUser,
+    isLidUser
 } from '@whiskeysockets/baileys';
 import { Boom } from '@hapi/boom';
 import * as fs from 'fs';
@@ -16,6 +17,59 @@ import { logger } from './logger.js';
 import { EventEmitter } from 'events';
 
 const AUTH_DIR = path.resolve(process.cwd(), 'whatsapp_auth');
+
+/**
+ * Parses WHATSAPP_ALLOW_LIST env var into a set of normalized phone numbers.
+ * Accepts comma-separated phone numbers (e.g. "+1234567890, 0987654321").
+ * Returns null if the env var is empty/unset (meaning allow all).
+ */
+function loadAllowList(): Set<string> | null {
+    const raw = process.env.WHATSAPP_ALLOW_LIST?.trim();
+    if (!raw) return null;
+
+    const numbers = raw
+        .split(',')
+        .map(n => n.trim().replace(/^\+/, '').replace(/[^0-9]/g, ''))
+        .filter(n => n.length > 0);
+
+    if (numbers.length === 0) return null;
+    return new Set(numbers);
+}
+
+/**
+ * Resolves a JID to a phone number string, handling LID JIDs via baileys' mapping.
+ * Returns the bare phone digits, or null if a LID cannot be resolved.
+ */
+async function resolvePhoneFromJid(jid: string, sock: any): Promise<string | null> {
+    if (isLidUser(jid)) {
+        try {
+            const phoneJid: string | undefined = await sock?.signalRepository?.lidMapping?.getPNForLID(jid);
+            if (phoneJid) {
+                // phoneJid looks like "447958673279:0@s.whatsapp.net"
+                return phoneJid.split('@')[0].split(':')[0].replace(/[^0-9]/g, '');
+            }
+        } catch {
+            // Resolution failed — caller decides what to do
+        }
+        return null;
+    }
+    return jid.split('@')[0].replace(/[^0-9]/g, '');
+}
+
+/**
+ * Checks if a WhatsApp JID is permitted by the allowlist.
+ * If no allowlist is configured, all JIDs are allowed.
+ * LID JIDs are resolved to phone numbers via baileys' built-in mapping.
+ */
+async function isJidAllowed(jid: string, sock: any): Promise<boolean> {
+    const allowList = loadAllowList();
+    if (!allowList) return true;
+
+    const phone = await resolvePhoneFromJid(jid, sock);
+    if (!phone) return false; // Can't resolve LID — block for safety
+
+    return allowList.has(phone);
+}
 
 export class WhatsAppManager extends EventEmitter {
     private static instance: WhatsAppManager;
@@ -127,10 +181,13 @@ export class WhatsAppManager extends EventEmitter {
                         this.qrCode = null;
                     }
                 } else if (connection === 'open') {
+                    const allowList = loadAllowList();
                     logger.log({
                         type: 'system',
                         level: 'info',
-                        message: `WhatsApp connected.`
+                        message: allowList
+                            ? `WhatsApp connected. Allowlist active: ${allowList.size} number(s) permitted.`
+                            : `WhatsApp connected. No allowlist configured — all numbers permitted.`
                     });
                     this.isConnected = true;
                     this.qrCode = null;
@@ -172,6 +229,15 @@ export class WhatsAppManager extends EventEmitter {
                         const shouldProcess = !isFromMe || isSelfMessage;
 
                         if (shouldProcess) {
+                            // Allowlist check: skip messages from numbers not on the list
+                            if (remoteJid && !(await isJidAllowed(remoteJid, this.sock))) {
+                                logger.log({
+                                    type: 'system',
+                                    level: 'info',
+                                    message: `WhatsApp: Blocked inbound message from ${remoteJid} (not on allowlist)`
+                                });
+                                continue;
+                            }
                             this.emit('message', msg);
                         }
                     }
@@ -234,6 +300,14 @@ export class WhatsAppManager extends EventEmitter {
     }
 
     public async sendMessage(to: string, text: string) {
+        if (!(await isJidAllowed(to, this.sock))) {
+            logger.log({
+                type: 'system',
+                level: 'warn',
+                message: `WhatsApp: Blocked outbound message to ${to} (not on allowlist)`
+            });
+            return;
+        }
         if (this.sock && this.isConnected) {
             const sentMsg = await this.sock.sendMessage(to, { text });
             if (sentMsg?.key?.id) {

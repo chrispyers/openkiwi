@@ -5,6 +5,11 @@ import { MemoryIndexManager } from './memory/manager.js';
 import { logger } from './logger.js';
 import { broadcastMessage } from './state.js';
 
+export interface HeartbeatChannelTelegram { type: 'telegram'; chatId: string; }
+export interface HeartbeatChannelWhatsApp { type: 'whatsapp'; jid: string; }
+export interface HeartbeatChannelWebSocket { type: 'websocket'; }
+export type HeartbeatChannel = HeartbeatChannelTelegram | HeartbeatChannelWhatsApp | HeartbeatChannelWebSocket;
+
 export interface Agent {
     id: string;
     name: string;
@@ -21,11 +26,13 @@ export interface Agent {
     heartbeat?: {
         enabled: boolean;
         schedule: string;
+        channels?: HeartbeatChannel[];
     };
     collaboration?: {
         enabled: boolean;
         schedule: string;
     };
+    tools?: Record<string, any>;
 }
 
 export interface AgentState {
@@ -43,6 +50,31 @@ export class AgentManager {
             const fullPath = path.join(AGENTS_DIR, file);
             return fs.statSync(fullPath).isDirectory();
         });
+    }
+
+    /**
+     * Returns the default agent ID: prefers 'luna', then oldest agent by
+     * directory creation time, then first alphabetically.
+     */
+    static getDefaultAgentId(): string | null {
+        const agents = this.listAgents();
+        if (agents.length === 0) return null;
+
+        const luna = agents.find(id => id.toLowerCase() === 'luna');
+        if (luna) return luna;
+
+        // Sort by directory birthtime (oldest first)
+        try {
+            const withBirth = agents.map(id => ({
+                id,
+                birthtime: fs.statSync(path.join(AGENTS_DIR, id)).birthtimeMs
+            }));
+            withBirth.sort((a, b) => a.birthtime - b.birthtime);
+            return withBirth[0].id;
+        } catch {
+            // If stat fails, fall back to first alphabetically
+            return agents[0];
+        }
     }
 
     static getAgent(id: string): Agent | null {
@@ -111,6 +143,7 @@ ${globalSystemPrompt}`.trim();
             provider: agentConfig.provider,
             heartbeat: agentConfig.heartbeat,
             collaboration: agentConfig.collaboration
+            tools: agentConfig.tools
         };
     }
 
