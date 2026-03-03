@@ -70,13 +70,18 @@ router.post('/:id/config', validateAgentId, (req, res) => {
 });
 
 router.post('/:id/heartbeat', validateAgentId, (req, res) => {
-    const config = loadConfig();
-    if (!config.heartbeat?.allowManualTrigger) {
-        return res.status(403).json({ error: 'Manual heartbeat triggers are disabled. Enable heartbeat.allowManualTrigger in config.' });
-    }
-
     const agent = AgentManager.getAgent(req.params.id);
     if (!agent) return res.status(404).json({ error: 'Agent not found' });
+
+    const globalConfig = loadConfig();
+    const isGloballyAllowed = globalConfig.heartbeat?.allowManualTrigger;
+    const isAgentAllowed = agent.heartbeat?.allowManualTrigger;
+
+    if (!isGloballyAllowed && !isAgentAllowed) {
+        return res.status(403).json({ error: 'Manual heartbeat triggers are disabled. Enable heartbeat.allowManualTrigger in the global or agent config.' });
+    }
+
+
 
     // Fire and forget — heartbeat runs in the background
     HeartbeatManager.executeHeartbeat(req.params.id);

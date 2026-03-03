@@ -36,6 +36,7 @@ export interface Agent {
     heartbeat?: {
         enabled: boolean;
         schedule: string;
+        allowManualTrigger?: boolean;
     };
     collaboration?: {
         enabled: boolean;

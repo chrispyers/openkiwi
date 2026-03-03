@@ -26,6 +26,7 @@ export interface Agent {
     heartbeat?: {
         enabled: boolean;
         schedule: string;
+        allowManualTrigger?: boolean;
         channels?: HeartbeatChannel[];
     };
     collaboration?: {

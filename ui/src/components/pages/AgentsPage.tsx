@@ -21,8 +21,8 @@ interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } }>>
+    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>>
     saveAgentConfig: () => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -38,6 +38,9 @@ interface AgentsPageProps {
         }
     }[];
     isAgentCollaborationEnabled: boolean;
+    agents: Agent[];
+    allowManualHeartbeat: boolean;
+    agentStates: Record<string, AgentState>;
 }
 
 export default function AgentsPage({
@@ -55,7 +58,7 @@ export default function AgentsPage({
     isAgentCollaborationEnabled,
     allowManualHeartbeat,
     agentStates
-}: AgentsPageProps & { agents: Agent[], allowManualHeartbeat: boolean, agentStates: Record<string, AgentState> }) {
+}: AgentsPageProps) {
     // Remove local agents state
     // const [agents, setAgents] = useState<Agent[]>([])
     // Remove local loading state as we rely on parent's data or we can keep it if we want to show loading while fetching
@@ -84,7 +87,7 @@ export default function AgentsPage({
                 name: selectedAgent.name,
                 emoji: selectedAgent.emoji,
                 provider: selectedAgent.provider || '',
-                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *' },
+                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false },
                 collaboration: selectedAgent.collaboration || { enabled: false, schedule: '* * * * *' }
             })
         }
@@ -297,94 +300,7 @@ export default function AgentsPage({
                                             />
                                         </div>
 
-                                        {(agentForm.heartbeat?.enabled) && (
-                                            <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <Input
-                                                    label="Cron Schedule"
-                                                    icon={faClock}
-                                                    currentText={agentForm.heartbeat?.schedule || ''}
-                                                    onChange={e => setAgentForm({
-                                                        ...agentForm,
-                                                        heartbeat: {
-                                                            ...agentForm.heartbeat!,
-                                                            schedule: e.target.value
-                                                        }
-                                                    })}
-                                                    clearText={() => setAgentForm({
-                                                        ...agentForm,
-                                                        heartbeat: {
-                                                            ...agentForm.heartbeat!,
-                                                            schedule: ''
-                                                        }
-                                                    })}
-                                                    placeholder="e.g. */10 * * * *"
-                                                    className="!mt-0"
-                                                />
-                                                <div className="flex flex-wrap gap-2">
-                                                    {[
-                                                        { label: 'Every 10m', val: '*/10 * * * *' },
-                                                        { label: 'Hourly', val: '0 * * * *' },
-                                                        { label: 'Every 4h', val: '0 */4 * * *' },
-                                                        { label: 'Every 12h', val: '0 */12 * * *' },
-                                                        { label: 'Midnight', val: '0 0 * * *' }
-                                                    ].map(opt => (
-                                                        <Button
-                                                            size="sm"
-                                                            key={opt.label}
-                                                            onClick={() => setAgentForm({
-                                                                ...agentForm,
-                                                                heartbeat: {
-                                                                    ...agentForm.heartbeat!,
-                                                                    schedule: opt.val
-                                                                }
-                                                            })}
-                                                        >
-                                                            {opt.label}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                                <div className="mt-3 p-3 bg-neutral-50 dark:bg-neutral-800 rounded-lg  dark:border-neutral-700/50">
-                                                    <Text size="xs" bold={true} className="uppercase mb-2 block opacity-70">Cron Reference</Text>
-                                                    <div className="grid grid-cols-5 gap-1 text-[10px] font-mono text-center uppercase text-neutral-500 dark:text-neutral-400 mb-1">
-                                                        <div>min</div>
-                                                        <div>hour</div>
-                                                        <div>day</div>
-                                                        <div>month</div>
-                                                        <div>week</div>
-                                                    </div>
-                                                    <div className="grid grid-cols-5 gap-1 font-mono text-center py-1 bg-neutral-100 dark:bg-neutral-900/50 rounded border border-neutral-200 dark:border-neutral-800">
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                        <Text>*</Text>
-                                                    </div>
-                                                    <div className="mt-2 text-center">
-                                                        <Text size="sm" secondary={true}>e.g., <Code>0 12 * * *</Code> runs every day at noon.</Text>
-                                                    </div>
-                                                </div>
 
-                                                {allowManualHeartbeat && (() => {
-                                                    const agentState = selectedAgentId ? agentStates[selectedAgentId] : undefined
-                                                    const isRunning = agentState?.status === 'working'
-                                                    return (
-                                                        <Button
-                                                            size="md"
-                                                            className={`w-full ${isRunning
-                                                                ? '!bg-amber-500/10 !text-amber-600 dark:!text-amber-400'
-                                                                : '!bg-emerald-500/10 hover:!bg-emerald-500/20 dark:!bg-emerald-500/10 dark:hover:!bg-emerald-500/20 !text-emerald-600 dark:!text-emerald-400'
-                                                                }`}
-                                                            onClick={() => setIsHeartbeatModalOpen(true)}
-                                                            icon={faPlay}
-                                                            disabled={isRunning}
-                                                        >
-                                                            {isRunning ? 'Running...' : 'Run Now'}
-                                                        </Button>
-                                                    )
-                                                })()}
-
-                                            </div>
-                                        )}
                                     </div>
 
                                     <div className="mb-4">
@@ -503,6 +419,26 @@ export default function AgentsPage({
 
                                         </div>
                                     )}
+
+                                    {(allowManualHeartbeat || selectedAgent?.heartbeat?.allowManualTrigger) && (() => {
+                                        const agentState = selectedAgentId ? agentStates[selectedAgentId] : undefined
+                                        const isRunning = agentState?.status === 'working'
+                                        return (
+                                            <Button
+                                                size="md"
+                                                themed={true}
+                                                className={`w-full ${isRunning
+                                                    ? '!bg-amber-500/10 !text-amber-600 dark:!text-amber-400'
+                                                    : '!bg-emerald-500/10 hover:!bg-emerald-500/20 dark:!bg-emerald-500/10 dark:hover:!bg-emerald-500/20 !text-emerald-600 dark:!text-emerald-400'
+                                                    } mt-4`}
+                                                onClick={() => setIsHeartbeatModalOpen(true)}
+                                                icon={faPlay}
+                                                disabled={isRunning}
+                                            >
+                                                {isRunning ? 'Running...' : 'Run Now'}
+                                            </Button>
+                                        )
+                                    })()}
                                 </div>
 
                                 {isAgentCollaborationEnabled && (

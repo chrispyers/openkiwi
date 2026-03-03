@@ -157,7 +157,7 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } }>({ name: '', emoji: '', provider: '', heartbeat: { enabled: false, schedule: '* * * * *' }, collaboration: { enabled: false, schedule: '* * * * *' } });
+  const [agentForm, setAgentForm] = useState<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>({ name: '', emoji: '', provider: '', heartbeat: { enabled: false, schedule: '* * * * *', allowManualTrigger: false }, collaboration: { enabled: false, schedule: '* * * * *' } });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
@@ -1149,14 +1149,14 @@ function App() {
               providers={config?.providers || []}
               agents={agents}
               isAgentCollaborationEnabled={isAgentCollaborationEnabled}
+              allowManualHeartbeat={config?.heartbeat?.allowManualTrigger || false}
+              agentStates={agentStates}
             />
           ) : activeView === 'workflows' ? (
             <WorkflowsPage
               gatewayAddr={gatewayAddr}
               gatewayToken={gatewayToken}
               agents={agents}
-              allowManualHeartbeat={config?.heartbeat?.allowManualTrigger || false}
-              agentStates={agentStates}
             />
           ) : activeView === 'models' ? (
             <ModelsPage
