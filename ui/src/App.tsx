@@ -127,6 +127,7 @@ function App() {
 
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'about'>('about');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
+  const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean, isInitializing?: boolean, botUsername?: string | null }>({ connected: false, isInitializing: false, botUsername: null });
   const [isNavExpanded, setIsNavExpanded] = useState(true);
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, resolvedTheme, setTheme } = useTheme();
@@ -344,7 +345,11 @@ function App() {
     let interval: any;
     if (activeView === 'settings' && activeSettingsSection === 'messaging') {
       fetchWhatsAppStatus();
-      interval = setInterval(fetchWhatsAppStatus, 3000);
+      fetchTelegramStatus();
+      interval = setInterval(() => {
+        fetchWhatsAppStatus();
+        fetchTelegramStatus();
+      }, 3000);
     }
     return () => {
       if (interval) clearInterval(interval);
@@ -597,6 +602,53 @@ function App() {
     } catch (error) {
       console.error('Failed to connect to WhatsApp:', error);
       toast.error('Failed to start WhatsApp connection');
+    }
+  };
+
+  async function fetchTelegramStatus() {
+    try {
+      const response = await fetch(getApiUrl('/api/telegram/status'), {
+        headers: { 'Authorization': `Bearer ${gatewayToken}` }
+      });
+      if (!response.ok) throw new Error('Auth Failed');
+      const data = await response.json();
+      setTelegramStatus(data);
+    } catch (error) {
+      console.error('Failed to fetch Telegram status:', error);
+    }
+  }
+
+  const onConnectTelegram = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/telegram/connect'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${gatewayToken}`
+        }
+      });
+      if (!response.ok) throw new Error('Connection Failed');
+      await fetchTelegramStatus();
+      toast.success('Telegram bot initialization started');
+    } catch (error) {
+      console.error('Failed to connect Telegram bot:', error);
+      toast.error('Failed to start Telegram bot');
+    }
+  };
+
+  const onDisconnectTelegram = async () => {
+    try {
+      const response = await fetch(getApiUrl('/api/telegram/disconnect'), {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${gatewayToken}`
+        }
+      });
+      if (!response.ok) throw new Error('Disconnect Failed');
+      await fetchTelegramStatus();
+      toast.success('Telegram bot disconnected');
+    } catch (error) {
+      console.error('Failed to disconnect Telegram bot:', error);
+      toast.error('Failed to disconnect');
     }
   };
 
@@ -1129,6 +1181,9 @@ function App() {
               whatsappStatus={whatsappStatus}
               onLogoutWhatsApp={onLogoutWhatsApp}
               onConnectWhatsApp={onConnectWhatsApp}
+              telegramStatus={telegramStatus}
+              onConnectTelegram={onConnectTelegram}
+              onDisconnectTelegram={onDisconnectTelegram}
               gatewayAddr={gatewayAddr}
               gatewayToken={gatewayToken}
             />
