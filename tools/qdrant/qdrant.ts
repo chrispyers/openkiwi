@@ -1,6 +1,7 @@
 import { QdrantClient } from '@qdrant/js-client-rest';
-import { loadConfig } from '../src/config-manager.js';
-import { createEmbedding } from '../src/llm-provider.js';
+// relative paths should reach back to the workspace src directory
+import { loadConfig } from '../../src/config-manager.js';
+import { createEmbedding } from '../../src/llm-provider.js';
 
 const DEBUG = process.env.QDRANT_DEBUG === 'true' || process.env.QDRANT_DEBUG === '1';
 
