@@ -13,8 +13,29 @@ import { SCREENSHOTS_DIR, WORKSPACE_DIR } from './security.js';
 import { initWhatsAppHandler } from './WhatsApp.js';
 import { initTelegramHandler } from './Telegram.js';
 import apiRouter from './routes.js';
-import { checkForUpdates } from './services/update-service.js';
 import { handleChatConnection } from './chat-handler.js';
+import path from 'node:path';
+
+// Manually load .env variables before config starts
+const ENV_PATH = path.resolve(process.cwd(), '.env');
+if (fs.existsSync(ENV_PATH)) {
+    const envContent = fs.readFileSync(ENV_PATH, 'utf-8');
+    for (const line of envContent.split('\n')) {
+        const trimmed = line.trim();
+        if (!trimmed || trimmed.startsWith('#')) continue;
+        const eqIndex = trimmed.indexOf('=');
+        if (eqIndex === -1) continue;
+        const key = trimmed.slice(0, eqIndex).trim();
+        let value = trimmed.slice(eqIndex + 1).trim();
+
+        if ((value.startsWith('"') && value.endsWith('"')) || (value.startsWith("'") && value.endsWith("'"))) {
+            value = value.slice(1, -1);
+        }
+        if (!process.env[key]) {
+            process.env[key] = value;
+        }
+    }
+}
 
 const config = loadConfig();
 const app = express();
