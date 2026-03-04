@@ -1,35 +1,86 @@
 [![Test Suite](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml/badge.svg)](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml)
 
-#### [Jump to Quickstart](#quickstart)
+## Navigation
+* [Quickstart](#quickstart)
+  * [Launch the Services](#launch-the-services)
+  * [Connect to the gateway](#connect-to-the-gateway)
+  * [Setup your first model](#setup-your-first-model)
+  * [Setup your first agent](#setup-your-first-agent)
+  * [Setup messaging](#setup-messaging)
+    * [WhatsApp](#whatsapp)
+    * [Telegram](#telegram)
+* [Heartbeats](#heartbeats)
+* [Local Development](#local-development)
+* [Use Cases](#use-cases)
+
 
 ## What is it?
+OpenKIWI (Knowledge Integration & Workflow Intelligence) is a secure, multi-channel agentic automation system.
+
 OpenKIWI sits in the same automation space as other tools like Openclaw, but differentiates itself with a security-first design and a streamlined onboarding experience that gets you started in minutes.
 
-How is OpenKIWI different?
+It provides a web interface where you can create, configure, and manage any number of AI agents. Each agent can be dynamically bound to either local models (LM Studio, Ollama, etc.) or remote providers (OpenAI, Anthropic, Google, etc.), making it easy to swap models without breaking your workflow.
 
-#### Security by default
-* Everything runs in isolated Docker containers
-* Agents can only access what you explicitly grant
+How OpenKIWI is different:
 
-#### Multi-model, agent-first
-* Switch between providers or run local models without rebuilding your workflow logic.
+#### Security by Default
+* Every component runs inside isolated Docker containers.
+* Agents only see the files and tools you explicitly grant.
+* OpenKIWI is built to be enterprise-ready, with a clear and auditable security posture.
 
-#### No session hijacking or OAuth shenanigans
-* OpenKIWI plays by the rules and aims to be enterprise-ready, with a clear and auditable security posture.
+#### Multi-Model, Agent-First
+* Switch providers or run local models (LM Studio, Ollama, etc.) without touching your workflow logic.
 
-#### Onboarding in minutes, not hours.
-* Clone the repo, run one command and you're up in about 30 seconds. A few quick settings in the UI and you're running your first agent. The whole process takes about 3 minutes.
+#### Multi-Channel Interactivity
+* Agents can be seamlessly connected to WhatsApp and Telegram. This allows users to directly text their agents from their phones, secured behind strict allowlists.
+
+#### Rapid Onboarding
+* Clone the repo, run one command and you're up in about 30 seconds.
+* A few quick settings in the UI and you're running your first agent.
+* The whole process takes about 3 minutes.
 * No 20-minute YouTube tutorial required.
+
+#### Autonomous Scheduling ("Heartbeats")
+* Instead of just waiting for user prompts, agents can be configured with cron-based "heartbeats." This enables them to run autonomously in the background to execute workflows.
+
+#### Extensible Tooling Ecosystem
+* Agents are equipped with a powerful suite of explicitly granted tools, allowing them to:
+* Browse the internet and extract web content.
+* Read and write files securely to the local workspace.
+* Analyze images using computer vision integrations.
+* Interface with external APIs like GitHub and Google Tasks.
+* Query semantic vector stores via Qdrant for long-term memory and RAG capabilities.
+
+In short, OpenKIWI transforms raw language models into secure, schedule-driven assistants that seamlessly integrate into the platforms you already use.
+
+
+<a id="local-development"></a>
+
+## Local Development
+
+1. Clone this repo
+2. Install dependencies with `npm install`
+3. Run `npm run dev`
 
 
 <a id="quickstart"></a>
+
 ## Quickstart
+
+<a id="launch-the-services"></a>
 
 ### 1. Launch the Services
 * Clone this repo
 * `cd` to the directory where you cloned the repo
     * You should see a `docker-compose.yml` file in this directory
-* Run `docker compose up --build`
+* Choose one of the following:
+  * Run `docker compose up --build` to run in isolation in docker containers (foreground)
+  * Run `docker compose up --build -d` to run in isolation in docker containers (background)
+  * Run `npm install` and `npm run dev` to run the services in the foreground in a development environment
+
+* If this is your first time running OpenKIWI and you just want to check things out, I recommend running `docker compose up --build`
+
+<a id="connect-to-the-gateway"></a>
 
 ### 2. Connect to the gateway
 
@@ -47,14 +98,61 @@ How is OpenKIWI different?
 ![](docs/images/gateway-2.png)
 
 
+
+<a id="setup-your-first-model"></a>
+
 ### 3. Setup your first model
+
+* Click on "Models" in the side bar
+* Click on "Add Model"
+* Select your provider
+  * For remote providers like OpenAI, Anthropic, Google, etc. you will need to enter your API key
+  * For local models like LM Studio, Ollama, etc. you will need to enter the IP address of your server
+* Press the "Scan" button
+
+
 ![](docs/images/models-1.png)
+
+* You will see a list of models
+* Select your desired model
+* Optionally enter a description
+* Click "Save Model"
+
 ![](docs/images/models-2.png)
 
+* You have now added your first model
+
+![](docs/images/models-3.png)
+
+<a id="setup-your-first-agent"></a>
+
 ### 4. Setup your first agent
+
+* Click on "Agents" in the side bar
+* Click on "Add Agent"
+* Enter the agent's name
+* Select the agent's persona
+  * The persona will shape the agent's behaviour and the way it interacts with you and other agents
+* Click "Save Agent"
+
 ![](docs/images/agents-1.png)
 
-### 5. (optional) Setup WhatsApp integration
+* You have now added your first agent
+* Here you can set scheduled tasks
+* You can view your agent's persona and make adjustments if desired
+
+![](docs/images/agents-2.png)
+
+
+<a id="setup-messaging"></a>
+
+### 5. (optional) Setup Messaging
+
+![](docs/images/messaging-1.png)
+
+<a id="whatsapp"></a>
+
+### WhatsApp
 
 Connect WhatsApp so you can message your agents from your phone.
 
@@ -63,13 +161,14 @@ Connect WhatsApp so you can message your agents from your phone.
 1. Go to the Settings page and click the WhatsApp tab
 2. Scan the QR code with your phone (WhatsApp > Linked Devices > Link a Device)
 3. Once paired, the status will show as connected
+4. Start messaging agents from your phone:
 
-![](docs/images/whatsapp-1.png)
-![](docs/images/whatsapp-2.png)
+<!-- ![](docs/images/whatsapp-1.png) -->
+<!-- ![](docs/images/whatsapp-2.png) -->
 
-Start messaging agents from your phone:
 
-<img style="border-radius: 10px;" src="docs/images/whatsapp-3.png" width="200"/>
+
+<!-- <img style="border-radius: 10px;" src="docs/images/whatsapp-3.png" width="200"/> -->
 
 #### (Recommended) Restrict access
 
@@ -99,7 +198,9 @@ Agents can send scheduled heartbeat messages to WhatsApp. Add a channel to the a
 
 The `jid` is the recipient's phone number followed by `@s.whatsapp.net`. WhatsApp must be connected for delivery to work — if disconnected, the channel is skipped and a warning is logged.
 
-### 6. (optional) Setup Telegram integration
+<a id="telegram"></a>
+
+### Telegram
 
 Connect a Telegram bot so you can message your agents from Telegram.
 
@@ -165,6 +266,8 @@ OpenKIWI ships with several built-in tools that extend your agents' capabilities
 | Qdrant | Semantic search across vector stores | [tools/qdrant/](tools/qdrant/README.md) |
 
 See [tools/README.md](tools/README.md) for the full list and how to create your own.
+
+<a id="heartbeats"></a>
 
 ## Heartbeats
 
@@ -291,3 +394,22 @@ Add to your `.env` file:
 
 ![](docs/images/chat-1.png)
 ![](docs/images/chat-2.png)
+
+
+
+<a id="use-cases"></a>
+
+### Use Cases
+
+| # | Use case | What the agent does each cycle | Why it’s compelling |
+|---|----------|-------------------------------|---------------------|
+| 1 | Weekly GitHub Pulse | Every Monday at 9am: query the user’s repos via the GitHub API, run a sentiment/issue‑trend analysis, and post a concise digest to WhatsApp. | Keeps the team up‑to‑date without manual “status‑update” calls. |
+| 2	| Daily Google Tasks Sync	| Every day at 6 pm: pull all tasks due today, flag overdue ones, and send a gentle reminder to the user’s phone. | Acts like a personal assistant that never forgets deadlines. |
+| 3	| Monthly Security Scan	| First day of every month: run a container‑based security audit (e.g., trivy or anchore) on all projects, summarize findings, and email the report to the dev‑ops channel.	| Automates compliance checks while keeping the codebase isolated. |
+| 4	| Website Performance Monitor | Every 15 minutes: ping a list of URLs, capture response times & error rates, store metrics in Qdrant, and alert on anomalies via Telegram. | Provides real‑time uptime dashboards without manual polling. |
+| 5	| Daily News Curator | Every evening: scrape a set of trusted news sites, run an LLM summarizer to produce bullet‑point headlines, and push the list to a shared channel. | Acts like a personal news feed that respects data‑privacy boundaries.
+| 6	| Knowledge Base Refresh | Every Sunday at 3 am: crawl the internal wiki, extract new or updated pages, embed them in Qdrant, and notify stakeholders that the knowledge base is fresh. | Keeps RAG stores up‑to‑date without manual indexing. |
+| 7	| Budget Tracker | Every month‑end: fetch bank statements via a secure API, categorize expenses with an LLM, and email a spend‑report. | Automates financial oversight while staying inside the container sandbox.|
+| 8	| Health‑check Bot| Every hour: ping critical microservices, log latency, and send a quick status message if anything deviates from SLA. | Provides silent monitoring that only alerts on real issues. |
+| 9	| Email Digest | Every weekday at 8 am: pull unread emails, run a summarizer, and deliver a "top‑3‑items" summary to the user’s phone. | Reduces inbox overload with AI‑generated previews. |
+| 10 | Code Quality Guardian | Every night: run static analysis (e.g., SonarQube or eslint) on the repo, flag critical issues, and push a summary to Slack. | Keeps code quality high without developers having to trigger scans. |

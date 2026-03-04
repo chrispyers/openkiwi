@@ -16,7 +16,7 @@ export const SessionButton = ({
     return (
         <Tooltip content={session.summary || session.title} title="Summary" position="right" className="w-full">
             <div
-                className={`group w-full pt-3 pb-3 pl-4 pr-2 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-100 ${isActive ? 'bg-[var(--agent-chat-bubble-bg)] shadow-sm' : 'hover:bg-neutral-100 dark:hover:bg-white/5'} text-primary`}
+                className={`group w-full pt-3 pb-3 pl-4 pr-2 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-100 ${isActive ? 'bg-[var(--agent-chat-bubble-bg)] shadow-sm' : 'hover:bg-[var(--agent-chat-bubble-bg)]'} text-primary`}
                 onClick={() => onLoadSession(session)}
             >
                 {/* <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
