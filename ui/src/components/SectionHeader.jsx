@@ -21,7 +21,7 @@ export default function SectionHeader({ icon, title, className = '', columns, ic
     const colSpanClass = spanMap[columns] || '';
 
     return (
-        <div className={`flex items-center ${icon ? 'gap-3' : ''} ${colSpanClass} ${className} w-full`}>
+        <div className={`flex items-center ${icon ? 'gap-2' : ''} ${colSpanClass} ${className} w-full`}>
             {icon && (
                 iconClasses ? (
                     <Text className={`flex items-center justify-center shrink-0 ${iconClasses}`}>

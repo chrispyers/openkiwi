@@ -1,20 +1,10 @@
 import React, { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import Text from './Text';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faX } from '@fortawesome/free-solid-svg-icons';
 import Button from './Button';
+import { faXmark } from '@fortawesome/free-solid-svg-icons';
 
-interface ModalProps {
-    isOpen: boolean;
-    onClose: () => void;
-    title?: React.ReactNode;
-    children: React.ReactNode;
-    className?: string;
-    headerActions?: React.ReactNode;
-}
-
-const Modal: React.FC<ModalProps> = ({
+const Modal = ({
     isOpen,
     onClose,
     title,
@@ -53,7 +43,7 @@ const Modal: React.FC<ModalProps> = ({
                         {headerActions}
                     </div>
                     <div className="flex gap-2">
-                        <Button onClick={onClose}>Close</Button>
+                        <Button onClick={onClose} icon={faXmark} />
                     </div>
                 </div>
                 <div className="flex-1 overflow-y-auto p-0">

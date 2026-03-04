@@ -28,7 +28,7 @@ export default function ThemeSelector() {
                         themed={theme === option.id}
                         onClick={() => setTheme(option.id)}
                         size="sm"
-                        className={`ml-0.5 mr-0.5 !h-8 !py-1 !px-3 !rounded-full transition-all duration-300 flex items-center justify-center
+                        className={`ml-0.5 mr-0.5 !h-8 !py-1 !w-10 flex-shrink-0 !rounded-full transition-all duration-300 flex items-center justify-center
                             ${theme === option.id
                                 ? `shadow-sm !text-white dark:!text-neutral-600`
                                 : '!bg-transparent'}`}

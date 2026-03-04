@@ -12,6 +12,7 @@ import Page from '../Page'
 import Row from '../../Row'
 import Column from '../../Column'
 import HR from '../../HR'
+import TextWithIcon from '../../TextWithIcon'
 
 export default function Settings_Agents({ config, setConfig, saveConfig }) {
     return (
@@ -20,8 +21,9 @@ export default function Settings_Agents({ config, setConfig, saveConfig }) {
             <Card>
                 <Row>
                     <Column grow={true}>
-                        <Text bold={true}>
-                            <FontAwesomeIcon icon={faBrain} />Enable Vector Embeddings</Text>
+                        <TextWithIcon icon={faBrain} bold={true}>
+                            Enable Vector Embeddings
+                        </TextWithIcon>
                         <Text size="sm" secondary={true}>
                             Enhance memory recall using semantic vector search. When disabled, keyword search is used.
                         </Text>

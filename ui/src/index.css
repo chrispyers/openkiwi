@@ -66,33 +66,45 @@
 
 /* Dark Mode Variables */
 .dark {
+  /* Theme Color */
   --accent-primary: #ffffff;
 
-  --bg-sidebar: rgb(38, 38, 38);
-
-  /* neutral-900 */
-  --bg-sidebar: rgb(26, 26, 26);
-
-  /* neutral-900 */
-  --bg-primary: rgb(26, 26, 26);
-
-  /* neutral-800 */
-  --bg-card: rgb(38, 38, 38);
-
-  --text-primary: #fafafa;
-  --text-secondary: #a3a3a3;
+  /* Borders */
   --border-color: #383838;
+
+  /* Chat Bubbles */
   --user-chat-bubble-bg: rgb(56, 59, 61);
   --agent-chat-bubble-bg: rgb(38, 38, 38);
-  --modal-bg: rgb(26, 26, 26);
+
+  /* Page */
+  --bg-primary: rgb(26, 26, 26);
+  --bg-sidebar: rgb(38, 38, 38);
+  --bg-sidebar: rgb(26, 26, 26);
+
+  /* Text */
+  --text-primary: #fafafa;
+  --text-secondary: #a3a3a3;
+
+  /* Input */
+  --input-bg: rgb(26, 26, 26);
+
+  /* Select */
+  --select-bg: rgb(26, 26, 26);
+
+  /* TextArea */
+  --textarea-bg: rgb(26, 26, 26);
+
+  /* Table */
   --table-header-bg: rgb(26, 26, 26);
-  /* --table-header-text: rgb(23, 23, 23); */
   --table-header-text: white;
   --table-body-bg: rgb(30, 30, 30);
-  --input-bg: rgb(26, 26, 26);
-  --select-bg: rgb(26, 26, 26);
-  --textarea-bg: rgb(26, 26, 26);
   --table-border-color: #383838;
+
+  /* Modal */
+  --modal-bg: rgb(26, 26, 26);
+
+  /* Card */
+  --bg-card: rgb(38, 38, 38);
 }
 
 @layer base {

@@ -45,17 +45,21 @@ export default function Button(props) {
             title={props.title}
         >
             {props.icon && (
-                (props.themed || props.variant === "danger") ?
-                    <FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} />
-                    :
-                    <Text className={props.children ? "h-auto" : "h-full"}><FontAwesomeIcon className={props.children ? "mr-2 " : "mr-0"} icon={props.icon} /></Text>
+                <FontAwesomeIcon
+                    className={`${props.children ? "mr-2" : "mr-0"}`}
+                    icon={props.icon}
+                />
             )}
 
-            {props.themed || props.variant === "danger" ? props.children :
-                <Text className={`font-semibold flex-1 min-w-0 flex items-center justify-center`} size={props.size || "md"}>
-                    {props.children}
-                </Text>
-            }
+            {props.children && (
+                props.themed || props.variant === "danger" ? props.children :
+                    <Text
+                        className="font-semibold flex-1 min-w-0 flex items-center justify-center"
+                        size={props.size || "md"}
+                    >
+                        {props.children}
+                    </Text>
+            )}
         </button>
     );
 }

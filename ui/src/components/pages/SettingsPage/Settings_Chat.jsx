@@ -3,6 +3,7 @@ import Column from '../../Column'
 import Page from '../Page'
 import Card from '../../Card'
 import Text from '../../Text'
+import TextWithIcon from '../../TextWithIcon'
 import Toggle from '../../Toggle'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import { faBrain, faHistory, faFileText, faGaugeHigh } from '@fortawesome/free-solid-svg-icons'
@@ -14,10 +15,9 @@ export default function Settings_Chat({ config, setConfig, saveConfig }) {
             <Card>
                 <Row>
                     <Column grow={true}>
-                        <Text bold={true}>
-                            <FontAwesomeIcon icon={faBrain} />
+                        <TextWithIcon icon={faBrain} bold={true}>
                             Show Thought Process
-                        </Text>
+                        </TextWithIcon>
                         <Text size="sm" secondary={true}>Display reasoning blocks if available</Text>
                     </Column>
                     <Column align="end">
@@ -39,10 +39,9 @@ export default function Settings_Chat({ config, setConfig, saveConfig }) {
             <Card>
                 <Row>
                     <Column grow={true}>
-                        <Text bold={true}>
-                            <FontAwesomeIcon icon={faHistory} />
+                        <TextWithIcon icon={faHistory} bold={true}>
                             Stateful Conversations
-                        </Text>
+                        </TextWithIcon>
                         <Text size="sm" secondary={true}>Preserve context across multiple message turns</Text>
                     </Column>
                     <Column align="end">
@@ -64,10 +63,9 @@ export default function Settings_Chat({ config, setConfig, saveConfig }) {
             <Card>
                 <Row>
                     <Column grow={true}>
-                        <Text bold={true}>
-                            <FontAwesomeIcon icon={faFileText} />
+                        <TextWithIcon icon={faFileText} bold={true}>
                             Generate Chat Summaries
-                        </Text>
+                        </TextWithIcon>
                         <Text size="sm" secondary={true}>Summarize long conversations for better context retention</Text>
                     </Column>
                     <Column align="end">
@@ -89,8 +87,9 @@ export default function Settings_Chat({ config, setConfig, saveConfig }) {
             <Card>
                 <Row>
                     <Column grow={true}>
-                        <Text bold={true}>
-                            <FontAwesomeIcon icon={faGaugeHigh} />Show Token Statistics</Text>
+                        <TextWithIcon icon={faGaugeHigh} bold={true}>
+                            Show Token Statistics
+                        </TextWithIcon>
                         <Text size="sm" secondary={true}>Display generation speed (TPS) and token counts on AI messages</Text>
                     </Column>
                     <Column align="end">

@@ -12,29 +12,30 @@ const AgentFileButton = ({
 }) => {
     return (
         <Button
-            secondary={true}
+            padding={3}
+            className="w-full !justify-start"
             onClick={onClick}
         >
-            <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-xl bg-white-trans flex items-center justify-center ${iconColorClass} transition-all`}>
+            <div className="flex items-center gap-4 text-left w-full">
+                <div className={`w-12 h-12 rounded-xl bg-white-trans flex-shrink-0 flex items-center justify-center ${iconColorClass} transition-all`}>
                     <Text size="2xl">
                         <FontAwesomeIcon icon={icon} />
                     </Text>
                 </div>
-                <div>
-                    <div className="text-xs">
-                        <Text size="xs" bold={true}>
+                <div className="min-w-0">
+                    <div>
+                        <Text size="sm" bold={true} className="leading-tight">
                             {title}
                         </Text>
                     </div>
-                    <div className="text-xs">
-                        <Text size="xs" secondary={true}>
+                    <div>
+                        <Text size="xs" secondary={true} className="leading-tight">
                             {description}
                         </Text>
                     </div>
                 </div>
             </div>
-        </Button>
+        </Button >
     );
 };
 

@@ -1,45 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
-import {
-  Send,
-  Settings,
-  MessageSquare,
-  User,
-  Bot,
-  Loader2,
-  Cpu,
-  History,
-  Terminal,
-  Globe,
-  Plus,
-  Trash2,
-  BrainCircuit,
-  FileText,
-  X,
-  ChevronRight,
-  Folder,
-  Smile,
-  Save,
-  Edit2,
-  Wrench,
-
-  Monitor,
-  Sun,
-  Moon,
-  Layout
-} from 'lucide-react'
 import { Toaster, toast } from 'sonner'
 import { useTheme } from './contexts/ThemeContext'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from './components/Button'
-import Input from './components/Input'
-import Select from './components/Select'
-import Toggle from './components/Toggle'
-import Text from './components/Text'
 import Header from './components/Header'
-import Card from './components/Card'
-import IconBox from './components/IconBox'
-import Badge from './components/Badge'
 import Modal from './components/Modal'
 import MarkdownRenderer from './components/MarkdownRenderer'
 import AgentsPage from './components/pages/AgentsPage/AgentsPage'
@@ -52,36 +16,14 @@ import ActivityPage from './components/pages/ActivityPage'
 import WorkflowsPage from './components/pages/WorkflowsPage'
 import ProjectsPage from './components/pages/ProjectsPage'
 import Sidebar from './components/Sidebar'
-import { TABLE, TH, TR, TD } from './components/Table'
 import {
   faPlus,
-  faPlug,
-  faSun,
-  faMoon,
-  faDesktop,
   faSave,
-  faServer,
-  faComments,
-  faGear,
-  faTrash,
-  faPaperPlane,
-  faGlobe,
-  faLock,
-  faLink,
-  faUser,
-  faSmile,
-  faFolder,
-  faCube,
-  faRobot,
-  faFileLines,
-  faFlask
+  faEdit
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
 import SessionGroup from './components/SessionGroup'
 import { Message, Agent, Session, Model, Config, AgentState } from './types';
-
-
-
 
 interface LogEntry {
   id: number;
@@ -1246,9 +1188,9 @@ function App() {
         )}
         headerActions={viewingFile && (
           !viewingFile.isEditing ? (
-            <Button onClick={() => setViewingFile({ ...viewingFile, isEditing: true })}>edit</Button>
+            <Button onClick={() => setViewingFile({ ...viewingFile, isEditing: true })} icon={faEdit}></Button>
           ) : (
-            <Button onClick={saveAgentFile}>save</Button>
+            <Button onClick={saveAgentFile} icon={faSave}></Button>
           )
         )}
       >

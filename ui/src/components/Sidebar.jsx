@@ -101,8 +101,7 @@ export default function Sidebar({
 
                             </button>
                             :
-
-                            <div className="h-px bg-border-color m-3 pl-10 pr-10" />
+                            <div className="h-px bg-neutral-300 dark:bg-neutral-700 m-3 pl-10 pr-10" />
                     }
                 </React.Fragment>
             ))}

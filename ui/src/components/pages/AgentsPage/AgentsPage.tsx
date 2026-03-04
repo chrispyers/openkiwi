@@ -11,18 +11,13 @@ import Page from '../Page'
 import Select from '../../Select'
 import AgentFileButton from '../../AgentFileButton'
 import Code from '../../Code'
-import { EyeIcon, BrainIcon, ToolIcon } from '../../CapabilityIcons'
-
 import { toast } from 'sonner'
 import { Agent, AgentState } from '../../../types'
 import Row from '../../Row'
 import Column from '../../Column'
 import ErrorMessage from '../../ErrorMessage'
 import SectionHeader from '../../SectionHeader'
-
-
 import AgentButton from './AgentButton'
-import { Section } from 'lucide-react'
 
 interface AgentsPageProps {
     gatewayAddr: string;
