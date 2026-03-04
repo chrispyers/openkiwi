@@ -15,6 +15,7 @@ import ChatPage from './components/pages/ChatPage'
 import ActivityPage from './components/pages/ActivityPage'
 import WorkflowsPage from './components/pages/WorkflowsPage'
 import ProjectsPage from './components/pages/ProjectsPage'
+import WorkspacePage from './components/pages/WorkspacePage'
 import Sidebar from './components/Sidebar'
 import {
   faPlus,
@@ -64,11 +65,6 @@ function App() {
 
   const activeView = getActiveView();
 
-  useEffect(() => {
-    if (location.pathname === '/') {
-      navigate('/chat', { replace: true });
-    }
-  }, [location.pathname, navigate]);
 
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway'>('version');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
@@ -116,6 +112,17 @@ function App() {
   const [isAgentActivityEnabled, setIsAgentActivityEnabled] = useState(() => {
     return localStorage.getItem('experimental_activity') === 'true';
   });
+
+  useEffect(() => {
+    if (location.pathname === '/') {
+      navigate('/chat', { replace: true });
+    }
+
+    if (location.pathname === '/workspace' && !isGatewayConnected && !loading) {
+      toast.error("Authentication Required", { description: "Please connect to the gateway to access the workspace." });
+      navigate('/gateway', { replace: true });
+    }
+  }, [location.pathname, navigate, isGatewayConnected, loading]);
 
   const fetchLogs = async () => {
     try {
@@ -1140,6 +1147,8 @@ function App() {
             <ActivityPage agents={agents} agentStates={agentStates} />
           ) : activeView === 'projects' ? (
             <ProjectsPage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
+          ) : activeView === 'workspace' ? (
+            <WorkspacePage />
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}

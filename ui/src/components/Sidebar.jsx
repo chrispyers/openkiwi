@@ -11,7 +11,8 @@ import {
     faGear,
     faArrowsSpin,
     faDiagramProject,
-    faFolder
+    faFolder,
+    faFolderOpen
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function Sidebar({
@@ -35,6 +36,7 @@ export default function Sidebar({
         { experimentalProjectManagement: true },
         { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjectManagement: true },
         { id: 'workflows', icon: faDiagramProject, label: 'Workflows', experimentalProjectManagement: true },
+        { id: 'workspace', icon: faFolderOpen, label: 'Workspace' },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
