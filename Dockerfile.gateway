@@ -24,9 +24,9 @@ RUN apt-get update && apt-get install -y \
 
 # Install gh CLI
 RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
-       -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
+    -o /usr/share/keyrings/githubcli-archive-keyring.gpg && \
     echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" \
-       > /etc/apt/sources.list.d/github-cli.list && \
+    > /etc/apt/sources.list.d/github-cli.list && \
     apt-get update && \
     apt-get install -y gh --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
@@ -44,7 +44,7 @@ COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
 COPY config/config.json.template ./config/
-COPY agent_template ./agent_template
+COPY agent_personas ./agent_personas
 
 # Create necessary data directories
 RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth
