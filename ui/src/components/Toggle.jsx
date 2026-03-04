@@ -37,9 +37,9 @@ export default function Toggle({
 
                     {/* size and shape (The track) */}
                     <div className={`w-12 h-8 rounded-full peer transition-all
-                        bg-neutral-200 dark:bg-neutral-800
+                        bg-[var(--toggle-off-bg)]
                         peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-accent-primary/20
-                        peer-checked:bg-accent-primary dark:peer-checked:bg-accent-primary
+                        peer-checked:bg-[var(--toggle-on-bg)]
                         after:content-[''] after:absolute after:top-[4px] after:left-[4px]
                         after:bg-white dark:after:bg-neutral-700
                         after:rounded-full after:h-6 after:w-6 after:transition-all

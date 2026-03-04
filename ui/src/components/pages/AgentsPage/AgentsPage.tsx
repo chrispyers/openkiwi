@@ -521,7 +521,7 @@ export default function AgentsPage({
                                         description="Core personality"
                                         icon={faIdBadge}
                                         iconColorClass="bg-neutral-800/10"
-                                        onClick={() => setViewingFile({ title: 'PERSONA.md', content: selectedAgent.persona!, isEditing: true, agentId: selectedAgent.id })}
+                                        onClick={() => setViewingFile({ title: 'PERSONA.md', content: selectedAgent.persona!, isEditing: false, agentId: selectedAgent.id })}
                                     />
                                 ) : (
                                     <AgentFileButton
@@ -529,7 +529,7 @@ export default function AgentsPage({
                                         description="Core instructions"
                                         icon={faIdBadge}
                                         iconColorClass="bg-neutral-800/10"
-                                        onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity!, isEditing: true, agentId: selectedAgent.id })}
+                                        onClick={() => setViewingFile({ title: 'IDENTITY.md', content: selectedAgent.identity!, isEditing: false, agentId: selectedAgent.id })}
                                     />
                                 )}
 
@@ -539,7 +539,7 @@ export default function AgentsPage({
                                         description="Moral values"
                                         icon={faMicrochip}
                                         iconColorClass="bg-teal-400/20"
-                                        onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul!, isEditing: true, agentId: selectedAgent.id })}
+                                        onClick={() => setViewingFile({ title: 'SOUL.md', content: selectedAgent.soul!, isEditing: false, agentId: selectedAgent.id })}
                                     />
                                 )}
 
@@ -548,7 +548,7 @@ export default function AgentsPage({
                                     description="Stored facts"
                                     icon={faBrain}
                                     iconColorClass="bg-indigo-400/20"
-                                    onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: true, agentId: selectedAgent.id })}
+                                    onClick={() => setViewingFile({ title: 'MEMORY.md', content: selectedAgent.memory || '', isEditing: false, agentId: selectedAgent.id })}
                                 />
 
                                 <AgentFileButton
@@ -556,7 +556,7 @@ export default function AgentsPage({
                                     description="Scheduled tasks"
                                     icon={faHeartPulse}
                                     iconColorClass="bg-red-400/20"
-                                    onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: true, agentId: selectedAgent.id })}
+                                    onClick={() => setViewingFile({ title: 'HEARTBEAT.md', content: selectedAgent.heartbeatInstructions || '', isEditing: false, agentId: selectedAgent.id })}
                                 />
 
                                 <AgentFileButton
@@ -564,7 +564,7 @@ export default function AgentsPage({
                                     description="Rules & Guardrails"
                                     icon={faShield}
                                     iconColorClass="bg-sky-400/20"
-                                    onClick={() => setViewingFile({ title: selectedAgent.persona ? 'RULES.md' : 'AGENT.md', content: selectedAgent.rules || '', isEditing: true, agentId: selectedAgent.id })}
+                                    onClick={() => setViewingFile({ title: selectedAgent.persona ? 'RULES.md' : 'AGENT.md', content: selectedAgent.rules || '', isEditing: false, agentId: selectedAgent.id })}
                                 />
 
 

@@ -62,12 +62,16 @@
 
   /* Card */
   --bg-card: white;
+
+  /* Toggle */
+  --toggle-on-bg: rgb(95, 95, 95);
+  --toggle-off-bg: rgb(232, 232, 232);
 }
 
 /* Dark Mode Variables */
 .dark {
   /* Theme Color */
-  --accent-primary: #ffffff;
+  --accent-primary: #fafafa;
 
   /* Borders */
   --border-color: #383838;
@@ -101,10 +105,14 @@
   --table-border-color: #383838;
 
   /* Modal */
-  --modal-bg: rgb(26, 26, 26);
+  --modal-bg: rgb(38, 38, 38);
 
   /* Card */
   --bg-card: rgb(38, 38, 38);
+
+  /* Toggle */
+  --toggle-on-bg: #fafafa;
+  --toggle-off-bg: rgb(26, 26, 26);
 }
 
 @layer base {
