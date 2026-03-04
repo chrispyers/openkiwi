@@ -2,7 +2,7 @@ import { describe, it, expect, beforeAll, afterAll } from 'vitest';
 import { google } from 'googleapis';
 import fs from 'node:fs';
 import path from 'node:path';
-import tool from '../google_tasks.js';
+import tool from '../google_tasks/google_tasks.js';
 
 // Load .env into process.env for integration tests
 const envPath = path.resolve(process.cwd(), '.env');

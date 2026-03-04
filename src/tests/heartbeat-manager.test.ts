@@ -765,7 +765,7 @@ describe('HeartbeatManager', () => {
 
         it('refreshAgent should stop existing job and reschedule', () => {
             const stopFn = vi.fn();
-            (HeartbeatManager as any).jobs.set('agent-a', { stop: stopFn });
+            (HeartbeatManager as any).jobs.set('agent-a:heartbeat', { stop: stopFn });
 
             mockGetAgent.mockReturnValue(makeAgent({
                 id: 'agent-a',
