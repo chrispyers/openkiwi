@@ -34,6 +34,7 @@ export interface Agent {
         schedule: string;
     };
     tools?: Record<string, any>;
+    isDefault?: boolean;
 }
 
 export interface AgentState {
@@ -144,7 +145,8 @@ ${globalSystemPrompt}`.trim();
             provider: agentConfig.provider,
             heartbeat: agentConfig.heartbeat,
             collaboration: agentConfig.collaboration,
-            tools: agentConfig.tools
+            tools: agentConfig.tools,
+            isDefault: agentConfig.isDefault
         };
     }
 
@@ -237,6 +239,27 @@ ${globalSystemPrompt}`.trim();
         const newConfig = { ...existingConfig, ...config };
 
         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf-8');
+
+        // If this agent is set as default, remove isDefault from all other agents
+        if (config.isDefault === true) {
+            const allAgents = this.listAgents();
+            for (const otherId of allAgents) {
+                if (otherId !== id) {
+                    const otherConfigPath = path.join(AGENTS_DIR, otherId, 'config.json');
+                    if (fs.existsSync(otherConfigPath)) {
+                        try {
+                            const otherConfig = JSON.parse(fs.readFileSync(otherConfigPath, 'utf-8'));
+                            if (otherConfig.isDefault !== undefined) {
+                                delete otherConfig.isDefault;
+                                fs.writeFileSync(otherConfigPath, JSON.stringify(otherConfig, null, 2), 'utf-8');
+                            }
+                        } catch (e) {
+                            console.error(`Failed to update default status for agent ${otherId}`);
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private static agentStates = new Map<string, AgentState>();

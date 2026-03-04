@@ -46,6 +46,7 @@ export interface Agent {
     };
     systemPrompt: string;
     provider?: string;
+    isDefault?: boolean;
 }
 
 export interface AgentState {

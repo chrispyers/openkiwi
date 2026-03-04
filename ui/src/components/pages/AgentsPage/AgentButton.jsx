@@ -1,6 +1,6 @@
 import React from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faClockFour } from '@fortawesome/free-solid-svg-icons';
+import { faClockFour, faStar } from '@fortawesome/free-solid-svg-icons';
 import Button from '../../Button';
 import Text from '../../Text';
 import { EyeIcon, BrainIcon, ToolIcon } from '../../CapabilityIcons';
@@ -25,6 +25,15 @@ const AgentButton = ({ agent, isSelected, onClick, provider }) => {
                         >
                             {agent.name}
                         </Text>
+                        {agent.isDefault && (
+                            <Text
+                                size="sm"
+                                secondary={!isSelected}
+                                className={isSelected ? "text-white dark:!text-neutral-900 opacity-70" : "text-amber-400"}
+                            >
+                                <FontAwesomeIcon icon={faStar} />
+                            </Text>
+                        )}
                         {agent.heartbeat?.enabled && (
                             <Text
                                 size="sm"

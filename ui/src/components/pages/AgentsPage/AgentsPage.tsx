@@ -571,8 +571,19 @@ export default function AgentsPage({
                             </Card>
 
                             <Button
+                                themed={false}
+                                onClick={() => {
+                                    const updated = { ...agentForm, isDefault: true }
+                                    setAgentForm(updated)
+                                    saveAgentConfig(updated)
+                                }}
+                                disabled={selectedAgent.isDefault}
+                            >
+                                Set Default Assistant
+                            </Button>
+
+                            <Button
                                 variant="danger"
-                                className="w-full mt-4"
                                 onClick={() => setIsDeleteModalOpen(true)}
                                 icon={faTrash}
                             >

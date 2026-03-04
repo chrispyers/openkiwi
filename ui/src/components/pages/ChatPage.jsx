@@ -42,6 +42,15 @@ export default function ChatPage({
         }
     }, [inputText, textareaRef]);
 
+    useEffect(() => {
+        if (!selectedAgentId && agents && agents.length > 0) {
+            const defaultAgent = agents.find(a => a.isDefault);
+            if (defaultAgent) {
+                setSelectedAgentId(defaultAgent.id);
+            }
+        }
+    }, [agents, selectedAgentId, setSelectedAgentId]);
+
     const currentAgent = agents.find(a => a.id === selectedAgentId);
     const isNoAgentSelected = !selectedAgentId;
     const isAgentMissing = !currentAgent && !!selectedAgentId;
