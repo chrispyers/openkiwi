@@ -40,7 +40,13 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
         connectedAt: Date.now()
     });
 
+    let currentAbortController: AbortController | null = null;
+
     ws.on('close', () => {
+        if (currentAbortController) {
+            currentAbortController.abort();
+            currentAbortController = null;
+        }
         clearTimeout(authTimeout);
         const client = connectedClients.get(ws);
         if (client?.tools) {
@@ -57,6 +63,14 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
         try {
             const parsed = JSON.parse(data.toString());
             console.log(`[WS] Received message type: ${parsed.type || 'chat'}`);
+
+            if (parsed.type === 'stop') {
+                if (currentAbortController) {
+                    currentAbortController.abort();
+                    currentAbortController = null;
+                }
+                return;
+            }
 
             // Handle Auth Message
             if (parsed.type === 'auth') {
@@ -214,6 +228,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             AgentManager.setAgentState(effectiveAgentId, 'chatting', 'Processing user prompt');
             let finalAiResponse, lastTps, totalUsage, chatHistory;
+            currentAbortController = new AbortController();
             try {
                 const result = await runAgentLoop({
                     agentId: effectiveAgentId,
@@ -223,6 +238,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     visionEnabled: !!providerConfig?.capabilities?.vision,
                     maxLoops: 5,
                     signToolUrls: true,
+                    abortSignal: currentAbortController.signal,
                     onDelta: (content: string) => {
                         if (!fullContent) console.log('[WS] Received first delta from LLM');
                         fullContent += content;
@@ -241,6 +257,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 totalUsage = result.usage;
                 chatHistory = result.chatHistory;
             } finally {
+                currentAbortController = null;
                 AgentManager.setAgentState(effectiveAgentId, 'idle');
             }
 
@@ -262,8 +279,12 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             // Full history is original user messages + new generated ones
             const fullHistory = [...userMessages, ...newGeneratedMessages];
 
-            // Filter out 'system' messages and any 'reasoning' messages that might be present
-            const finalizedMessages = fullHistory.filter((msg: any) => msg.role !== 'system' && msg.role !== 'reasoning').map((msg: any, index, arr) => {
+            // Filter out 'system' messages, 'reasoning' messages, and empty assistant messages (e.g., from aborted streams)
+            const finalizedMessages = fullHistory.filter((msg: any) =>
+                msg.role !== 'system' &&
+                msg.role !== 'reasoning' &&
+                !(msg.role === 'assistant' && !msg.content && (!msg.tool_calls || msg.tool_calls.length === 0))
+            ).map((msg: any, index, arr) => {
                 const isLast = index === arr.length - 1;
                 // If this is the turn we just finished, ensure it has stats and the latest timestamp
                 if (isLast && msg.role === 'assistant' && finalAiResponse) {

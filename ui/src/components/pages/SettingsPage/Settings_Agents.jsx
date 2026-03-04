@@ -1,6 +1,5 @@
 import { toast } from 'sonner'
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faBrain, faFileCode, faMicrochip, faSave } from '@fortawesome/free-solid-svg-icons'
+import { faBrain, faFileCode, faMicrochip, faSave, faDatabase } from '@fortawesome/free-solid-svg-icons'
 import Text from '../../Text'
 import Card from '../../Card'
 import SectionHeader from '../../SectionHeader'
@@ -21,7 +20,7 @@ export default function Settings_Agents({ config, setConfig, saveConfig }) {
             <Card>
                 <Row>
                     <Column grow={true}>
-                        <TextWithIcon icon={faBrain} bold={true}>
+                        <TextWithIcon icon={faDatabase} bold={true}>
                             Enable Vector Embeddings
                         </TextWithIcon>
                         <Text size="sm" secondary={true}>

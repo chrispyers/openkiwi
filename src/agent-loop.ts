@@ -41,6 +41,7 @@ export interface AgentLoopOptions {
     onDelta?: (content: string) => void;
     onUsage?: (usageStats: any) => void;
     onToolCall?: (toolCall: any) => void;
+    abortSignal?: AbortSignal;
 }
 
 export interface AgentLoopResult {
@@ -79,86 +80,104 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         let firstTokenTime = 0;
         const requestStartTime = Date.now();
 
-        for await (const delta of streamChatCompletion(
-            options.llmConfig,
-            processedHistory,
-            options.llmConfig.supportsTools ? ToolManager.getToolDefinitions() : undefined
-        )) {
-            if (delta.content) {
-                if (!firstTokenTime) firstTokenTime = Date.now();
-                fullContent += delta.content;
-                if (options.onDelta) {
-                    options.onDelta(delta.content);
+        try {
+            for await (const delta of streamChatCompletion(
+                options.llmConfig,
+                processedHistory,
+                options.llmConfig.supportsTools ? ToolManager.getToolDefinitions() : undefined,
+                options.abortSignal
+            )) {
+                if (delta.content) {
+                    if (!firstTokenTime) firstTokenTime = Date.now();
+                    fullContent += delta.content;
+                    if (options.onDelta) {
+                        options.onDelta(delta.content);
+                    }
                 }
-            }
-            if (delta.tool_calls) {
-                for (const toolCall of delta.tool_calls) {
-                    if (!toolCalls[toolCall.index]) {
-                        toolCalls[toolCall.index] = { ...toolCall };
-                        if (toolCall.function) {
-                            toolCalls[toolCall.index].function = { ...toolCall.function };
-                        } else {
-                            toolCalls[toolCall.index].function = { name: '', arguments: '' };
-                        }
-                    } else {
-                        if (toolCall.id) {
-                            toolCalls[toolCall.index].id = toolCall.id;
-                        }
-                        if (toolCall.type) {
-                            toolCalls[toolCall.index].type = toolCall.type;
-                        }
-                        if (toolCall.function) {
-                            if (!toolCalls[toolCall.index].function) {
+                if (delta.tool_calls) {
+                    for (const toolCall of delta.tool_calls) {
+                        if (!toolCalls[toolCall.index]) {
+                            toolCalls[toolCall.index] = { ...toolCall };
+                            if (toolCall.function) {
+                                toolCalls[toolCall.index].function = { ...toolCall.function };
+                            } else {
                                 toolCalls[toolCall.index].function = { name: '', arguments: '' };
                             }
-                            if (toolCall.function.name) {
-                                toolCalls[toolCall.index].function.name = (toolCalls[toolCall.index].function.name || '') + toolCall.function.name;
+                        } else {
+                            if (toolCall.id) {
+                                toolCalls[toolCall.index].id = toolCall.id;
                             }
-                            if (toolCall.function.arguments) {
-                                toolCalls[toolCall.index].function.arguments = (toolCalls[toolCall.index].function.arguments || '') + toolCall.function.arguments;
+                            if (toolCall.type) {
+                                toolCalls[toolCall.index].type = toolCall.type;
+                            }
+                            if (toolCall.function) {
+                                if (!toolCalls[toolCall.index].function) {
+                                    toolCalls[toolCall.index].function = { name: '', arguments: '' };
+                                }
+                                if (toolCall.function.name) {
+                                    toolCalls[toolCall.index].function.name = (toolCalls[toolCall.index].function.name || '') + toolCall.function.name;
+                                }
+                                if (toolCall.function.arguments) {
+                                    toolCalls[toolCall.index].function.arguments = (toolCalls[toolCall.index].function.arguments || '') + toolCall.function.arguments;
+                                }
                             }
                         }
                     }
                 }
-            }
-            if (delta.usage || delta.stats) {
-                const usage = delta.usage || {};
-                const stats = delta.stats || {};
+                if (delta.usage || delta.stats) {
+                    const usage = delta.usage || {};
+                    const stats = delta.stats || {};
 
-                const endTime = Date.now();
-                const durationSeconds = (endTime - (firstTokenTime || requestStartTime)) / 1000;
-                const completionTokens = usage.completion_tokens || usage.output_tokens || stats.total_output_tokens || 0;
-                const promptTokens = usage.prompt_tokens || usage.input_tokens || stats.input_tokens || 0;
+                    const endTime = Date.now();
+                    const durationSeconds = (endTime - (firstTokenTime || requestStartTime)) / 1000;
+                    const completionTokens = usage.completion_tokens || usage.output_tokens || stats.total_output_tokens || 0;
+                    const promptTokens = usage.prompt_tokens || usage.input_tokens || stats.input_tokens || 0;
 
-                let tps = stats.tokens_per_second || usage.tokens_per_second;
-                if (tps === undefined || tps === null) {
-                    tps = durationSeconds > 0 ? (completionTokens / durationSeconds) : 0;
+                    let tps = stats.tokens_per_second || usage.tokens_per_second;
+                    if (tps === undefined || tps === null) {
+                        tps = durationSeconds > 0 ? (completionTokens / durationSeconds) : 0;
+                    }
+
+                    lastTps = parseFloat(tps.toFixed(1));
+                    totalUsage.completion_tokens += completionTokens;
+                    totalUsage.prompt_tokens += promptTokens;
+                    totalUsage.total_tokens += (completionTokens + promptTokens);
+
+                    const usageStats = {
+                        ...usage,
+                        ...stats,
+                        tps: lastTps,
+                        duration: parseFloat(durationSeconds.toFixed(2))
+                    };
+
+                    logger.log({
+                        type: 'usage',
+                        level: 'info',
+                        agentId: options.agentId,
+                        sessionId: options.sessionId,
+                        message: 'Token usage report',
+                        data: usageStats
+                    });
+
+                    if (options.onUsage) {
+                        options.onUsage(usageStats);
+                    }
                 }
-
-                lastTps = parseFloat(tps.toFixed(1));
-                totalUsage.completion_tokens += completionTokens;
-                totalUsage.prompt_tokens += promptTokens;
-                totalUsage.total_tokens += (completionTokens + promptTokens);
-
-                const usageStats = {
-                    ...usage,
-                    ...stats,
-                    tps: lastTps,
-                    duration: parseFloat(durationSeconds.toFixed(2))
-                };
-
+            }
+        } catch (error) {
+            if (options.abortSignal?.aborted || (error instanceof Error && error.name === 'AbortError')) {
                 logger.log({
-                    type: 'usage',
+                    type: 'request',
                     level: 'info',
                     agentId: options.agentId,
                     sessionId: options.sessionId,
-                    message: 'Token usage report',
-                    data: usageStats
+                    message: 'Generation aborted by client',
+                    data: {}
                 });
-
-                if (options.onUsage) {
-                    options.onUsage(usageStats);
-                }
+                // When aborted, we just stop the tool loop and proceed with what we have
+                toolLoop = false;
+            } else {
+                throw error;
             }
         }
 

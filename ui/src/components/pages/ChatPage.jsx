@@ -1,11 +1,10 @@
 import React, { useEffect } from 'react'
 import {
-    Bot,
-    Loader2,
     AlertCircle
 } from 'lucide-react'
 import {
-    faPaperPlane
+    faPaperPlane,
+    faSquare
 } from '@fortawesome/free-solid-svg-icons'
 import Button from '../Button'
 import Select from '../Select'
@@ -25,6 +24,7 @@ export default function ChatPage({
     inputText,
     setInputText,
     handleSend,
+    handleStop,
     isGatewayConnected,
     messagesEndRef,
     textareaRef,
@@ -161,13 +161,12 @@ export default function ChatPage({
                     />
                     <Button
                         themed={!isStreaming && inputText.trim().length > 0 && isGatewayConnected && !isAgentMissing && !isNoAgentSelected}
-                        className={`absolute right-2 bottom-3.5 !w-10 !h-10 !rounded-full`}
-                        disabled={isStreaming || !inputText.trim() || !isGatewayConnected || isAgentMissing || isNoAgentSelected}
-                        onClick={handleSend}
-                        icon={isStreaming ? undefined : faPaperPlane}
-                    >
-                        {isStreaming && <Loader2 size={18} className="animate-spin" />}
-                    </Button>
+                        className={`absolute right-2 bottom-3.5 !w-10 !h-10 !rounded-full ${isStreaming ? '!bg-red-200 dark:!bg-red-900/40 !text-red-700 dark:!text-red-400 disabled:!opacity-100' : ''
+                            }`}
+                        disabled={(!isStreaming && !inputText.trim()) || !isGatewayConnected || isAgentMissing || isNoAgentSelected}
+                        onClick={isStreaming ? handleStop : handleSend}
+                        icon={isStreaming ? faSquare : faPaperPlane}
+                    />
                 </form>
                 <div className="mt-2 text-center flex items-center justify-center gap-1">
                     <Text secondary={true} size="sm">Press</Text>

@@ -51,7 +51,8 @@ function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; 
 export async function* streamChatCompletion(
     providerConfig: LLMProviderConfig,
     messages: { role: string; content: string | { type: string; text?: string; image_url?: { url: string } }[] | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[],
-    tools?: any[]
+    tools?: any[],
+    abortSignal?: AbortSignal
 ) {
     const isAnthropic = providerConfig.baseUrl.includes('api.anthropic.com');
     const { url, headers } = getProviderEndpoint(providerConfig);
@@ -153,9 +154,11 @@ export async function* streamChatCompletion(
             method: 'POST',
             headers,
             body: JSON.stringify(body),
+            signal: abortSignal,
         });
     } catch (error) {
         if (error instanceof Error) {
+            if (error.name === 'AbortError') throw error;
             throw new Error(`fetch failed: ${error.message}`);
         }
         throw error;

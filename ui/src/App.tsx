@@ -826,7 +826,12 @@ function App() {
           processed.push({ ...msg });
         }
       } else {
-        processed.push({ ...msg });
+        // Do not push empty assistant messages without tool calls
+        if (msg.role === 'assistant' && !msg.content && (!msg.tool_calls || msg.tool_calls.length === 0)) {
+          // skip
+        } else {
+          processed.push({ ...msg });
+        }
       }
     });
 
@@ -997,6 +1002,13 @@ function App() {
     };
   };
 
+  const handleStop = (e?: React.MouseEvent) => {
+    if (e) e.preventDefault();
+    if (isStreaming && ws.current) {
+      ws.current.send(JSON.stringify({ type: 'stop' }));
+    }
+  };
+
   const activeAgentInSettings = agents.find(a => a.id === settingsAgentId);
   const hasActiveAgents = agents.some(agent => (agentStates[agent.id]?.status || 'idle') !== 'idle');
 
@@ -1097,6 +1109,7 @@ function App() {
               inputText={inputText}
               setInputText={setInputText}
               handleSend={handleSend}
+              handleStop={handleStop}
               isGatewayConnected={isGatewayConnected}
               messagesEndRef={messagesEndRef}
               textareaRef={textareaRef}
