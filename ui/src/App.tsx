@@ -69,7 +69,9 @@ function App() {
   const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway'>('version');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean, isInitializing?: boolean, botUsername?: string | null }>({ connected: false, isInitializing: false, botUsername: null });
-  const [isNavExpanded, setIsNavExpanded] = useState(true);
+  const [isNavExpanded, setIsNavExpanded] = useState(() => {
+    return localStorage.getItem('isNavExpanded') !== 'false';
+  });
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
@@ -1018,7 +1020,11 @@ function App() {
 
       <Header
         isGatewayConnected={isGatewayConnected}
-        onMenuClick={() => setIsNavExpanded(!isNavExpanded)}
+        onMenuClick={() => {
+          const newState = !isNavExpanded;
+          setIsNavExpanded(newState);
+          localStorage.setItem('isNavExpanded', String(newState));
+        }}
       />
       <div className="flex flex-1 overflow-hidden">
         {/* Primary Sidebar */}

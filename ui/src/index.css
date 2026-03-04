@@ -25,13 +25,13 @@
 .light,
 :root:not(.dark) {
   /* Theme Color */
-  --accent-primary: rgb(95, 95, 95);
+  --accent-primary: rgb(70, 70, 70);
 
   /* Borders */
   --border-color: rgb(232, 232, 232);
 
   /* Chat Bubbles */
-  --user-chat-bubble-bg: rgb(64, 67, 74);
+  --user-chat-bubble-bg: rgb(82, 82, 82);
   --agent-chat-bubble-bg: rgb(255, 255, 255);
 
   /* Page */
@@ -126,12 +126,12 @@
 
   /* Message bubbles with top corners */
   .bubble {
-    @apply p-4 rounded-3xl max-w-[85%] relative break-words shadow-sm transition-all duration-100;
+    @apply p-4 rounded-3xl relative break-words shadow-sm transition-all duration-100;
   }
 
   .user-bubble {
     background-color: var(--user-chat-bubble-bg);
-    @apply rounded-tr-[8px];
+    @apply rounded-tr-[8px] max-w-[85%];
     /* box-shadow: 0 4px 15px rgba(43, 43, 43, 0.2); */
   }
 

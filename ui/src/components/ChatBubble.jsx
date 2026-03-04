@@ -25,7 +25,7 @@ export const ChatBubble = ({
 
     return (
         <div className={`flex w-full group ${isUser ? 'justify-end' : 'justify-start'} animate-in fade-in slide-in-from-bottom-2 duration-300`}>
-            <div className={`flex flex-col max-w-[85%] ${isUser ? 'items-end' : 'items-start'}`}>
+            <div className={`flex flex-col ${isUser ? 'max-w-[85%] items-end' : 'max-w-[95%] items-start'}`}>
                 <div className={`flex gap-4 items-start ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
                     <div className={`w-9 h-9 flex-shrink-0 rounded-xl flex items-center justify-center text-lg ${isUser ? 'bg-neutral-200 dark:bg-neutral-700' : isReasoning ? 'bg-violet-500/10 text-violet-500' : 'bg-neutral-200 dark:bg-neutral-700 text-primary'} shadow-sm`}>
                         <Text>

@@ -14,11 +14,11 @@ export default function Button(props) {
         props.className.includes('dark:bg-')
     );
 
-    const baseClasses = "rounded-xl transition-all font-semibold disabled:opacity-50 disabled:pointer-events-none flex items-center justify-center";
+    const baseClasses = "rounded-xl transition-all font-semibold disabled:opacity-30 disabled:pointer-events-none flex items-center justify-center";
     const themedClasses = props.themed === true ? getThemeButtonClasses() : "";
     const variantClasses = {
         default: (props.themed !== true && !hasCustomBg)
-            ? "bg-neutral-100 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-100"
+            ? "bg-neutral-300 bg-opacity-40 hover:bg-neutral-200 dark:bg-neutral-700 dark:hover:bg-neutral-600 text-neutral-600 dark:text-neutral-100"
             : "",
         danger: "bg-red-600 hover:bg-red-700 text-white"
     };

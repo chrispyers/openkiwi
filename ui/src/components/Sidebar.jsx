@@ -100,10 +100,12 @@ export default function Sidebar({
                                     </div>
                                 )}
 
-
                             </button>
-                            :
-                            <div className="h-px bg-neutral-300 dark:bg-neutral-700 m-3 pl-10 pr-10" />
+                            : <>{isNavExpanded ?
+                                <div className="h-px bg-neutral-300 dark:bg-neutral-700 m-2 pl-12 pr-12" /> :
+                                <div className="h-px bg-neutral-300 dark:bg-neutral-700 m-3 pl-2 pr-2" />
+
+                            }</>
                     }
                 </React.Fragment>
             ))}
