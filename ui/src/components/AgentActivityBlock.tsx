@@ -2,8 +2,7 @@ import React from 'react';
 import Text from './Text';
 import Badge from './Badge';
 import { Agent } from '../types';
-import { faCircleCheck, faHourglassEnd } from '@fortawesome/free-solid-svg-icons';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
+import AgentAvatar from './AgentAvatar';
 
 interface AgentState {
     status: string;
@@ -34,7 +33,7 @@ const AgentActivityBlock: React.FC<AgentActivityBlockProps> = ({ agent, state })
 
             <div className="flex items-center gap-2">
                 {
-                    agent.emoji && <div className="h-12 flex items-center justify-center text-xl">{agent.emoji}</div>
+                    agent && <AgentAvatar agent={agent} size="md" className="!bg-transparent" />
                 }
                 <div className="flex flex-col">
                     <Text size="lg" bold={true}>{agent.name}</Text>

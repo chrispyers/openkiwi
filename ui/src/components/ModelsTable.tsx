@@ -7,6 +7,7 @@ import { EyeIcon, BrainIcon, ToolIcon } from './CapabilityIcons';
 import Text from './Text';
 import Badge from './Badge';
 import { Agent } from '../types';
+import AgentAvatar from './AgentAvatar';
 
 interface Provider {
     description: string;
@@ -87,12 +88,16 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
                                     {provider.capabilities?.reasoning && <BrainIcon />}
                                 </div>
                             </TD>
-                            <TD className="w-1/4">
+                            <TD className="w-1/3">
                                 <div className="justify-center flex flex-wrap gap-2">
                                     {usingAgents.length > 0 ? (
                                         usingAgents.map(agent => (
-                                            <Badge key={agent.id}>
-                                                {agent.emoji} {agent.name}
+                                            <Badge key={agent.id} className="flex items-center gap-1.5 px-2 py-1">
+                                                {
+                                                    agent.avatar &&
+                                                    <AgentAvatar agent={agent} size="sm" fallbackToInitials={false} className="!w-4 !h-4 !text-[10px] !bg-transparent mr-1" />
+                                                }
+                                                <span>{agent.name}</span>
                                             </Badge>
                                         ))
                                     ) : (

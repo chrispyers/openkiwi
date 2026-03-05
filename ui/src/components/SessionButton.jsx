@@ -19,9 +19,6 @@ export const SessionButton = ({
                 className={`group w-full pt-3 pb-3 pl-4 pr-2 rounded-xl cursor-pointer flex items-center gap-3 transition-all duration-100 ${isActive ? 'bg-[var(--agent-chat-bubble-bg)] shadow-sm' : 'hover:bg-[var(--agent-chat-bubble-bg)]'} text-primary`}
                 onClick={() => onLoadSession(session)}
             >
-                {/* <div className="text-xl flex-shrink-0 w-8 h-8 flex items-center justify-center bg-white-trans rounded-lg">
-                {agent?.emoji || '💬'}
-            </div> */}
                 <div className="flex-1 min-w-0 flex flex-col gap-0.5 text-left">
                     <Text className="text-sm font-medium truncate">
                         {session.summary || session.title}

@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ChevronRight, ChevronDown } from 'lucide-react';
 import SessionButton from './SessionButton';
 import Text from './Text';
+import AgentAvatar from './AgentAvatar';
 
 export const SessionGroup = ({
     agent,
@@ -32,7 +33,7 @@ export const SessionGroup = ({
             >
                 {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <span className="flex items-center gap-1.5">
-                    <Text size="xs">{agent.emoji}</Text>
+                    <AgentAvatar agent={agent} size="sm" fallbackToInitials={false} />
                     <Text size="xs" bold={true}>{agent.name}</Text>
                     <span className="bg-neutral-200 dark:bg-neutral-700 text-neutral-800 dark:text-neutral-300 px-1.5 py-0.5 rounded text-[10px]">
                         <Text size="xs" bold={true}>{sessions.length}</Text>

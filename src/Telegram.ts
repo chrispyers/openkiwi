@@ -33,7 +33,7 @@ export function initTelegramHandler() {
                 return;
             }
 
-            const lines = agents.map(a => `• @${a!.name}${a!.emoji ? ' ' + a!.emoji : ''}`);
+            const lines = agents.map(a => `• @${a!.name}`);
             const reply = `Available agents:\n\n${lines.join('\n')}\n\nMention an agent by name to chat with them, e.g. @${agents[0]!.name} hello`;
             await TelegramManager.getInstance().sendMessage(cmd.chatId, reply);
         } catch (err) {

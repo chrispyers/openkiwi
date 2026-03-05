@@ -1,7 +1,3 @@
-import React from 'react';
-import { Bot } from 'lucide-react';
-import Text from './Text';
-
 const getInitials = (name) => {
     if (!name) return "AI";
     const parts = name.trim().split(/\s+/);
@@ -11,7 +7,7 @@ const getInitials = (name) => {
     return parts[0][0].toUpperCase();
 };
 
-const AgentAvatar = ({ agent, size = 'md', className = '' }) => {
+const AgentAvatar = ({ agent, size = 'md', className = '', fallbackToInitials = true }) => {
     const sizeClasses = {
         sm: 'w-8 h-8 text-lg',
         md: 'w-10 h-10 text-xl',
@@ -20,16 +16,20 @@ const AgentAvatar = ({ agent, size = 'md', className = '' }) => {
     };
 
     const currentSize = sizeClasses[size] || sizeClasses.md;
+    const gatewayAddr = localStorage.getItem('gateway_addr') || '';
+    const gatewayToken = localStorage.getItem('gateway_token') || '';
 
     return (
-        <div className={`${currentSize} flex-shrink-0 rounded-xl bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center font-bold text-primary ${className}`}>
-            {agent?.emoji ? (
-                <span className="leading-none">{agent.emoji}</span>
+        <div className={`${currentSize} flex-shrink-0 rounded-full bg-neutral-200 dark:bg-neutral-700 flex items-center justify-center font-bold text-primary ${className} overflow-hidden`}>
+            {agent?.avatar ? (
+                <img
+                    src={agent.avatar.startsWith('data:') ? agent.avatar : `${gatewayAddr}/api/agents/${agent.id}/files/${agent.avatar}?token=${gatewayToken}&t=${Date.now()}`}
+                    alt={`${agent.name} Avatar`}
+                    className="w-full h-full object-cover"
+                />
             ) : agent?.name ? (
-                <span className="leading-none">{getInitials(agent.name)}</span>
-            ) : (
-                <Bot size={size === 'sm' ? 16 : size === 'xl' ? 48 : 20} className="text-neutral-400" />
-            )}
+                fallbackToInitials ? <span className="leading-none">{getInitials(agent.name)}</span> : null
+            ) : null}
         </div>
     );
 };

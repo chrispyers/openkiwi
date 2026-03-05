@@ -3,17 +3,7 @@ import Page from './Page';
 import Text from '../Text';
 import Badge from '../Badge';
 import { Agent, AgentState } from '../../types';
-import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import {
-    faUser,
-    faClock,
-    faMapMarkerAlt,
-    faUndo,
-    faCircle,
-    faChartLine,
-    faRobot,
-    faTerminal
-} from '@fortawesome/free-solid-svg-icons';
+import AgentAvatar from '../AgentAvatar';
 
 interface ActivityPageProps {
     agents: Agent[];
@@ -42,9 +32,7 @@ const AgentActivityRow: React.FC<{ agent: Agent, state: AgentState }> = ({ agent
         <div className={`grid grid-cols-12 items-center ${isIdle ? 'bg-surface/20' : 'bg-emerald-500/10 border-l-4 border-l-emerald-500'} hover:bg-surface/40 border border-white/5 rounded-xl p-4 transition-all group`}>
 
             <div className="col-span-4 flex items-center gap-4">
-                <div className={`w-10 h-10 ${isIdle ? 'bg-neutral-500/10 grayscale' : 'bg-emerald-500/10'} rounded-full flex items-center justify-center text-xl transition-all`}>
-                    {agent.emoji || ''}
-                </div>
+                <AgentAvatar agent={agent} size="md" className={`!w-10 !h-10 ${isIdle ? 'grayscale !bg-neutral-500/10' : '!bg-emerald-500/10'} rounded-full overflow-hidden`} />
                 <div className="flex flex-col">
                     <Text bold className="transition-colors">{agent.name}</Text>
                     {!isIdle && state.details && (

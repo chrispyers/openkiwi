@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { faPlus, faUser, faSmile, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour, faUsers, faPlay } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faUser, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour, faUsers, faPlay } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../../Button'
 import Card from '../../Card'
@@ -18,13 +18,15 @@ import Column from '../../Column'
 import ErrorMessage from '../../ErrorMessage'
 import SectionHeader from '../../SectionHeader'
 import AgentButton from './AgentButton'
+import AvatarModal from './AvatarModal'
+import SetAgentAvatarButton from './SetAgentAvatarButton'
 
 interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>>
+    agentForm: { name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>>
     saveAgentConfig: (formOverride?: any, successMessage?: string, successDescription?: string) => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -75,6 +77,7 @@ export default function AgentsPage({
     const [deletingAgent, setDeletingAgent] = useState(false)
     const [isHeartbeatModalOpen, setIsHeartbeatModalOpen] = useState(false)
     const [triggeringHeartbeat, setTriggeringHeartbeat] = useState(false)
+    const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false)
 
     // Use selectedAgentId from props
     const selectedAgentId = selectedAgentIdFromParent
@@ -87,7 +90,7 @@ export default function AgentsPage({
         if (selectedAgent) {
             setAgentForm({
                 name: selectedAgent.name,
-                emoji: selectedAgent.emoji,
+                avatar: selectedAgent.avatar,
                 provider: selectedAgent.provider || '',
                 heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false },
                 collaboration: selectedAgent.collaboration || { enabled: false, schedule: '* * * * *' }
@@ -251,9 +254,17 @@ export default function AgentsPage({
                             {/* AGENT DETAILS */}
 
                             <Card>
-                                {/* <SectionHeader title={selectedAgent.name} /> */}
-
                                 <Row align="end" gap="gap-4">
+                                    <Column>
+                                        <SetAgentAvatarButton
+                                            onClick={() => setIsAvatarModalOpen(true)}
+                                            avatar={agentForm.avatar}
+                                            agentId={selectedAgent?.id}
+                                            agentName={agentForm.name}
+                                            gatewayAddr={gatewayAddr}
+                                            gatewayToken={gatewayToken}
+                                        />
+                                    </Column>
                                     <Column grow={true}>
                                         <Input
                                             label="Agent Name"
@@ -753,6 +764,36 @@ export default function AgentsPage({
                     </div>
                 </div>
             </Modal>
+
+            {/* Avatar Modal */}
+            <AvatarModal
+                isOpen={isAvatarModalOpen}
+                onClose={() => setIsAvatarModalOpen(false)}
+                onSave={async (dataUrl: string) => {
+                    if (!selectedAgent?.id) return;
+                    try {
+                        const response = await fetch(`${gatewayAddr}/api/agents/${selectedAgent.id}/avatar`, {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json',
+                                'Authorization': `Bearer ${gatewayToken}`
+                            },
+                            body: JSON.stringify({ image: dataUrl })
+                        });
+                        if (response.ok) {
+                            const data = await response.json();
+                            const updated = { ...agentForm, avatar: data.avatar };
+                            setAgentForm(updated);
+                            await fetchAgents();
+                            toast.success('Avatar updated', { description: 'The agent avatar has been successfully changed.' });
+                        } else {
+                            throw new Error('Failed to upload avatar');
+                        }
+                    } catch (e) {
+                        toast.error('Failed to save avatar');
+                    }
+                }}
+            />
         </Page >
     )
 }

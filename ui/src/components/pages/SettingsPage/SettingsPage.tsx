@@ -52,7 +52,6 @@ interface Config {
 interface Agent {
     id: string;
     name: string;
-    emoji: string;
     path: string;
     identity?: string;
     soul?: string;
@@ -88,8 +87,8 @@ interface SettingsPageProps {
     setSettingsAgentId: (id: string) => void;
     activeAgentInSettings?: Agent;
     fetchAgents: () => Promise<void>;
-    agentForm: { name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; emoji: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } }>>;
+    agentForm: { name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } }>>;
     saveAgentConfig: () => Promise<void>;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     tools: ToolDefinition[];

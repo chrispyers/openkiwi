@@ -143,4 +143,36 @@ router.post('/:id/files/:filename', validateAgentId, (req, res) => {
     }
 });
 
+router.post('/:id/avatar', validateAgentId, (req, res) => {
+    try {
+        const { image } = req.body;
+        const agentDir = path.resolve(process.cwd(), 'agents', req.params.id);
+
+        if (!fs.existsSync(agentDir)) return res.status(404).json({ error: 'Agent not found' });
+
+        const match = image.match(/^data:image\/([A-Za-z-+\/]+);base64,(.+)$/);
+        if (!match) return res.status(400).json({ error: 'Invalid image data' });
+
+        const ext = match[1] === 'jpeg' ? 'jpg' : match[1];
+        const filename = `avatar.${ext}`;
+        const filePath = path.join(agentDir, filename);
+
+        const buffer = Buffer.from(match[2], 'base64');
+        fs.writeFileSync(filePath, buffer);
+
+        const configPath = path.join(agentDir, 'config.json');
+        let config: any = {};
+        if (fs.existsSync(configPath)) {
+            config = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        }
+        config.avatar = filename;
+        fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
+
+        // Notify the frontend some how, or just rely on fetchAgents
+        res.json({ success: true, avatar: filename });
+    } catch (error) {
+        res.status(500).json({ error: String(error) });
+    }
+});
+
 export default router;

@@ -13,7 +13,7 @@ export type HeartbeatChannel = HeartbeatChannelTelegram | HeartbeatChannelWhatsA
 export interface Agent {
     id: string;
     name: string;
-    emoji: string;
+    avatar?: string;
     path: string;
     identity?: string;
     soul?: string;
@@ -95,7 +95,7 @@ export class AgentManager {
 
         // Load agent-specific config if it exists
         const configPath = path.join(agentDir, 'config.json');
-        let agentConfig: any = { name: id.charAt(0).toUpperCase() + id.slice(1), emoji: '', provider: '' };
+        let agentConfig: any = { name: id.charAt(0).toUpperCase() + id.slice(1), provider: '' };
         if (fs.existsSync(configPath)) {
             try {
                 agentConfig = { ...agentConfig, ...JSON.parse(fs.readFileSync(configPath, 'utf-8')) };
@@ -133,7 +133,7 @@ ${globalSystemPrompt}`.trim();
         return {
             id,
             name: agentConfig.name,
-            emoji: agentConfig.emoji,
+            avatar: agentConfig.avatar,
             path: agentDir,
             identity,
             soul,
@@ -205,7 +205,7 @@ ${globalSystemPrompt}`.trim();
         // Create config if it doesn't exist (it might have been copied from template)
         const configPath = path.join(agentDir, 'config.json');
         if (!fs.existsSync(configPath)) {
-            const config = { name, emoji: '' };
+            const config = { name };
             fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8');
         } else {
             // If config exists, ensure name is set correctly

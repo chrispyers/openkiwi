@@ -113,7 +113,6 @@ function makeAgent(overrides: any = {}) {
     return {
         id: 'test-agent',
         name: 'Test Agent',
-        emoji: '',
         path: '/agents/test-agent',
         identity: '',
         soul: '',
