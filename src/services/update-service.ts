@@ -19,7 +19,7 @@ export async function checkForUpdates() {
         if (fs.existsSync(localReleasePath)) {
             localVersion = fs.readFileSync(localReleasePath, 'utf-8').trim();
             if (!currentConfig.system) {
-                currentConfig.system = { version: localVersion, latestVersion: "" };
+                currentConfig.system = { version: localVersion, latestVersion: "", updateCheckInterval: 3600000 };
             }
 
             if (currentConfig.system.version !== localVersion) {
