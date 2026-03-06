@@ -55,7 +55,7 @@ export async function checkForUpdates() {
             // Re-load config in case it was updated above
             const updatedConfig = loadConfig();
             if (!updatedConfig.system) {
-                updatedConfig.system = { version: "2026-02-18", latestVersion: "" };
+                updatedConfig.system = { version: "2026-02-18", latestVersion: "", updateCheckInterval: 3600000 };
             }
 
             if (updatedConfig.system.latestVersion !== latestVersion) {
