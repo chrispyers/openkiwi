@@ -1,4 +1,4 @@
-[![Test Suite](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml/badge.svg)](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml)
+[![Test Suite](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml)
 
 ## Navigation
 * [Quickstart](#quickstart)
