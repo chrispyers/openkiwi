@@ -33,7 +33,44 @@ router.get('/', (req, res) => {
 
 router.post('/', async (req, res) => {
     try {
+        const oldConfig = loadConfig();
         const newConfig = req.body as Config;
+
+        // Detect provider description changes and update agents accordingly
+        const oldProviders = oldConfig.providers || [];
+        const newProviders = newConfig.providers || [];
+
+        const descriptionUpdates = new Map<string, string>();
+
+        if (oldProviders.length === newProviders.length) {
+            // Check for renames at same indices (most common case from ModelsPage)
+            for (let i = 0; i < oldProviders.length; i++) {
+                if (oldProviders[i].description !== newProviders[i].description) {
+                    descriptionUpdates.set(oldProviders[i].description, newProviders[i].description);
+                }
+            }
+        } else {
+            // Check for deletions
+            for (const oldP of oldProviders) {
+                if (!newProviders.some(p => p.description === oldP.description)) {
+                    // Provider is gone, reset agents to use Global Default
+                    descriptionUpdates.set(oldP.description, "");
+                }
+            }
+        }
+
+        // Apply updates to agents
+        if (descriptionUpdates.size > 0) {
+            const agentIds = AgentManager.listAgents();
+            for (const agentId of agentIds) {
+                const agent = AgentManager.getAgent(agentId);
+                if (agent && agent.provider && descriptionUpdates.has(agent.provider)) {
+                    const nextProvider = descriptionUpdates.get(agent.provider);
+                    AgentManager.saveAgentConfig(agentId, { provider: nextProvider });
+                }
+            }
+        }
+
         saveConfig(newConfig);
         AgentManager.clearMemoryManagers();
         await AgentManager.initializeAllMemoryManagers(); // Re-initialize to apply new settings immediately

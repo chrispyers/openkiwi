@@ -733,8 +733,9 @@ function App() {
         }
       }
 
-      // Refresh local config state from server to ensure we're in sync
+      // Refresh local config state and agents from server to ensure we're in sync
       fetchConfig();
+      fetchAgents();
     } catch (error) {
       console.error('Failed to save config:', error);
     }
