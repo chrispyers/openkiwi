@@ -363,6 +363,15 @@ ${globalSystemPrompt}`.trim();
     }
 
     static clearMemoryManagers() {
+        for (const manager of this.memoryManagers.values()) {
+            try {
+                if (typeof (manager as any).close === 'function') {
+                    (manager as any).close();
+                }
+            } catch (e) {
+                // ignore
+            }
+        }
         this.memoryManagers.clear();
         logger.log({ type: 'system', level: 'info', message: '[AgentManager] Cleared memory manager cache.' });
     }
@@ -372,7 +381,17 @@ ${globalSystemPrompt}`.trim();
         if (fs.existsSync(agentDir)) {
             fs.rmSync(agentDir, { recursive: true, force: true });
         }
-        this.memoryManagers.delete(id);
+        const manager = this.memoryManagers.get(id);
+        if (manager) {
+            try {
+                if (typeof (manager as any).close === 'function') {
+                    (manager as any).close();
+                }
+            } catch (e) {
+                // ignore
+            }
+            this.memoryManagers.delete(id);
+        }
         this.agentStates.delete(id);
         logger.log({ type: 'system', level: 'info', message: `[AgentManager] Deleted agent ${id}` });
     }

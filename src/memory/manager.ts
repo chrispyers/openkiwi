@@ -116,6 +116,24 @@ export class MemoryIndexManager {
         }, 1000); // Debounce for 1 second
     }
 
+    public close() {
+        if (this.watcher) {
+            this.watcher.close();
+            this.watcher = null;
+        }
+        if (this.syncTimeout) {
+            clearTimeout(this.syncTimeout);
+            this.syncTimeout = null;
+        }
+        try {
+            if (this.db) {
+                this.db.close();
+            }
+        } catch (e) {
+            // ignore
+        }
+    }
+
     public async sync(force: boolean = false): Promise<void> {
         if (!fs.existsSync(this.memoryPath)) {
             // If memory file doesn't exist, maybe create an empty one?
