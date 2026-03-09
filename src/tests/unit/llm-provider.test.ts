@@ -7,8 +7,8 @@ import type { LLMProviderConfig } from '../../llm-provider.js';
 let capturedRequests: { url: string; options: any }[] = [];
 
 function mockFetchOk(body: any = {}) {
-    return vi.fn(async (url: string, options: any) => {
-        capturedRequests.push({ url, options });
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedRequests.push({ url: String(input), options: init });
         return {
             ok: true,
             status: 200,
@@ -31,19 +31,19 @@ function mockFetchOk(body: any = {}) {
                 },
             },
         } as any;
-    });
+    }) as unknown as typeof globalThis.fetch;
 }
 
 function mockFetchError(status: number, statusText: string, body?: string) {
-    return vi.fn(async (url: string, options: any) => {
-        capturedRequests.push({ url, options });
+    return vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => {
+        capturedRequests.push({ url: String(input), options: init });
         return {
             ok: false,
             status,
             statusText,
             text: async () => body || '',
         } as any;
-    });
+    }) as unknown as typeof globalThis.fetch;
 }
 
 function lastRequestBody(): any {
@@ -338,7 +338,7 @@ describe('llm-provider', () => {
         it('fetch failure throws with message', async () => {
             globalThis.fetch = vi.fn(async () => {
                 throw new Error('ECONNREFUSED');
-            });
+            }) as unknown as typeof globalThis.fetch;
 
             await expect(
                 getChatCompletion(openaiConfig, [{ role: 'user', content: 'hi' }])
