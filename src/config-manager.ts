@@ -71,6 +71,7 @@ const ConfigSchema = z.object({
         endpoint: z.string().url(),
         model: z.string(),
         apiKey: z.string().optional(),
+        maxTokens: z.number().int().positive().optional(),
         capabilities: z.object({
             vision: z.boolean().optional(),
             reasoning: z.boolean().optional(),

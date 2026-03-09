@@ -3,6 +3,7 @@ export interface LLMProviderConfig {
     baseUrl: string;
     modelId: string;
     apiKey?: string;
+    maxTokens?: number;
 }
 
 /**
@@ -114,7 +115,7 @@ export async function* streamChatCompletion(
             model: providerConfig.modelId,
             system: typeof systemMessage?.content === 'string' ? systemMessage.content : undefined,
             messages: normalizedMessages,
-            max_tokens: 4096,
+            max_tokens: providerConfig.maxTokens || 4096,
             stream: true
         };
 
@@ -131,6 +132,7 @@ export async function* streamChatCompletion(
         body = {
             model: providerConfig.modelId,
             messages,
+            max_tokens: providerConfig.maxTokens || 8192,
             stream: true,
             stream_options: { include_usage: true },
         };
@@ -276,13 +278,14 @@ export async function getChatCompletion(
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
             })),
-            max_tokens: 4096,
+            max_tokens: providerConfig.maxTokens || 4096,
             stream: false
         };
     } else {
         body = {
             model: providerConfig.modelId,
             messages,
+            max_tokens: providerConfig.maxTokens || 8192,
             stream: false,
         };
     }
