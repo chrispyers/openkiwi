@@ -720,6 +720,59 @@ describe('HeartbeatManager', () => {
     });
 
     // ---------------------------------------------------------------
+    // maxTokens passthrough
+    // ---------------------------------------------------------------
+    describe('maxTokens passthrough', () => {
+        it('should pass maxTokens from provider config to llmConfig in runAgentLoop', async () => {
+            mockLoadConfig.mockReturnValue({
+                ...defaultConfig(),
+                providers: [{
+                    description: 'test-provider',
+                    endpoint: 'http://localhost:1234',
+                    model: 'test-provider',
+                    apiKey: 'test-key',
+                    maxTokens: 2048,
+                }],
+            });
+
+            const agent = makeAgent({
+                heartbeat: {
+                    enabled: true,
+                    schedule: '0 8 * * *',
+                    channels: [{ type: 'telegram', chatId: '111' }],
+                },
+            });
+            mockGetAgent.mockReturnValue(agent);
+
+            await executeHeartbeat('test-agent');
+
+            expect(mockRunAgentLoop).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    llmConfig: expect.objectContaining({
+                        maxTokens: 2048,
+                    }),
+                })
+            );
+        });
+
+        it('should pass undefined maxTokens when provider has no maxTokens', async () => {
+            const agent = makeAgent({
+                heartbeat: {
+                    enabled: true,
+                    schedule: '0 8 * * *',
+                    channels: [{ type: 'telegram', chatId: '111' }],
+                },
+            });
+            mockGetAgent.mockReturnValue(agent);
+
+            await executeHeartbeat('test-agent');
+
+            const llmConfig = mockRunAgentLoop.mock.calls[0][0].llmConfig;
+            expect(llmConfig.maxTokens).toBeUndefined();
+        });
+    });
+
+    // ---------------------------------------------------------------
     // Scheduling (start / refreshAgent)
     // ---------------------------------------------------------------
     describe('scheduling', () => {
