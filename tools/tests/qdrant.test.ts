@@ -33,7 +33,7 @@ vi.mock('../../src/llm-provider.js', () => ({
 }));
 
 import { QdrantClient } from '@qdrant/js-client-rest';
-import tool from '../qdrant.js';
+import tool from '../qdrant/qdrant.js';
 
 const MockQdrantClient = QdrantClient as any;
 

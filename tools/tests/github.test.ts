@@ -9,7 +9,7 @@ vi.mock('node:child_process', () => ({
 const mockedExecFile = vi.mocked(execFile);
 
 // Import tool (module-level env reads only affect description, handler re-reads at call time)
-import tool from '../github.js';
+import tool from '../github/github.js';
 
 // Helper: make execFile resolve with given stdout
 function mockGhSuccess(stdout: string | object) {

@@ -26,7 +26,7 @@ vi.mock('googleapis', () => ({
     }
 }));
 
-import tool from '../google_tasks.js';
+import tool from '../google_tasks/google_tasks.js';
 
 const handler = tool.handler;
 
