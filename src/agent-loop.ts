@@ -53,20 +53,25 @@ export interface AgentLoopResult {
         total_tokens: number;
     };
     lastTps: number;
+    yieldState?: any;
 }
 
 export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
     let toolLoop = true;
     let loopCount = 0;
-    const maxLoops = options.maxLoops || 5;
+    const maxLoops = options.maxLoops && options.maxLoops > 5 ? options.maxLoops : 150;
 
     let finalAiResponse = '';
+    let loopYieldState: any = undefined;
     const chatHistory = options.visionEnabled
         ? processVisionMessages([...options.messages], true)
         : [...options.messages];
 
     let totalUsage = { completion_tokens: 0, prompt_tokens: 0, total_tokens: 0 };
     let lastTps = 0;
+
+    let repeatedToolCallsCount = 0;
+    let lastToolCallFingerprint = '';
 
     while (toolLoop && loopCount < maxLoops) {
         loopCount++;
@@ -199,6 +204,47 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             return tc;
         });
 
+        const currentFingerprint = JSON.stringify(actualToolCalls.map(tc => ({ name: tc.function?.name, args: tc.function?.arguments })));
+        if (actualToolCalls.length > 0 && currentFingerprint === lastToolCallFingerprint) {
+            repeatedToolCallsCount++;
+        } else {
+            repeatedToolCallsCount = 0;
+            if (actualToolCalls.length > 0) {
+                lastToolCallFingerprint = currentFingerprint;
+            } else {
+                lastToolCallFingerprint = '';
+            }
+        }
+
+        if (repeatedToolCallsCount >= 3) {
+            const assistantMsg = {
+                role: 'assistant',
+                content: fullContent || '',
+                tool_calls: actualToolCalls,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+            chatHistory.push(assistantMsg);
+
+            for (const toolCall of actualToolCalls) {
+                chatHistory.push({
+                    role: 'tool',
+                    tool_call_id: toolCall.id,
+                    name: toolCall.function?.name,
+                    content: JSON.stringify({ error: "SYSTEM WARNING: You are stuck in a loop endlessly repeating the same action. You must reconsider your approach or use the 'ask_user' tool to request human guidance." }),
+                    timestamp: Math.floor(Date.now() / 1000)
+                });
+            }
+            logger.log({
+                type: 'system',
+                level: 'warn',
+                agentId: options.agentId,
+                sessionId: options.sessionId,
+                message: 'Agent stuck in a loop. Interrupted with system warning.'
+            });
+            repeatedToolCallsCount = 0;
+            continue;
+        }
+
         if (actualToolCalls.length > 0) {
             const assistantMsg = {
                 role: 'assistant',
@@ -211,6 +257,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
             for (const toolCall of actualToolCalls) {
                 const name = toolCall.function.name;
                 const args = JSON.parse(toolCall.function.arguments || '{}');
+
+                console.log(`[Tool Execution] Calling tool '${name}' with arguments:`, JSON.stringify(args, null, 2));
 
                 try {
                     if (options.onToolCall) {
@@ -237,6 +285,18 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                         if (result.image_url) result.image_url = signUrl(result.image_url);
                     }
 
+                    // Check for special control signals
+                    if (result && typeof result === 'object') {
+                        if (result.__YIELD__) {
+                            toolLoop = false;
+                            loopYieldState = result;
+                            break; // Do NOT push a tool result yet. Wait for human.
+                        } else if (result.__STOP__) {
+                            toolLoop = false;
+                            delete result.__STOP__;
+                        }
+                    }
+
                     logger.log({
                         type: 'tool',
                         level: 'info',
@@ -253,6 +313,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                         content: JSON.stringify(result),
                         timestamp: Math.floor(Date.now() / 1000)
                     });
+
+                    // Add protection against infinite loops here later if needed
                 } catch (err) {
                     logger.log({
                         type: 'error',
@@ -289,6 +351,7 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         finalResponse: finalAiResponse,
         chatHistory: chatHistory,
         usage: totalUsage,
-        lastTps: lastTps
+        lastTps: lastTps,
+        yieldState: loopYieldState
     };
 }
