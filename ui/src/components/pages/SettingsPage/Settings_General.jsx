@@ -16,6 +16,8 @@ export default function Settings_General({
     setIsAgentCollaborationEnabled,
     isAgentActivityEnabled,
     setIsAgentActivityEnabled,
+    isProjectsEnabled,
+    setIsProjectsEnabled,
     theme,
     setTheme
 }) {
@@ -39,7 +41,25 @@ export default function Settings_General({
                 <Row>
                     <Column grow={true}>
                         <Text bold={true}>Project Management</Text>
-                        <Text size="sm" secondary={true}>Enable the new Projects sidebar and workspace isolation.</Text>
+                        <Text size="sm" secondary={true}>Enable the experimental project builder</Text>
+                    </Column>
+                    <Toggle
+                        checked={isProjectsEnabled}
+                        onChange={() => {
+                            const newValue = !isProjectsEnabled;
+                            setIsProjectsEnabled(newValue);
+                            localStorage.setItem('experimental_project_management', newValue.toString());
+                            toast.success(`${newValue ? 'Enabled' : 'Disabled'} Project Management`);
+                        }}
+                    />
+                </Row>
+            </Card>
+
+            <Card>
+                <Row>
+                    <Column grow={true}>
+                        <Text bold={true}>Workflow Builder</Text>
+                        <Text size="sm" secondary={true}>Enable the experimental workflow builder</Text>
                     </Column>
                     <Toggle
                         checked={isProjectManagementEnabled}

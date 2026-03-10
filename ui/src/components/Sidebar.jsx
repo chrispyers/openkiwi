@@ -26,6 +26,7 @@ export default function Sidebar({
     hasUpdates,
     onSettingsClick,
     isProjectManagementEnabled,
+    isProjectsEnabled,
     isAgentActivityEnabled
 }) {
     const navigate = useNavigate();
@@ -35,9 +36,9 @@ export default function Sidebar({
         { id: 'chat', icon: faComments, label: 'Chat' },
         { id: 'activity', icon: faArrowsSpin, label: 'Activity', showActive: hasActiveAgents, experimentalActivity: true },
         { experimentalProjectManagement: true },
-        { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjectManagement: true },
+        { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjects: true },
+        { id: 'files', icon: faFolderOpen, label: 'Files' },
         { id: 'workflows', icon: faDiagramProject, label: 'Workflows', experimentalProjectManagement: true },
-        { id: 'workspace', icon: faFolderOpen, label: 'Workspace' },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
@@ -46,6 +47,7 @@ export default function Sidebar({
         { id: 'settings', icon: faGear, label: 'Settings', showAlert: hasUpdates },
     ].filter((item) => {
         if (item.experimentalProjectManagement && !isProjectManagementEnabled) return false;
+        if (item.experimentalProjects && !isProjectsEnabled) return false;
         if (item.experimentalActivity && !isAgentActivityEnabled) return false;
         return true;
     });

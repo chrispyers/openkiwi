@@ -16,3 +16,4 @@ whatsapp_auth/
 .openkiwi.key
 .env
 CLAUDE.md
+release/*
