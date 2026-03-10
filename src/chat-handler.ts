@@ -161,6 +161,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             // Anti-hallucination directive
             systemPrompt += "\n\nCRITICAL INSTRUCTION: If you intend to take an action (like modifying a file, searching memory, etc.), you MUST use the provided tools to do so. NEVER claim to have updated a file or taken an action unless you have explicitly called the corresponding tool and received a successful response. DO NOT hallucinate actions.";
+            systemPrompt += "\nCRITICAL INSTRUCTION: If you intend to use a tool that is marked with '(Requires Approval)', you MUST first use the 'ask_user' tool to explain what you are about to do and ask for their permission. You must wait for their affirmative response before calling the restricted tool.";
 
             if (systemPrompt) {
                 const now = new Date();
@@ -206,6 +207,28 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             if (currentConfig.chat.includeHistory) {
                 // Filter out 'reasoning' messages as many providers only accept user, assistant, system, tool
                 const validMessages = userMessages.filter((msg: any) => msg.role !== 'reasoning');
+
+                // If a user message immediately follows an unresolved tool call (like ask_user), format it as a tool response
+                for (let i = 0; i < validMessages.length; i++) {
+                    const msg = validMessages[i];
+                    if (msg.role === 'user' && i > 0) {
+                        const prevMsg = validMessages[i - 1];
+                        if (prevMsg.role === 'assistant' && prevMsg.tool_calls && prevMsg.tool_calls.length > 0) {
+                            // Only do this if there's no intermediate tool response
+                            const hasToolResponse = validMessages.some((m: any, idx: number) => idx > i - 1 && idx < i && m.role === 'tool');
+                            if (!hasToolResponse) {
+                                const toolCall = prevMsg.tool_calls[0];
+                                validMessages[i] = {
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    name: toolCall.function?.name || 'ask_user',
+                                    content: JSON.stringify({ response: msg.content })
+                                };
+                            }
+                        }
+                    }
+                }
+
                 payload.push(...validMessages);
             } else {
                 // Get the last non-reasoning message
@@ -226,8 +249,9 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             let fullContent = '';
 
-            AgentManager.setAgentState(effectiveAgentId, 'chatting', 'Processing user prompt');
+            AgentManager.setAgentState(effectiveAgentId, 'working', 'Processing user prompt');
             let finalAiResponse, lastTps, totalUsage, chatHistory;
+            let yieldStateMsg: any = null;
             currentAbortController = new AbortController();
             try {
                 const result = await runAgentLoop({
@@ -256,9 +280,16 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 lastTps = result.lastTps;
                 totalUsage = result.usage;
                 chatHistory = result.chatHistory;
+                if (result.yieldState) {
+                    yieldStateMsg = result.yieldState;
+                }
             } finally {
                 currentAbortController = null;
-                AgentManager.setAgentState(effectiveAgentId, 'idle');
+                if (yieldStateMsg) {
+                    AgentManager.setAgentState(effectiveAgentId, 'waiting_for_user', yieldStateMsg.question || 'Waiting for input');
+                } else {
+                    AgentManager.setAgentState(effectiveAgentId, 'idle');
+                }
             }
 
             logger.log({
@@ -319,7 +350,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             ws.send(JSON.stringify({ type: 'done', messages: finalizedMessages }));
 
-            if (sessionId && finalizedMessages.length > 0) {
+            if (sessionId && finalizedMessages.length > 0 && shouldSummarize) {
                 (async () => {
                     try {
                         const summaryPrompt = [
