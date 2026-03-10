@@ -1,6 +1,9 @@
 [![Test Suite](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/chrispyers/openkiwi/actions/workflows/test.yml)
 
 ## Navigation
+* [What is it?](#what-is-it)
+* [How Agents Work](#how-agents-work)
+* [Visual Workflow Builder](#visual-workflow-builder)
 * [Quickstart](#quickstart)
   * [Launch the Services](#launch-the-services)
   * [Connect to the gateway](#connect-to-the-gateway)
@@ -9,49 +12,90 @@
   * [Setup messaging](#setup-messaging)
     * [WhatsApp](#whatsapp)
     * [Telegram](#telegram)
+  * [Enable tools](#enable-tools)
 * [Heartbeats](#heartbeats)
-* [Local Development](#local-development)
+* [Security: Allowlists](#security-allowlists)
 * [Use Cases](#use-cases)
 
 
 ## What is it?
+
 OpenKIWI (Knowledge Integration & Workflow Intelligence) is a secure, multi-channel agentic automation system.
 
 OpenKIWI sits in the same automation space as other tools like Openclaw, but differentiates itself with a security-first design and a streamlined onboarding experience that gets you started in minutes.
 
 It provides a web interface where you can create, configure, and manage any number of AI agents. Each agent can be dynamically bound to either local models (LM Studio, Ollama, etc.) or remote providers (OpenAI, Anthropic, Google, etc.), making it easy to swap models without breaking your workflow.
 
-How OpenKIWI is different:
+---
 
-#### Security by Default
-* Every component runs inside isolated Docker containers.
-* Agents only see the files and tools you explicitly grant.
-* OpenKIWI is built to be enterprise-ready, with a clear and auditable security posture.
+### Self-Healing Agent Loop
+Agents don't just answer a question and stop. Every task runs through a continuous reasoning loop — the agent plans, executes tools, observes the results, self-corrects on failure, and iterates until the goal is reached. [Read more →](#how-agents-work)
 
-#### Multi-Model, Agent-First
-* Switch providers or run local models (LM Studio, Ollama, etc.) without touching your workflow logic.
+### Visual Workflow Builder
+Chain tools together into automated pipelines using a drag-and-drop node editor — no code required. [Read more →](#visual-workflow-builder)
 
-#### Multi-Channel Interactivity
-* Agents can be seamlessly connected to WhatsApp and Telegram. This allows users to directly text their agents from their phones, secured behind strict allowlists.
+### Security by Default
+Every component runs inside isolated Docker containers. Agents only see the files and tools you explicitly grant. OpenKIWI is built to be enterprise-ready, with a clear and auditable security posture.
 
-#### Rapid Onboarding
-* Clone the repo, run one command and you're up in about 30 seconds.
-* A few quick settings in the UI and you're running your first agent.
-* The whole process takes about 3 minutes.
-* No 20-minute YouTube tutorial required.
+### Multi-Model, Agent-First
+Switch providers or run local models (LM Studio, Ollama, etc.) without touching your workflow logic.
 
-#### Autonomous Scheduling ("Heartbeats")
-* Instead of just waiting for user prompts, agents can be configured with cron-based "heartbeats." This enables them to run autonomously in the background to execute workflows.
+### Multi-Channel Interactivity
+Agents can be seamlessly connected to WhatsApp and Telegram. This allows users to directly text their agents from their phones, secured behind strict allowlists.
 
-#### Extensible Tooling Ecosystem
-* Agents are equipped with a powerful suite of explicitly granted tools, allowing them to:
-* Browse the internet and extract web content.
-* Read and write files securely to the local workspace.
-* Analyze images using computer vision integrations.
-* Interface with external APIs like GitHub and Google Tasks.
-* Query semantic vector stores via Qdrant for long-term memory and RAG capabilities.
+### Rapid Onboarding
+Clone the repo, run one command and you're up in about 30 seconds. A few quick settings in the UI and you're running your first agent. The whole process takes about 3 minutes — no 20-minute YouTube tutorial required.
+
+### Autonomous Scheduling ("Heartbeats")
+Instead of just waiting for user prompts, agents can be configured with cron-based "heartbeats." This enables them to run autonomously in the background to execute workflows.
+
+### Extensible Tooling Ecosystem
+Agents are equipped with a powerful suite of explicitly granted tools, allowing them to browse the internet, read and write files securely, analyze images, interface with external APIs like GitHub and Google Tasks, and query semantic vector stores via Qdrant for long-term memory and RAG capabilities.
+
+---
 
 In short, OpenKIWI transforms raw language models into secure, schedule-driven assistants that seamlessly integrate into the platforms you already use.
+
+
+<a id="how-agents-work"></a>
+
+## How Agents Work
+
+Most AI chat tools work in a single shot: you ask a question, the model generates a response, done. OpenKIWI agents work differently.
+
+Every task runs through a **self-healing agent loop** — the same architecture behind tools like Claude Code. Instead of a one-shot response, the agent:
+
+1. **Receives** the task or prompt
+2. **Plans** an approach and selects the right tools
+3. **Executes** — reads files, runs searches, calls APIs, writes code
+4. **Observes** the result of each action
+5. **Self-corrects** — if something fails or the result is unexpected, the agent adjusts its plan and tries again
+6. **Iterates** through as many steps as needed
+7. **Completes** only when the goal is actually achieved
+
+This means agents can handle genuinely complex, multi-step tasks — ones where the path to the answer isn't known upfront. They recover from errors automatically, adapt to unexpected output, and keep working until they're done.
+
+The loop is fully transparent in the UI: every tool call, file read, search query, and self-correction is shown in real time as it happens.
+
+![](docs/images/agent-loop.png)
+<!-- TODO: screenshot of chat showing the timeline of tool calls -->
+
+
+<a id="visual-workflow-builder"></a>
+
+## Visual Workflow Builder
+
+OpenKIWI includes a node-based visual workflow editor inspired by tools like n8n. You can build automated pipelines by connecting tools together — without writing any code.
+
+Each workflow is a directed graph of steps. Drag in a tool node, configure its inputs, connect it to the next step, and run. Workflows can be triggered manually, scheduled via a heartbeat, or called by an agent mid-task.
+
+![](docs/images/workflow-builder.png)
+<!-- TODO: screenshot of the workflow builder canvas -->
+
+![](docs/images/workflow-example.png)
+<!-- TODO: screenshot of a sample workflow (e.g. fetch URL → summarize → send to Telegram) -->
+
+Workflows are managed from the **Workflows** page in the sidebar. You can create, rename, delete, and open workflows from there.
 
 
 <a id="local-development"></a>
@@ -98,7 +142,6 @@ In short, OpenKIWI transforms raw language models into secure, schedule-driven a
 ![](docs/images/gateway-2.png)
 
 
-
 <a id="setup-your-first-model"></a>
 
 ### 3. Setup your first model
@@ -109,7 +152,6 @@ In short, OpenKIWI transforms raw language models into secure, schedule-driven a
   * For remote providers like OpenAI, Anthropic, Google, etc. you will need to enter your API key
   * For local models like LM Studio, Ollama, etc. you will need to enter the IP address of your server
 * Press the "Scan" button
-
 
 ![](docs/images/models-1.png)
 
@@ -161,14 +203,7 @@ Connect WhatsApp so you can message your agents from your phone.
 1. Go to the Settings page and click the WhatsApp tab
 2. Scan the QR code with your phone (WhatsApp > Linked Devices > Link a Device)
 3. Once paired, the status will show as connected
-4. Start messaging agents from your phone:
-
-<!-- ![](docs/images/whatsapp-1.png) -->
-<!-- ![](docs/images/whatsapp-2.png) -->
-
-
-
-<!-- <img style="border-radius: 10px;" src="docs/images/whatsapp-3.png" width="200"/> -->
+4. Start messaging agents from your phone
 
 #### (Recommended) Restrict access
 
@@ -252,7 +287,9 @@ Agents can send scheduled heartbeat messages to Telegram. Add a channel to the a
 
 The `chatId` is the Telegram chat where messages will be delivered (usually your user ID).
 
-### 7. (optional) Enable tools
+<a id="enable-tools"></a>
+
+### 6. (optional) Enable tools
 
 OpenKIWI ships with several built-in tools that extend your agents' capabilities. Enable them in the Settings page:
 
@@ -266,6 +303,7 @@ OpenKIWI ships with several built-in tools that extend your agents' capabilities
 | Qdrant | Semantic search across vector stores | [tools/qdrant/](tools/qdrant/README.md) |
 
 See [tools/README.md](tools/README.md) for the full list and how to create your own.
+
 
 <a id="heartbeats"></a>
 
@@ -353,6 +391,9 @@ The agent has full access to its configured tools during heartbeat execution, so
 - Sessions are persisted per channel (e.g. `tg-123456789_analyst`) so conversation history accumulates over time
 - The agent's state is set to "working" during execution and returns to "idle" when finished
 
+
+<a id="security-allowlists"></a>
+
 ## Security: Allowlists
 
 OpenKIWI supports allowlists for both messaging platforms to control who can interact with your agents. Without an allowlist, anyone who can reach the bot/linked account can send messages.
@@ -381,35 +422,20 @@ Add to your `.env` file:
 - **Telegram chat ID**: Same as user ID for direct messages; for groups, use [@getidsbot](https://t.me/getidsbot)
 - **WhatsApp JID**: Your phone number in international format without the `+` prefix, followed by `@s.whatsapp.net` (e.g. `447958673279@s.whatsapp.net`)
 
-### Onboarding Complete 🎉
-* Start chatting with your agent
-* Analyze images
-* Write code
-* Build websites
-* Schedule ongoing tasks for your agents
-* Import your ChatGPT history
-* And much more
-
-<img style="border-radius: 10px;" src="tools/chatgpt/importer/chatgpt_importer.png" width="400"/>
-
-![](docs/images/chat-1.png)
-![](docs/images/chat-2.png)
-
-
 
 <a id="use-cases"></a>
 
-### Use Cases
+## Use Cases
 
-| # | Use case | What the agent does each cycle | Why it’s compelling |
+| # | Use case | What the agent does each cycle | Why it's compelling |
 |---|----------|-------------------------------|---------------------|
-| 1 | Weekly GitHub Pulse | Every Monday at 9am: query the user’s repos via the GitHub API, run a sentiment/issue‑trend analysis, and post a concise digest to WhatsApp. | Keeps the team up‑to‑date without manual “status‑update” calls. |
-| 2	| Daily Google Tasks Sync	| Every day at 6 pm: pull all tasks due today, flag overdue ones, and send a gentle reminder to the user’s phone. | Acts like a personal assistant that never forgets deadlines. |
-| 3	| Monthly Security Scan	| First day of every month: run a container‑based security audit (e.g., trivy or anchore) on all projects, summarize findings, and email the report to the dev‑ops channel.	| Automates compliance checks while keeping the codebase isolated. |
-| 4	| Website Performance Monitor | Every 15 minutes: ping a list of URLs, capture response times & error rates, store metrics in Qdrant, and alert on anomalies via Telegram. | Provides real‑time uptime dashboards without manual polling. |
-| 5	| Daily News Curator | Every evening: scrape a set of trusted news sites, run an LLM summarizer to produce bullet‑point headlines, and push the list to a shared channel. | Acts like a personal news feed that respects data‑privacy boundaries.
-| 6	| Knowledge Base Refresh | Every Sunday at 3 am: crawl the internal wiki, extract new or updated pages, embed them in Qdrant, and notify stakeholders that the knowledge base is fresh. | Keeps RAG stores up‑to‑date without manual indexing. |
-| 7	| Budget Tracker | Every month‑end: fetch bank statements via a secure API, categorize expenses with an LLM, and email a spend‑report. | Automates financial oversight while staying inside the container sandbox.|
-| 8	| Health‑check Bot| Every hour: ping critical microservices, log latency, and send a quick status message if anything deviates from SLA. | Provides silent monitoring that only alerts on real issues. |
-| 9	| Email Digest | Every weekday at 8 am: pull unread emails, run a summarizer, and deliver a "top‑3‑items" summary to the user’s phone. | Reduces inbox overload with AI‑generated previews. |
+| 1 | Weekly GitHub Pulse | Every Monday at 9am: query the user's repos via the GitHub API, run a sentiment/issue‑trend analysis, and post a concise digest to WhatsApp. | Keeps the team up‑to‑date without manual "status‑update" calls. |
+| 2 | Daily Google Tasks Sync | Every day at 6 pm: pull all tasks due today, flag overdue ones, and send a gentle reminder to the user's phone. | Acts like a personal assistant that never forgets deadlines. |
+| 3 | Monthly Security Scan | First day of every month: run a container‑based security audit (e.g., trivy or anchore) on all projects, summarize findings, and email the report to the dev‑ops channel. | Automates compliance checks while keeping the codebase isolated. |
+| 4 | Website Performance Monitor | Every 15 minutes: ping a list of URLs, capture response times & error rates, store metrics in Qdrant, and alert on anomalies via Telegram. | Provides real‑time uptime dashboards without manual polling. |
+| 5 | Daily News Curator | Every evening: scrape a set of trusted news sites, run an LLM summarizer to produce bullet‑point headlines, and push the list to a shared channel. | Acts like a personal news feed that respects data‑privacy boundaries. |
+| 6 | Knowledge Base Refresh | Every Sunday at 3 am: crawl the internal wiki, extract new or updated pages, embed them in Qdrant, and notify stakeholders that the knowledge base is fresh. | Keeps RAG stores up‑to‑date without manual indexing. |
+| 7 | Budget Tracker | Every month‑end: fetch bank statements via a secure API, categorize expenses with an LLM, and email a spend‑report. | Automates financial oversight while staying inside the container sandbox. |
+| 8 | Health‑check Bot | Every hour: ping critical microservices, log latency, and send a quick status message if anything deviates from SLA. | Provides silent monitoring that only alerts on real issues. |
+| 9 | Email Digest | Every weekday at 8 am: pull unread emails, run a summarizer, and deliver a "top‑3‑items" summary to the user's phone. | Reduces inbox overload with AI‑generated previews. |
 | 10 | Code Quality Guardian | Every night: run static analysis (e.g., SonarQube or eslint) on the repo, flag critical issues, and push a summary to Slack. | Keeps code quality high without developers having to trigger scans. |
