@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { WorkflowService } from '../services/workflow-service.js';
 import { TaskService } from '../services/task-service.js';
+import { executeWorkflow } from '../services/workflow-executor.js';
 
 const router = Router();
 
@@ -42,6 +43,20 @@ router.put('/workflows/:id', (req, res) => {
         const workflow = WorkflowService.updateWorkflow(req.params.id, name, description);
         if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
         res.json(workflow);
+    } catch (e: any) {
+        res.status(500).json({ error: e.message });
+    }
+});
+
+router.post('/workflows/:id/run', async (req, res) => {
+    try {
+        const { agentId } = req.body;
+        if (!agentId) return res.status(400).json({ error: 'agentId is required' });
+        const workflow = WorkflowService.getWorkflow(req.params.id);
+        if (!workflow) return res.status(404).json({ error: 'Workflow not found' });
+        const result = await executeWorkflow(req.params.id, agentId);
+        if (!result.success) return res.status(400).json({ error: result.error });
+        res.json({ success: true, result: result.finalResponse });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
     }
