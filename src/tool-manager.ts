@@ -14,6 +14,7 @@ export interface ToolDefinition {
     pluginType?: string;
     filename?: string;
     hasReadme?: boolean;
+    requiresApproval?: boolean;
 }
 
 export interface ToolFile {
@@ -54,10 +55,13 @@ export class ToolManager {
                 if (toolModule.default && toolModule.default.definition && toolModule.default.handler) {
                     toolModule.default.definition.filename = file;
 
-                    // Check for README.md in the tool's directory (only if it's not the root tools dir)
+                    // Check for a per-file README ({name}.README.md) first, then a directory README.md
                     const toolDir = path.dirname(fullPath);
-                    const readmePath = path.join(toolDir, 'README.md');
-                    toolModule.default.definition.hasReadme = toolDir !== TOOLS_DIR && fs.existsSync(readmePath);
+                    const baseName = path.basename(file).replace(/\.(ts|js)$/, '');
+                    toolModule.default.definition.hasReadme = toolDir !== TOOLS_DIR && (
+                        fs.existsSync(path.join(toolDir, `${baseName}.README.md`)) ||
+                        fs.existsSync(path.join(toolDir, 'README.md'))
+                    );
 
                     this.registerTool(toolModule.default);
                     console.log(`[ToolManager] Loaded external tool: ${toolModule.default.definition.name} (${file})`);
@@ -91,6 +95,8 @@ export class ToolManager {
             this.registerTool(module.add_task_comment);
             this.registerTool(module.update_task_state);
             this.registerTool(module.create_task);
+            this.registerTool(module.execute_workflow);
+            this.registerTool(module.list_workflows);
         } catch (err) {
             console.error('Failed to load collaboration tools', err);
         }
@@ -110,7 +116,15 @@ export class ToolManager {
     }
 
     static getToolDefinitions(): ToolDefinition[] {
-        return Array.from(this.tools.values()).map(t => t.definition);
+        return Array.from(this.tools.values()).map(t => {
+            if (t.definition.requiresApproval && !t.definition.description.includes('(Requires Approval)')) {
+                return {
+                    ...t.definition,
+                    description: `${t.definition.description} (Requires Approval)`
+                };
+            }
+            return t.definition;
+        });
     }
 
     static getAvailableToolFiles(): ToolFile[] {
@@ -128,9 +142,13 @@ export class ToolManager {
                 if (item.isDirectory()) {
                     scanDir(itemFullPath, itemRelativePath);
                 } else if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js')) && !item.name.includes('.test.')) {
-                    // Check if there is a README.md in the same directory as the tool (only if not root tools dir)
+                    // Check for a per-file README ({name}.README.md) first, then a directory README.md
                     const toolDir = path.dirname(itemFullPath);
-                    const hasReadme = toolDir !== TOOLS_DIR && fs.existsSync(path.join(toolDir, 'README.md'));
+                    const baseName = item.name.replace(/\.(ts|js)$/, '');
+                    const hasReadme = toolDir !== TOOLS_DIR && (
+                        fs.existsSync(path.join(toolDir, `${baseName}.README.md`)) ||
+                        fs.existsSync(path.join(toolDir, 'README.md'))
+                    );
                     files.push({
                         filename: itemRelativePath,
                         hasReadme
@@ -149,17 +167,25 @@ export class ToolManager {
             return null;
         }
         const toolDir = path.dirname(fullPath);
-        const readmePath = path.join(toolDir, 'README.md');
+        if (toolDir === TOOLS_DIR) return null;
 
-        if (toolDir !== TOOLS_DIR && fs.existsSync(readmePath)) {
-            return fs.readFileSync(readmePath, 'utf-8');
-        }
+        // Prefer a per-file README ({name}.README.md) over a shared directory README.md
+        const baseName = path.basename(fullPath).replace(/\.(ts|js)$/, '');
+        const fileReadme = path.join(toolDir, `${baseName}.README.md`);
+        if (fs.existsSync(fileReadme)) return fs.readFileSync(fileReadme, 'utf-8');
+
+        const dirReadme = path.join(toolDir, 'README.md');
+        if (fs.existsSync(dirReadme)) return fs.readFileSync(dirReadme, 'utf-8');
+
         return null;
     }
 
     static async callTool(name: string, args: any, context?: any): Promise<any> {
         const tool = this.tools.get(name);
-        if (!tool) throw new Error(`Tool ${name} not found`);
+        if (!tool) {
+            const available = Array.from(this.tools.keys()).join(', ');
+            throw new Error(`Tool '${name}' not found. Available tools are: ${available}. Please use one of the available tools. Do NOT use file names or arbitrary actions as tool names.`);
+        }
         console.log(`Executing tool: ${name}`, args, context ? `(Context: ${JSON.stringify(context)})` : '');
         return await tool.handler({ ...args, _context: context });
     }
