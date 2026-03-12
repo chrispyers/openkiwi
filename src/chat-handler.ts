@@ -164,7 +164,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             if (systemPrompt) {
                 const now = new Date();
-                const timeString = now.toLocaleString('en-US', {
+                const timeString = now.toLocaleString(undefined, {
                     weekday: 'long',
                     year: 'numeric',
                     month: 'long',
