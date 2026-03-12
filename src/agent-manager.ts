@@ -28,6 +28,7 @@ export interface Agent {
         schedule: string;
         allowManualTrigger?: boolean;
         channels?: HeartbeatChannel[];
+        maxLoops?: number;
     };
     collaboration?: {
         enabled: boolean;

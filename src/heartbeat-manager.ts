@@ -177,7 +177,7 @@ Please execute these instructions now.
                 sessionId: 'heartbeat',
                 llmConfig,
                 messages: messages,
-                maxLoops: 10,
+                maxLoops: agent.heartbeat?.maxLoops || 10,
                 signToolUrls: false,
                 agentToolsConfig: agent.tools
             });
