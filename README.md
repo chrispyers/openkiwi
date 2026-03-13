@@ -4,6 +4,7 @@
 * [What is it?](#what-is-it)
 * [How Agents Work](#how-agents-work)
 * [Visual Workflow Builder](#visual-workflow-builder)
+* [Agent Skills](#agent-skills)
 * [Quickstart](#quickstart)
   * [Launch the Services](#launch-the-services)
   * [Connect to the gateway](#connect-to-the-gateway)
@@ -49,6 +50,9 @@ Clone the repo, run one command and you're up in about 30 seconds. A few quick s
 ### Autonomous Scheduling ("Heartbeats")
 Instead of just waiting for user prompts, agents can be configured with cron-based "heartbeats." This enables them to run autonomously in the background to execute workflows.
 
+### Agent Skills
+Extend what agents can do without touching code. Install community-built skills from [skillsmp.com/search](https://skillsmp.com/search) or author your own. Skills are discovered automatically at startup and activated by the agent when the task calls for it. [Read more →](#agent-skills)
+
 ### Extensible Tooling Ecosystem
 Agents are equipped with a powerful suite of explicitly granted tools, allowing them to browse the internet, read and write files securely, analyze images, interface with external APIs like GitHub and Google Tasks, and query semantic vector stores via Qdrant for long-term memory and RAG capabilities.
 
@@ -92,6 +96,27 @@ Each workflow is a directed graph of steps. Drag in a tool node, configure its i
 ![](docs/images/workflow-1.png)
 
 Workflows are managed from the **Workflows** page in the sidebar. You can create, rename, delete, and open workflows from there.
+
+
+<a id="agent-skills"></a>
+
+## Agent Skills
+
+Agent Skills are packages of instructions, scripts, and resources that agents can discover and activate on demand. A skill can encode anything from domain expertise to a complete multi-step research workflow — the agent loads it when the task calls for it, and ignores it otherwise.
+
+Install a skill by using the **Install Skill** button on the Skills page or dropping a folder into the `skills/` directory. Skills installed from the community marketplace at [skillsmp.com/search](https://skillsmp.com/search) work out of the box with no configuration required.
+
+![Skills page showing installed skills](docs/images/skills-1.png)
+
+Skills can be installed directly from the UI via drag-and-drop:
+
+![Drag and drop skill installation](docs/images/skills-2.png)
+
+Once installed, agents activate skills automatically during chat when the task matches:
+
+![Skill being used in chat](docs/images/skills-3.png)
+
+For full details on the skill format, authoring your own skills, and advanced options, see [docs/AGENT_SKILLS.md](docs/AGENT_SKILLS.md).
 
 
 <a id="local-development"></a>

@@ -17,3 +17,6 @@ whatsapp_auth/
 .env
 CLAUDE.md
 release/*
+skills/*
+screenshots/*
+agents/*
