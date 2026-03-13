@@ -168,8 +168,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             }
 
             // Anti-hallucination directive
-            systemPrompt += "\n\nCRITICAL INSTRUCTION: If you intend to take an action (like modifying a file, searching memory, etc.), you MUST use the provided tools to do so. NEVER claim to have updated a file or taken an action unless you have explicitly called the corresponding tool and received a successful response. DO NOT hallucinate actions.";
-            systemPrompt += "\nCRITICAL INSTRUCTION: If you intend to use a tool that is marked with '(Requires Approval)', you MUST first use the 'ask_user' tool to explain what you are about to do and ask for their permission. You must wait for their affirmative response before calling the restricted tool.";
+            systemPrompt += "\n\nCRITICAL: Always use the provided tools to take actions — never claim to have done something without calling the corresponding tool and receiving a successful response. Use exact tool names; do not invent tool names or use filenames as tool names.";
 
             if (systemPrompt) {
                 const now = new Date();

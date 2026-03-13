@@ -4,7 +4,6 @@ import { loadConfig } from './config-manager.js';
 import { MemoryIndexManager } from './memory/manager.js';
 import { logger } from './logger.js';
 import { broadcastMessage } from './state.js';
-import { ToolManager } from './tool-manager.js';
 
 export interface HeartbeatChannelTelegram { type: 'telegram'; chatId: string; }
 export interface HeartbeatChannelWhatsApp { type: 'whatsapp'; jid: string; }
@@ -119,38 +118,15 @@ When you have finished your work on a task for its current stage, move it to the
 Check your assigned tasks regularly, especially when asked for an update or when participating in a scheduled collaboration event.`;
         }
 
-        let toolsPrompt = '';
-        try {
-            const defs = ToolManager.getToolDefinitions();
-            if (defs && defs.length > 0) {
-                toolsPrompt = '\nAVAILABLE TOOLS:\n' + defs.map(t => {
-                    let paramStr = '';
-                    if (t.parameters && t.parameters.properties) {
-                        const props = Object.entries(t.parameters.properties).map(([k, v]) => {
-                            const req = t.parameters.required?.includes(k) ? ' (required)' : ' (optional)';
-                            return `    - ${k}: ${v.description || ''}${req}`;
-                        }).join('\n');
-                        paramStr = `\n  Parameters:\n${props}`;
-                    }
-                    return `- ${t.name}: ${t.description}${paramStr}`;
-                }).join('\n\n');
-            }
-        } catch (e) {
-            console.error('Failed to get tool definitions for prompt', e);
-        }
-
         const systemPrompt = `
 ${hasPersona ? persona : identity}
 
 ${rules}
 ${hasPersona ? '' : '\n' + soul}
 
-${memory || 'Your memory is currently empty.'}
+Your long-term memory is stored externally. Use the \`memory_search\` tool to recall facts about the user, their preferences, or past conversations.
 
 ${collaborationPrompt}
-
-CRITICAL TOOL USAGE: When calling tools, you MUST use the exact tool name provided in your tool definitions. Do NOT hallucinate tool names. Do NOT use file names (like 'README.md') or arbitrary actions (like 'kanban-board') as tool names.
-${toolsPrompt}
 
 ${globalSystemPrompt}`.trim();
 
