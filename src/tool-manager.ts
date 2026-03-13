@@ -148,6 +148,7 @@ export class ToolManager {
                 const itemFullPath = path.join(dir, item.name);
 
                 if (item.isDirectory()) {
+                    if (item.name === 'lib') continue;
                     scanDir(itemFullPath, itemRelativePath);
                 } else if (item.isFile() && (item.name.endsWith('.ts') || item.name.endsWith('.js')) && !item.name.includes('.test.')) {
                     // Check for a per-file README ({name}.README.md) first, then a directory README.md

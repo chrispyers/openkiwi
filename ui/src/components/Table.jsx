@@ -2,14 +2,20 @@ import React from 'react'
 import Text from './Text'
 
 export function TABLE(props) {
-    const { header, children, className, center } = props;
+    const { header, children, className, center, stickyHeader } = props;
     return (
         <table
-            className={(className || "") + " w-full text-left rounded-xl overflow-hidden"}
-            style={{ border: '1px solid var(--table-border-color)' }}
+            className={(className || "") + ` w-full text-left ${stickyHeader ? '' : 'rounded-xl overflow-hidden'}`}
+            style={stickyHeader ? undefined : { border: '1px solid var(--table-border-color)' }}
         >
             {header != null && (
-                <thead style={{ backgroundColor: 'var(--table-header-bg)' }}>
+                <thead
+                    className={stickyHeader ? 'sticky top-0 z-10' : ''}
+                    style={{
+                        backgroundColor: 'var(--table-header-bg)',
+                        ...(stickyHeader ? { borderBottom: '1px solid var(--table-border-color)' } : {})
+                    }}
+                >
                     <tr>
                         {header.map((item, idx) => {
                             const name = typeof item === 'string' ? item : item.name;
@@ -19,8 +25,9 @@ export function TABLE(props) {
                                 alignment = item.alignment || 'center';
                             }
 
+                            const thClassName = typeof item !== 'string' ? (item.className || '') : '';
                             return (
-                                <TH key={idx} alignment={alignment}>
+                                <TH key={idx} alignment={alignment} className={thClassName}>
                                     {name}
                                 </TH>
                             );
@@ -35,10 +42,10 @@ export function TABLE(props) {
     )
 }
 
-export function TH({ children, alignment = 'left' }) {
+export function TH({ children, alignment = 'left', className = '' }) {
     const alignmentClass = alignment === 'center' ? 'text-center' : alignment === 'right' ? 'text-right' : 'text-left';
     return (
-        <th className={`py-4 px-6 text-xs uppercase tracking-wider ${alignmentClass}`}>
+        <th className={`py-4 px-6 text-xs uppercase tracking-wider ${alignmentClass} ${className}`}>
             <Text size="xs" bold={true} className="!text-[var(--table-header-text)]">
                 {children}
             </Text>

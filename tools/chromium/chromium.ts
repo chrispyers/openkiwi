@@ -1,7 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import dns from 'dns';
-import { getBrowser } from '../browser_utils.js';
+import { getBrowser } from '../lib/browser_utils.js';
 
 // Helper to check for blocked IP addresses
 function isBannedIP(ip: string): boolean {
