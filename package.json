@@ -4,6 +4,7 @@
   "description": "",
   "main": "dist/electron.js",
   "scripts": {
+    "postinstall": "npm install --prefix ui",
     "dev:backend": "tsx watch src/index.ts",
     "dev:ui": "cd ui && npm run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:ui\"",
