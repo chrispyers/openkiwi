@@ -12,6 +12,7 @@ export interface ToolDefinition {
     };
     displayName?: string;
     pluginType?: string;
+    configKey?: string;
     filename?: string;
     hasReadme?: boolean;
     requiresApproval?: boolean;

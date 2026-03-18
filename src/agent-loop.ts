@@ -319,8 +319,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                     AgentManager.setAgentState(options.agentId, 'working', details);
 
                     // Resolve per-tool config: agent config overrides global entirely
+                    // Tools can declare a configKey to share config (e.g. all github_* tools use "github")
                     const globalToolsConfig = loadConfig().tools;
-                    const toolConfig = options.agentToolsConfig?.[name] ?? globalToolsConfig?.[name];
+                    const defs = ToolManager.getToolDefinitions();
+                    const toolDef = defs.find(d => d.name === name);
+                    const configName = toolDef?.configKey ?? name;
+                    const toolConfig = options.agentToolsConfig?.[configName] ?? globalToolsConfig?.[configName];
 
                     let result;
                     const toolStartTime = Date.now();
