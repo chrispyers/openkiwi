@@ -1,5 +1,8 @@
-import { execFile } from 'node:child_process';
+import { execFile, spawn } from 'node:child_process';
 import { promisify } from 'node:util';
+import { writeFile, unlink } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 
 const execFileAsync = promisify(execFile);
 
@@ -12,8 +15,8 @@ function debug(...args: unknown[]) {
 debug('Module loaded. GH_TOKEN set:', !!process.env.GH_TOKEN);
 
 const toolDescription =
-    'Manage files in GitHub repositories (list, read, create, update). ' +
-    'Use this tool instead of web_browser for all GitHub repo access — it has authenticated access to private repos.';
+    'Manage files in GitHub repositories and gists (list, read, create, update, gist_read, gist_update). ' +
+    'Use this tool instead of web_browser for all GitHub repo access — it has authenticated access to private repos and gists.';
 
 async function ghApi(...args: string[]): Promise<any> {
     debug('gh api', args);
@@ -41,13 +44,15 @@ export default {
             properties: {
                 action: {
                     type: 'string',
-                    enum: ['list', 'read', 'create', 'update'],
+                    enum: ['list', 'read', 'create', 'update', 'gist_read', 'gist_update'],
                     description:
                         'The operation to perform. ' +
                         'Use "list" to see files in a directory. ' +
                         'Use "read" to get the full content of a single file. ' +
                         'Use "create" to write a brand new file (fails if file already exists). ' +
                         'Use "update" to overwrite an existing file (fails if file does not exist). ' +
+                        'Use "gist_read" to read a gist by ID (set repo to owner, path to gist ID). ' +
+                        'Use "gist_update" to update a gist (set repo to owner, path to gist ID, content to new file content). ' +
                         'Start with "list" if you are unsure what files exist.'
                 },
                 repo: {
@@ -77,7 +82,7 @@ export default {
     },
 
     handler: async (args: {
-        action: 'create' | 'update' | 'read' | 'list';
+        action: 'create' | 'update' | 'read' | 'list' | 'gist_read' | 'gist_update';
         repo: string;
         path: string;
         content?: string;
@@ -93,6 +98,68 @@ export default {
 
         if (!process.env.GH_TOKEN) {
             return { error: 'GH_TOKEN environment variable is not set. Set GH_TOKEN in your .env file.' };
+        }
+
+        // --- Gist actions (bypass repo/path validation) ---
+
+        if (action === 'gist_read') {
+            try {
+                const gistId = path.replace(/^\//, '');
+                const data = await ghApi(`/gists/${gistId}`);
+                const files = Object.entries(data.files || {}).map(([filename, file]: [string, any]) => ({
+                    filename,
+                    content: file.content,
+                    size: file.size,
+                    language: file.language
+                }));
+                return { gist_id: gistId, owner: data.owner?.login, files };
+            } catch (err: any) {
+                return { error: `Failed to read gist: ${err.message}` };
+            }
+        }
+
+        if (action === 'gist_update') {
+            if (!content) {
+                return { error: '"content" is required for the "gist_update" action.' };
+            }
+            try {
+                const gistId = path.replace(/^\//, '');
+                // First read the gist to get the filename
+                const existing = await ghApi(`/gists/${gistId}`);
+                const filename = Object.keys(existing.files || {})[0];
+                if (!filename) {
+                    return { error: 'Gist has no files.' };
+                }
+
+                // Write JSON body to temp file for gh api --input
+                const tmpFile = join(tmpdir(), `gist-update-${gistId}-${Date.now()}.json`);
+                await writeFile(tmpFile, JSON.stringify({
+                    files: { [filename]: { content } }
+                }));
+                let stdout: string;
+                try {
+                    const result = await execFileAsync('gh', [
+                        'api', `/gists/${gistId}`,
+                        '--method', 'PATCH',
+                        '--input', tmpFile
+                    ], {
+                        timeout: 30_000,
+                        maxBuffer: 10 * 1024 * 1024
+                    });
+                    stdout = result.stdout;
+                } finally {
+                    await unlink(tmpFile).catch(() => {});
+                }
+                const result = JSON.parse(stdout);
+                return {
+                    action: 'gist_updated',
+                    gist_id: gistId,
+                    filename,
+                    updated_at: result.updated_at
+                };
+            } catch (err: any) {
+                return { error: `Failed to update gist: ${err.message}` };
+            }
         }
 
         const reposConfig = _context?.toolConfig?.repos;
