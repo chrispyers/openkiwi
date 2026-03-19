@@ -687,11 +687,18 @@ function deepMerge(target: Record<string, any>, source: Record<string, any>): Re
 
 function stripThinkTags(text: string): { content: string; thinking: string } {
     let thinking = '';
-    const content = text.replace(/<think>([\s\S]*?)<\/think>/g, (_match, t) => {
+    // First handle complete <think>...</think> blocks
+    let content = text.replace(/<think>([\s\S]*?)<\/think>/g, (_match, t) => {
         thinking += t.trim() + '\n';
         return '';
-    }).trim();
-    return { content, thinking: thinking.trim() };
+    });
+    // Handle unclosed <think> tags (model forgot to close or was truncated)
+    const unclosedIdx = content.indexOf('<think>');
+    if (unclosedIdx !== -1) {
+        thinking += content.substring(unclosedIdx + 7).trim();
+        content = content.substring(0, unclosedIdx);
+    }
+    return { content: content.trim(), thinking: thinking.trim() };
 }
 
 // ── Dice Rolling ────────────────────────────────────────────────────────────
