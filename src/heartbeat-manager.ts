@@ -11,6 +11,7 @@ import { SessionManager, Session } from './session-manager.js';
 import { TelegramManager } from './telegram-manager.js';
 import { WhatsAppManager } from './whatsapp-manager.js';
 import { connectedClients } from './routes.js';
+import { CampaignService } from './services/campaign-service.js';
 
 export class HeartbeatManager {
     private static jobs: Map<string, any> = new Map();
@@ -32,7 +33,10 @@ export class HeartbeatManager {
                 }
             }
         }
-        console.log(`💓 Heartbeat Manager: Scheduled ${this.jobs.size} agents.`);
+        // Schedule campaign episodes
+        this.scheduleCampaigns();
+
+        console.log(`💓 Heartbeat Manager: Scheduled ${this.jobs.size} jobs.`);
     }
 
     static stopAll() {
@@ -62,6 +66,88 @@ export class HeartbeatManager {
             }
         }
     }
+
+    // ── Campaign Episode Scheduling ────────────────────────────────────────
+
+    private static scheduleCampaigns() {
+        try {
+            const campaigns = CampaignService.list();
+            for (const campaign of campaigns) {
+                if (!campaign.schedule) continue;
+
+                const key = `campaign:${campaign.id}`;
+
+                // Skip if already scheduled
+                if (this.jobs.has(key)) continue;
+
+                if (!cron.validate(campaign.schedule)) {
+                    console.error(`❌ Invalid cron schedule for campaign "${campaign.title}": ${campaign.schedule}`);
+                    continue;
+                }
+
+                const job = cron.schedule(campaign.schedule, () => {
+                    this.executeCampaignEpisode(campaign.id, campaign.title);
+                });
+
+                this.jobs.set(key, job);
+                console.log(`🎭 Scheduled campaign "${campaign.title}" (${campaign.schedule})`);
+            }
+        } catch (err) {
+            console.error('Failed to schedule campaigns:', err);
+        }
+    }
+
+    private static async executeCampaignEpisode(campaignId: string, campaignTitle: string) {
+        const taskKey = `campaign:${campaignId}`;
+        if (this.executingAgents.has(taskKey)) {
+            console.log(`⚠️ Campaign episode skipped for "${campaignTitle}": Previous episode still running.`);
+            return;
+        }
+
+        this.executingAgents.add(taskKey);
+        console.log(`🎭 Starting scheduled episode for "${campaignTitle}"...`);
+
+        try {
+            const data = CampaignService.get(campaignId);
+            if (!data) {
+                console.error(`Campaign not found: ${campaignId}`);
+                return;
+            }
+
+            // Check if current season is complete
+            if (data.state.currentEpisode >= data.config.episodesPerSeason) {
+                console.log(`🎭 Season ${data.state.currentSeason} complete for "${campaignTitle}". Advancing season...`);
+                try {
+                    CampaignService.advanceSeason(campaignId);
+                } catch {
+                    console.log(`🎭 Campaign "${campaignTitle}" has completed all planned seasons.`);
+                    // Stop the scheduled job
+                    const job = this.jobs.get(taskKey);
+                    if (job) { job.stop(); this.jobs.delete(taskKey); }
+                    return;
+                }
+            }
+
+            const result = await CampaignService.startNextEpisode(campaignId);
+            logger.log({
+                type: 'system',
+                level: 'info',
+                message: `[Campaign] Started S${result.season}E${result.episode} for "${campaignTitle}"`,
+                data: { campaignId, conversationId: result.conversationId }
+            });
+        } catch (err) {
+            logger.log({
+                type: 'error',
+                level: 'error',
+                message: `[Campaign] Failed to start episode for "${campaignTitle}": ${String(err)}`,
+                data: { campaignId }
+            });
+        } finally {
+            this.executingAgents.delete(taskKey);
+        }
+    }
+
+    // ── Agent Heartbeat Scheduling ───────────────────────────────────────
 
     private static scheduleHeartbeat(agent: Agent, type: 'heartbeat' | 'collaboration') {
         const schedule = type === 'heartbeat' ? agent.heartbeat?.schedule : agent.collaboration?.schedule;

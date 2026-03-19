@@ -30,6 +30,7 @@ export interface CampaignConfig {
     providers?: string[];                  // LLM providers to rotate across agents for neuro-diversity
     persistence?: CampaignPersistence;
     settings?: Partial<ConversationSettings>;  // Defaults for episodes
+    schedule?: string;                        // Cron expression for auto-triggering episodes (e.g. "0 10 * * *" for daily at 10am)
     createdAt: number;
     updatedAt: number;
 }
@@ -308,6 +309,7 @@ export class CampaignService {
             traits?: string[];
             inventory?: string[];
         }>;
+        schedule?: string;                   // Cron expression for auto-episodes (e.g. "0 10 * * *")
         seasons?: Array<{ title: string; arc: string }>;
     }): CampaignConfig {
         const id = randomUUID();
@@ -340,6 +342,7 @@ export class CampaignService {
 
         // Store providers in config for future character creation
         if (input.providers) config.providers = input.providers;
+        if (input.schedule) config.schedule = input.schedule;
 
         // Build initial characters — auto-create agents if no agentId provided
         // Rotate providers across characters for neuro-diversity

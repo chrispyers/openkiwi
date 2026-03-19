@@ -1,4 +1,6 @@
 import { Router } from 'express';
+import fs from 'node:fs';
+import path from 'node:path';
 import { CampaignService } from '../services/campaign-service.js';
 
 const router = Router();
@@ -139,6 +141,26 @@ router.post('/:id/episodes/:conversationId/complete', (req, res) => {
         res.json({ success: true });
     } catch (e: any) {
         res.status(500).json({ error: e.message });
+    }
+});
+
+// ── Schedule ──
+
+// Update campaign schedule
+router.put('/:id/schedule', (req, res) => {
+    try {
+        const data = CampaignService.get(req.params.id);
+        if (!data) return res.status(404).json({ error: 'Campaign not found' });
+        const { schedule } = req.body;
+        // Allow null/empty to clear schedule
+        data.config.schedule = schedule || undefined;
+        data.config.updatedAt = Date.now();
+        // Write directly — CampaignService doesn't have a dedicated update method for config
+        const configPath = path.resolve(process.cwd(), 'workspace', 'campaigns', req.params.id, 'campaign.json');
+        fs.writeFileSync(configPath, JSON.stringify(data.config, null, 2));
+        res.json({ schedule: data.config.schedule || null });
+    } catch (e: any) {
+        res.status(400).json({ error: e.message });
     }
 });
 
