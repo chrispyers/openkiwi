@@ -145,6 +145,17 @@ function ensureDir(dir: string) {
 function configPath(id: string) { return path.join(CONVERSATIONS_DIR, id, 'config.json'); }
 function statePath(id: string) { return path.join(CONVERSATIONS_DIR, id, 'state.json'); }
 function transcriptPath(id: string) { return path.join(CONVERSATIONS_DIR, id, 'transcript.md'); }
+function episodeLogPath(id: string) { return path.join(CONVERSATIONS_DIR, id, 'episode.log'); }
+
+function appendEpisodeLog(id: string, text: string) {
+    const logFile = episodeLogPath(id);
+    ensureDir(path.dirname(logFile));
+    fs.appendFileSync(logFile, text + '\n', 'utf-8');
+}
+
+function formatTimestamp(ts: number): string {
+    return new Date(ts).toISOString().replace('T', ' ').replace(/\.\d+Z$/, '');
+}
 
 function readJSON<T>(filePath: string): T | null {
     try { return JSON.parse(fs.readFileSync(filePath, 'utf-8')); } catch { return null; }
@@ -901,6 +912,7 @@ interface OrchestratorDecision {
     introduceCharacter?: IntroduceCharacter;
     updateCharacter?: { characterId: string; updates: Record<string, any> };
     updateCharacters?: Array<{ characterId: string; updates: Record<string, any> }>;
+    thinking?: string;                     // GM's internal reasoning (from <think> tags)
 }
 
 async function askOrchestrator(
@@ -985,6 +997,7 @@ Notes:
     );
 
     try {
+        const { thinking: gmThinking } = stripThinkTags(result.finalResponse);
         const jsonMatch = result.finalResponse.match(/\{[\s\S]*\}/);
         if (!jsonMatch) throw new Error('No JSON found');
         const parsed = JSON.parse(jsonMatch[0]);
@@ -999,7 +1012,8 @@ Notes:
             killCharacter: parsed.killCharacter || undefined,
             introduceCharacter: parsed.introduceCharacter || undefined,
             updateCharacter: parsed.updateCharacter || undefined,
-            updateCharacters: parsed.updateCharacters || undefined
+            updateCharacters: parsed.updateCharacters || undefined,
+            thinking: gmThinking || undefined
         };
     } catch {
         logger.log({
@@ -1115,6 +1129,9 @@ export class ConversationExecutor {
             broadcastMessage({ type: 'conversation_started', conversationId: id, config });
             logger.log({ type: 'system', level: 'info', message: `Conversation started: ${config.title}`, data: { id } });
 
+            // Episode log header
+            appendEpisodeLog(id, `${'='.repeat(80)}\n${config.title}\nStarted: ${formatTimestamp(Date.now())}\nParticipants: ${config.participants.map(p => p.role || p.agentId).join(', ')}\nMax Rounds: ${config.settings.maxRounds}\n${'='.repeat(80)}\n`);
+
             while (state.currentRound < config.settings.maxRounds && state.status === 'active') {
                 if (abortController.signal.aborted) {
                     state.status = 'cancelled';
@@ -1137,6 +1154,16 @@ export class ConversationExecutor {
                 } else {
                     // orchestrator strategy
                     const decision = await askOrchestrator(config, state, abortController.signal);
+
+                    // Log orchestrator decision
+                    const gmLogParts = [`\n${'─'.repeat(60)}\n[GM — Round ${state.currentRound + 1}] ${formatTimestamp(Date.now())}`];
+                    if (decision.thinking) gmLogParts.push(`\n  💭 GM Internal:\n${decision.thinking.split('\n').map(l => '    ' + l).join('\n')}`);
+                    gmLogParts.push(`\n  → Next speaker: ${decision.nextSpeaker}`);
+                    if (decision.direction) gmLogParts.push(`  → Direction: ${decision.direction}`);
+                    if (decision.action) gmLogParts.push(`  → Action: ${decision.action}`);
+                    if (decision.shouldEnd) gmLogParts.push(`  → Episode ending`);
+                    appendEpisodeLog(id, gmLogParts.join('\n'));
+
                     if (decision.shouldEnd) {
                         state.status = 'closing';
                         break;
@@ -1167,6 +1194,8 @@ export class ConversationExecutor {
                             outcome: decision.outcome,
                             worldStateUpdate: decision.worldStateUpdate
                         };
+
+                        appendEpisodeLog(id, `  🎲 ${rollText}`);
 
                         broadcastMessage({
                             type: 'conversation_dice_roll',
@@ -1204,6 +1233,7 @@ export class ConversationExecutor {
                             description
                         });
 
+                        appendEpisodeLog(id, `  ☠️ CHARACTER DEATH: ${description}`);
                         logger.log({ type: 'system', level: 'info', message: `Character killed in conversation`, data: { conversationId: id, characterId, description } });
                     }
 
@@ -1321,6 +1351,13 @@ export class ConversationExecutor {
                     state.transcript.push(entry);
                     state.currentRound++;
 
+                    // Log character turn + inner monologue
+                    const charLogParts = [`\n[${entry.speakerName}${entry.role ? ' — ' + entry.role : ''}] (Round ${state.currentRound}/${config.settings.maxRounds})`];
+                    if (thinking) charLogParts.push(`\n  💭 Inner monologue:\n${thinking.split('\n').map(l => '    ' + l).join('\n')}`);
+                    charLogParts.push(`\n${content}\n`);
+                    if (turnMetadata?.diceRoll) charLogParts.push(`  [Dice: d20=${turnMetadata.diceRoll}, total=${turnMetadata.total}, ${turnMetadata.success ? 'SUCCESS' : 'FAILURE'}]`);
+                    appendEpisodeLog(id, charLogParts.join('\n'));
+
                     // Checkpoint state
                     writeJSON(statePath(id), state);
 
@@ -1374,6 +1411,8 @@ export class ConversationExecutor {
             }
             state.completedAt = Date.now();
             writeJSON(statePath(id), state);
+
+            appendEpisodeLog(id, `\n${'='.repeat(80)}\nEpisode ${state.status}. Rounds: ${state.currentRound}/${config.settings.maxRounds}\nCompleted: ${formatTimestamp(state.completedAt)}\n${'='.repeat(80)}`);
 
             // Generate transcript markdown
             const md = generateTranscriptMarkdown(config, state);
