@@ -5,7 +5,7 @@ import { AgentManager } from '../agent-manager.js';
 import { ToolManager } from '../tool-manager.js';
 import { loadConfig } from '../config-manager.js';
 import { streamChatCompletion, getChatCompletion } from '../llm-provider.js';
-import { WORKSPACE_DIR } from '../../tools/lib/workspace.js';
+import { WORKSPACE_DIR } from '../security.js';
 
 export interface WorkflowExecutionResult {
     success: boolean;

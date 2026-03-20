@@ -248,7 +248,8 @@ export function loadConfig(): Config {
                 allowManualTrigger: false,
             },
             enabledTools: {},
-            tools: {}
+            tools: {},
+            connections: { git: [] },
         };
     }
 }

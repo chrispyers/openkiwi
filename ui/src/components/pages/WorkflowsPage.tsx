@@ -11,7 +11,7 @@ import WorkflowBuilder from '../Workflows/WorkflowBuilder'
 import { getToolDef, toolIdFromInstructions } from '../Workflows/toolDefs'
 import { Workflow, WorkflowState } from '../../types'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faDiagramProject, faArrowLeft, faTrash, faPen, faArrowRight } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faScroll, faArrowLeft, faTrash, faPen, faArrowRight } from '@fortawesome/free-solid-svg-icons'
 
 interface WorkflowsPageProps {
     gatewayAddr: string;
@@ -215,7 +215,7 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
             ) : workflows.length === 0 ? (
                 <div className="text-center p-20 space-y-4">
                     <div className="w-20 h-20 bg-accent-primary/10 text-accent-primary rounded-3xl flex items-center justify-center mx-auto mb-6">
-                        <FontAwesomeIcon icon={faDiagramProject} className="text-3xl" />
+                        <FontAwesomeIcon icon={faScroll} className="text-3xl" />
                     </div>
                     <Text size="xl" bold={true}>No workflows yet</Text>
                     <Column align="center">
