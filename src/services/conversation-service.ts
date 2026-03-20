@@ -191,15 +191,19 @@ function resolveQdrantConfig(collection: string): { url: string; apiKey?: string
     const qdrantConfig = config.tools?.qdrant;
     if (!qdrantConfig) return null;
 
+    const globalApiKey = qdrantConfig.apiKey;
     const stores = qdrantConfig.stores || {};
-    if (stores[collection]) return stores[collection];
+    if (stores[collection]) {
+        const store = stores[collection];
+        return { ...store, apiKey: store.apiKey || globalApiKey };
+    }
 
     const firstStore = Object.values(stores)[0] as any;
     if (firstStore?.url) {
-        return { url: firstStore.url, apiKey: firstStore.apiKey || qdrantConfig.apiKey, collection, dimensions: firstStore.dimensions };
+        return { url: firstStore.url, apiKey: firstStore.apiKey || globalApiKey, collection, dimensions: firstStore.dimensions };
     }
     if (qdrantConfig.url) {
-        return { url: qdrantConfig.url, apiKey: qdrantConfig.apiKey, collection, dimensions: qdrantConfig.dimensions };
+        return { url: qdrantConfig.url, apiKey: globalApiKey, collection, dimensions: qdrantConfig.dimensions };
     }
     return null;
 }
@@ -500,17 +504,15 @@ async function saveCampaignToGitHub(
         const prefix = `campaigns/${config.id}`;
         const commitMsg = `[OpenKiwi] ${reason} — round ${state.currentRound}/${config.settings.maxRounds}`;
 
-        // Save config, state, and transcript in parallel
+        // Save config, state, transcript, and world state sequentially (parallel causes SHA conflicts)
         const transcript = generateTranscriptMarkdown(config, state);
 
-        await Promise.all([
-            pushFileToGitHub(repo, `${prefix}/config.json`, JSON.stringify(config, null, 2), commitMsg, branch),
-            pushFileToGitHub(repo, `${prefix}/state.json`, JSON.stringify(state, null, 2), commitMsg, branch),
-            pushFileToGitHub(repo, `${prefix}/transcript.md`, transcript, commitMsg, branch),
-            state.worldState
-                ? pushFileToGitHub(repo, `${prefix}/world-state.json`, JSON.stringify(state.worldState, null, 2), commitMsg, branch)
-                : Promise.resolve()
-        ]);
+        await pushFileToGitHub(repo, `${prefix}/config.json`, JSON.stringify(config, null, 2), commitMsg, branch);
+        await pushFileToGitHub(repo, `${prefix}/state.json`, JSON.stringify(state, null, 2), commitMsg, branch);
+        await pushFileToGitHub(repo, `${prefix}/transcript.md`, transcript, commitMsg, branch);
+        if (state.worldState) {
+            await pushFileToGitHub(repo, `${prefix}/world-state.json`, JSON.stringify(state.worldState, null, 2), commitMsg, branch);
+        }
 
         logger.log({ type: 'system', level: 'info', message: `[Campaign] Saved to ${repo} (${reason})` });
 
