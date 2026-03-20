@@ -39,7 +39,7 @@ export default function Sidebar({
         { experimentalProjectManagement: true },
         { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjects: true },
         { id: 'files', icon: faFolderOpen, label: 'Files' },
-        { id: 'workflows', icon: faScroll, label: 'Workflows', experimentalProjectManagement: true },
+        { id: 'workflows', icon: faScroll, label: 'Workflows' },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },

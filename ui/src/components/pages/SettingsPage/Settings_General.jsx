@@ -109,23 +109,6 @@ export default function Settings_General({
                 </Row>
             </Card>
 
-            <Card>
-                <Row>
-                    <Column grow={true}>
-                        <Text bold={true}>Workflow Builder</Text>
-                        <Text size="sm" secondary={true}>Enable the experimental workflow builder</Text>
-                    </Column>
-                    <Toggle
-                        checked={isProjectManagementEnabled}
-                        onChange={() => {
-                            const newValue = !isProjectManagementEnabled;
-                            setIsProjectManagementEnabled(newValue);
-                            localStorage.setItem('experimental_projects', newValue.toString());
-                            toast.success(`${newValue ? 'Enabled' : 'Disabled'} Project Management`);
-                        }}
-                    />
-                </Row>
-            </Card>
 
             <Card>
                 <Row>

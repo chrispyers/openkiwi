@@ -218,7 +218,7 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
                         <FontAwesomeIcon icon={faDiagramProject} className="text-3xl" />
                     </div>
                     <Text size="xl" bold={true}>No workflows yet</Text>
-                    <Column>
+                    <Column align="center">
                         <Text secondary={true}>Create a workflow to automate tasks by chaining tools together.</Text>
                     </Column>
                 </div>
