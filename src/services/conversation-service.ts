@@ -514,6 +514,13 @@ async function saveCampaignToGitHub(
             await pushFileToGitHub(repo, `${prefix}/world-state.json`, JSON.stringify(state.worldState, null, 2), commitMsg, branch);
         }
 
+        // Push episode log if it exists
+        const logFile = episodeLogPath(config.id);
+        if (fs.existsSync(logFile)) {
+            const logContent = fs.readFileSync(logFile, 'utf-8');
+            await pushFileToGitHub(repo, `${prefix}/episode.log`, logContent, commitMsg, branch);
+        }
+
         logger.log({ type: 'system', level: 'info', message: `[Campaign] Saved to ${repo} (${reason})` });
 
         broadcastMessage({
