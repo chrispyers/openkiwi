@@ -6,6 +6,7 @@ import fs from 'node:fs';
 import { loadConfig } from './config-manager.js';
 import { AgentManager } from './agent-manager.js';
 import { ToolManager } from './tool-manager.js';
+import { SkillManager } from './skill-manager.js';
 import { HeartbeatManager } from './heartbeat-manager.js';
 import { WhatsAppManager } from './whatsapp-manager.js';
 import { TelegramManager } from './telegram-manager.js';
@@ -63,6 +64,7 @@ const wss = new WebSocketServer({
 async function startServer() {
     console.log('Initializing systems...');
     await ToolManager.discoverTools();
+    await SkillManager.discoverSkills();
     await AgentManager.initializeAllMemoryManagers();
     await HeartbeatManager.start();
 

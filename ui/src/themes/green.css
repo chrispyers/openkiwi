@@ -1,0 +1,17 @@
+:root {
+  --green-swatch-light: rgb(58, 192, 107);
+  --green-swatch-dark: rgb(135, 221, 167);
+}
+
+:root.light.theme-green,
+:root:not(.dark).theme-green {
+  --accent-primary: var(--green-swatch-light);
+  /* --user-chat-bubble-bg: rgb(22, 163, 74); */
+  --toggle-on-bg: var(--green-swatch-light);
+}
+
+:root.dark.theme-green {
+  --accent-primary: var(--green-swatch-dark);
+  /* --user-chat-bubble-bg: rgb(21, 128, 61); */
+  --toggle-on-bg: var(--green-swatch-dark);
+}

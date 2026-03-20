@@ -137,6 +137,48 @@ export const save_to_memory = {
                 fs.mkdirSync(agentDir, { recursive: true });
             }
 
+            // Check if information already exists in memory
+            if (fs.existsSync(memoryFile)) {
+                // First check exact match
+                const existingMemory = fs.readFileSync(memoryFile, 'utf-8');
+                if (existingMemory.includes(text)) {
+                    const lines = existingMemory.split('\n');
+                    const matchedLine = lines.find(l => l.includes(text));
+                    let savedDate = 'an earlier date';
+                    if (matchedLine) {
+                        const dateMatch = matchedLine.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+                        if (dateMatch) {
+                            savedDate = dateMatch[1];
+                        }
+                    }
+                    return {
+                        success: true,
+                        message: `Looks like I already saved this information to my memory on ${savedDate}`
+                    };
+                }
+            }
+
+            try {
+                const manager = await AgentManager.getMemoryManager(_context.agentId);
+                await manager.sync();
+                const results = await manager.search(text, 1);
+
+                if (results.length > 0 && results[0].score > 0.85) {
+                    const memText = results[0].snippet || results[0].text;
+                    let savedDate = 'an earlier date';
+                    const dateMatch = memText.match(/\[(\d{4}-\d{2}-\d{2})\]/);
+                    if (dateMatch) {
+                        savedDate = dateMatch[1];
+                    }
+                    return {
+                        success: true,
+                        message: `Looks like I already saved this information to my memory on ${savedDate}`
+                    };
+                }
+            } catch (e) {
+                // Quietly ignore vector search errors during save duplicate check
+            }
+
             // Format the memory entry
             const date = new Date().toISOString().split('T')[0];
             const entry = `\n- [${date}] (${category}): ${text}`;

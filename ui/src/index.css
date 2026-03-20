@@ -1,8 +1,17 @@
+@import './themes/blue.css';
+@import './themes/purple.css';
+@import './themes/green.css';
+@import './themes/red.css';
+@import './themes/orange.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {}
+:root {
+  --default-swatch-light: rgb(82, 82, 82);
+  --default-swatch-dark: rgb(250, 250, 250);
+}
 
 /* Light Mode */
 .light,
@@ -26,6 +35,7 @@
 :root:not(.dark) {
   /* Theme Color */
   --accent-primary: rgb(70, 70, 70);
+  --button-on-accent: white;
 
   /* Borders */
   --border-color: rgb(232, 232, 232);
@@ -72,6 +82,7 @@
 .dark {
   /* Theme Color */
   --accent-primary: #fafafa;
+  --button-on-accent: rgb(26, 26, 26);
 
   /* Borders */
   --border-color: #383838;
@@ -325,30 +336,6 @@
   content: "";
 }
 
-/* Scrollbar styling */
-::-webkit-scrollbar {
-  width: 6px;
-}
-
-::-webkit-scrollbar-track {
-  @apply bg-transparent;
-}
-
-::-webkit-scrollbar-thumb {
-  @apply bg-white/10 rounded-full;
-}
-
-.light ::-webkit-scrollbar-thumb {
-  @apply bg-black/10;
-}
-
-::-webkit-scrollbar-thumb:hover {
-  @apply bg-white/20;
-}
-
-.light ::-webkit-scrollbar-thumb:hover {
-  @apply bg-black/20;
-}
 
 @layer utilities {
   .scrollbar-none::-webkit-scrollbar {

@@ -30,10 +30,6 @@ export interface Agent {
         channels?: HeartbeatChannel[];
         maxLoops?: number;
     };
-    collaboration?: {
-        enabled: boolean;
-        schedule: string;
-    };
     tools?: Record<string, any>;
     isDefault?: boolean;
 }
@@ -107,27 +103,13 @@ export class AgentManager {
         const globalConfig = loadConfig();
         const globalSystemPrompt = globalConfig.global?.systemPrompt || '';
 
-        let collaborationPrompt = '';
-        if (agentConfig.collaboration?.enabled) {
-            collaborationPrompt = `
-# COLLABORATION SYSTEM
-You are part of an Agent Collaboration System. You have the ability to work on multi-step workflows with other agents.
-Use the \`get_assigned_tasks\` tool to see what tasks you are currently assigned to.
-When working on a task, you can read its context via \`read_task\`.
-Communicate your progress, feedback, and decisions by leaving comments on the task using \`add_task_comment\`.
-When you have finished your work on a task for its current stage, move it to the next stage using \`update_task_state\`.
-Check your assigned tasks regularly, especially when asked for an update or when participating in a scheduled collaboration event.`;
-        }
-
         const systemPrompt = `
 ${hasPersona ? persona : identity}
 
 ${rules}
 ${hasPersona ? '' : '\n' + soul}
 
-${memory || 'Your memory is currently empty.'}
-
-${collaborationPrompt}
+Your long-term memory is stored externally. Use the \`memory_search\` tool to recall facts about the user, their preferences, or past conversations. Whenever the user shares something worth remembering in a future session — personal facts (name, location, job, family), preferences ("I prefer A over B"), project context ("I'm building X for reason Y"), or explicit corrections — you MUST call \`save_to_memory\` in that same response turn, before or alongside your reply. Never say "I'll remember that" without actually calling the tool. Only save information that is specific and durable — skip passing remarks or anything already in memory. Keep each memory entry concise.
 
 ${globalSystemPrompt}`.trim();
 
@@ -145,7 +127,6 @@ ${globalSystemPrompt}`.trim();
             systemPrompt,
             provider: agentConfig.provider,
             heartbeat: agentConfig.heartbeat,
-            collaboration: agentConfig.collaboration,
             tools: agentConfig.tools,
             isDefault: agentConfig.isDefault
         };

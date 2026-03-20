@@ -1,4 +1,4 @@
-import { getBrowser } from '../browser_utils.js';
+import { getBrowser } from '../lib/browser_utils.js';
 
 
 export default {

@@ -1,3 +1,4 @@
+import path from 'node:path';
 import { WebSocket } from 'ws';
 import { IncomingMessage } from 'node:http';
 import { loadConfig } from './config-manager.js';
@@ -8,6 +9,7 @@ import { logger } from './logger.js';
 import { runAgentLoop } from './agent-loop.js';
 import { getChatCompletion } from './llm-provider.js';
 import { connectedClients, pendingToolCalls } from './state.js';
+import { SkillManager } from './skill-manager.js';
 
 export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
     const rawIp = (req.headers['x-forwarded-for'] as string)?.split(',')[0].trim() || req.socket.remoteAddress || 'unknown';
@@ -159,8 +161,15 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             const payload: any[] = [];
             let systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
 
+            // Inject available skills into system prompt
+            const skillDefs = SkillManager.getSkillDefinitions();
+            if (skillDefs.length > 0) {
+                const skillList = skillDefs.map(s => `- **${s.name}**: ${s.description}`).join('\n');
+                systemPrompt += `\n\n## Available Agent Skills\nThe following skills are available to you. CRITICAL: Before responding to ANY user request, check whether a skill's description matches the task. If a match exists, you MUST call \`activate_skill\` first and follow its instructions — never answer from your own knowledge when a matching skill is available. If the skill's response includes an \`allowed_tools\` list, those tools are pre-approved for use within that skill's workflow and do NOT require \`ask_user\` confirmation.\n\n${skillList}`;
+            }
+
             // Anti-hallucination directive
-            systemPrompt += "\n\nCRITICAL INSTRUCTION: If you intend to take an action (like modifying a file, searching memory, etc.), you MUST use the provided tools to do so. NEVER claim to have updated a file or taken an action unless you have explicitly called the corresponding tool and received a successful response. DO NOT hallucinate actions.";
+            systemPrompt += "\n\nCRITICAL: Always use the provided tools to take actions — never claim to have done something without calling the corresponding tool and receiving a successful response. Use exact tool names; do not invent tool names or use filenames as tool names.";
 
             if (systemPrompt) {
                 const now = new Date();
@@ -200,18 +209,77 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
                 apiKey: providerConfig.apiKey,
+                maxTokens: providerConfig.maxTokens,
                 supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
             };
 
             if (currentConfig.chat.includeHistory) {
                 // Filter out 'reasoning' messages as many providers only accept user, assistant, system, tool
                 const validMessages = userMessages.filter((msg: any) => msg.role !== 'reasoning');
+
+                // If a user message immediately follows an unresolved tool call (like ask_user), format it as a tool response
+                for (let i = 0; i < validMessages.length; i++) {
+                    const msg = validMessages[i];
+                    if (msg.role === 'user' && i > 0) {
+                        const prevMsg = validMessages[i - 1];
+                        if (prevMsg.role === 'assistant' && prevMsg.tool_calls && prevMsg.tool_calls.length > 0) {
+                            // Only do this if there's no intermediate tool response
+                            const hasToolResponse = validMessages.some((m: any, idx: number) => idx > i - 1 && idx < i && m.role === 'tool');
+                            if (!hasToolResponse) {
+                                const toolCall = prevMsg.tool_calls[0];
+                                validMessages[i] = {
+                                    role: 'tool',
+                                    tool_call_id: toolCall.id,
+                                    name: toolCall.function?.name || 'ask_user',
+                                    content: JSON.stringify({ response: msg.content })
+                                };
+                            }
+                        }
+                    }
+                }
+
                 payload.push(...validMessages);
             } else {
                 // Get the last non-reasoning message
                 const validMessages = userMessages.filter((msg: any) => msg.role !== 'reasoning');
                 if (validMessages.length > 0) {
                     payload.push(validMessages[validMessages.length - 1]);
+                }
+            }
+
+            // Pre-activate any skill the user explicitly named in their message.
+            // This bypasses model non-determinism — if the user says "run the X skill",
+            // the skill instructions are injected directly rather than relying on the
+            // model deciding to call activate_skill.
+            if (skillDefs.length > 0) {
+                const lastUserText = (() => {
+                    const msgs = userMessages.filter((m: any) => m.role === 'user');
+                    const last = msgs[msgs.length - 1];
+                    return typeof last?.content === 'string' ? last.content : '';
+                })();
+                if (lastUserText) {
+                    for (const skillDef of skillDefs) {
+                        const escaped = skillDef.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        if (new RegExp(`\\b${escaped}\\b`, 'i').test(lastUserText)) {
+                            const content = SkillManager.getSkillContent(skillDef.name);
+                            if (content) {
+                                let instructions = content.body;
+                                if (content.scriptFiles.length > 0) {
+                                    const scriptsPath = path.join(skillDef.skillPath, 'scripts');
+                                    instructions = instructions.replace(
+                                        new RegExp(`~/.claude/skills/${skillDef.name}/scripts`, 'g'),
+                                        scriptsPath
+                                    );
+                                }
+                                payload.push({
+                                    role: 'system',
+                                    content: `## Skill Pre-activated: ${skillDef.name}\n\nThe user has explicitly requested this skill. You MUST follow these instructions now:\n\n${instructions}`
+                                });
+                                console.log(`[chat-handler] Pre-activated skill "${skillDef.name}" based on user message`);
+                            }
+                            break;
+                        }
+                    }
                 }
             }
 
@@ -226,8 +294,9 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             let fullContent = '';
 
-            AgentManager.setAgentState(effectiveAgentId, 'chatting', 'Processing user prompt');
+            AgentManager.setAgentState(effectiveAgentId, 'working', 'Processing user prompt');
             let finalAiResponse, lastTps, totalUsage, chatHistory;
+            let yieldStateMsg: any = null;
             currentAbortController = new AbortController();
             try {
                 const result = await runAgentLoop({
@@ -249,6 +318,9 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     },
                     onToolCall: (toolCall: any) => {
                         ws.send(JSON.stringify({ type: 'tool_call', toolCall }));
+                    },
+                    onToolEnd: (toolCallId: string, name: string, durationMs: number, success: boolean) => {
+                        ws.send(JSON.stringify({ type: 'tool_end', toolCallId, name, durationMs, success }));
                     }
                 });
 
@@ -256,9 +328,16 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 lastTps = result.lastTps;
                 totalUsage = result.usage;
                 chatHistory = result.chatHistory;
+                if (result.yieldState) {
+                    yieldStateMsg = result.yieldState;
+                }
             } finally {
                 currentAbortController = null;
-                AgentManager.setAgentState(effectiveAgentId, 'idle');
+                if (yieldStateMsg) {
+                    AgentManager.setAgentState(effectiveAgentId, 'waiting_for_user', yieldStateMsg.question || 'Waiting for input');
+                } else {
+                    AgentManager.setAgentState(effectiveAgentId, 'idle');
+                }
             }
 
             logger.log({
@@ -319,7 +398,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
 
             ws.send(JSON.stringify({ type: 'done', messages: finalizedMessages }));
 
-            if (sessionId && finalizedMessages.length > 0) {
+            if (sessionId && finalizedMessages.length > 0 && shouldSummarize) {
                 (async () => {
                     try {
                         const summaryPrompt = [
@@ -354,8 +433,8 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                         if (updatedSession) {
                             updatedSession.summary = cleanSummary;
                             SessionManager.saveSession(updatedSession);
-                            // Optional: notify client via WS that summary is ready? 
-                            // For now, the next time they fetch sessions it will be there.
+                            const { broadcastMessage } = await import('./state.js');
+                            broadcastMessage({ type: 'session_updated', sessionId });
                         }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);

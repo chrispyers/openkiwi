@@ -130,7 +130,8 @@ export function initTelegramHandler() {
             const llmConfig = {
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
-                apiKey: providerConfig.apiKey
+                apiKey: providerConfig.apiKey,
+                maxTokens: providerConfig.maxTokens
             };
 
             logger.log({

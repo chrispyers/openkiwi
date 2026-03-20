@@ -9,7 +9,6 @@ export function processVisionMessages(messages: any[], supportsVision: boolean =
     if (!supportsVision) return messages;
 
     const processed = [...messages];
-    const hoistedImages: any[] = [];
     let lastUserIndex = -1;
 
     // Helper to resolve and encode image to base64
@@ -98,27 +97,24 @@ export function processVisionMessages(messages: any[], supportsVision: boolean =
         } else {
             // For assistant/tool messages, we HOIST images to the context of the user turn
             // to satisfy strict "alternate user/assistant roles" requirements of some providers (like LM Studio)
-            hoistedImages.push(...currentImages);
-        }
-    }
+            if (currentImages.length > 0 && lastUserIndex !== -1) {
+                const userMsg = { ...processed[lastUserIndex] };
+                const existingContent = Array.isArray(userMsg.content)
+                    ? [...userMsg.content]
+                    : [{ type: 'text', text: userMsg.content || '' }];
 
-    // Second pass: Inject hoisted images into the last user turn
-    if (hoistedImages.length > 0 && lastUserIndex !== -1) {
-        const userMsg = { ...processed[lastUserIndex] };
-        const existingContent = Array.isArray(userMsg.content)
-            ? [...userMsg.content]
-            : [{ type: 'text', text: userMsg.content || '' }];
+                // Check for duplicates before adding
+                const uniqueImages = currentImages.filter(ci =>
+                    !existingContent.some((ec: any) => ec.type === 'image_url' && ec.image_url?.url === ci.image_url?.url)
+                );
 
-        // Check for duplicates before adding
-        const uniqueHoisted = hoistedImages.filter(hi =>
-            !existingContent.some((c: any) => c.type === 'image_url' && c.image_url?.url === hi.image_url?.url)
-        );
-
-        if (uniqueHoisted.length > 0) {
-            processed[lastUserIndex] = {
-                ...userMsg,
-                content: [...existingContent, ...uniqueHoisted]
-            };
+                if (uniqueImages.length > 0) {
+                    processed[lastUserIndex] = {
+                        ...userMsg,
+                        content: [...existingContent, ...uniqueImages]
+                    };
+                }
+            }
         }
     }
 

@@ -2,49 +2,92 @@
   "name": "openkiwi",
   "version": "1.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "dist/electron.js",
   "scripts": {
+    "postinstall": "npm install --prefix ui",
     "dev:backend": "tsx watch src/index.ts",
-    "dev:ui": "npm run dev --prefix ui",
+    "dev:ui": "cd ui && npm run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:ui\"",
+    "start:electron": "electron dist/electron.js",
+    "dev:electron": "NODE_ENV=development npm run build && concurrently \"npm run dev\" \"wait-on http://localhost:3000 && electron -r tsx src/electron.ts\"",
+    "build:electron": "npm run build && npm run build --prefix ui && electron-builder -c.extraMetadata.main=dist/electron.js",
     "build": "tsc",
     "start": "node dist/index.js",
     "test": "vitest run",
     "test:ui": "vitest --ui",
-    "setup:google": "tsx scripts/google-auth.ts",
     "test:watch": "vitest"
+  },
+  "overrides": {
+    "glob": "^13.0.0",
+    "rimraf": "^5.0.0",
+    "inflight": "^1.0.6",
+    "boolean": "^3.2.0",
+    "basic-ftp": ">=5.2.0",
+    "file-type": ">=21.3.2",
+    "rollup": ">=4.59.0",
+    "tar": ">=7.5.11",
+    "undici": ">=6.24.0"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
+  "build": {
+    "appId": "com.openkiwi.desktop",
+    "npmRebuild": false,
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "ui/dist/**/*",
+      "node_modules/**/*",
+      "tools/**/*",
+      "config/**/*",
+      "config.json",
+      "package.json"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ]
+    }
+  },
   "dependencies": {
     "@qdrant/js-client-rest": "^1.17.0",
     "@whiskeysockets/baileys": "^7.0.0-rc.9",
+    "adm-zip": "^0.5.16",
     "better-sqlite3": "^12.6.2",
     "cors": "^2.8.6",
     "express": "^5.2.1",
     "googleapis": "^146.0.0",
+    "multer": "^2.1.1",
     "node-cron": "^4.2.1",
     "puppeteer": "^24.37.3",
     "qrcode": "^1.5.4",
     "telegraf": "^4.16.3",
     "ws": "^8.19.0",
+    "yaml": "^2.8.2",
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@types/adm-zip": "^0.5.7",
     "@types/better-sqlite3": "^7.6.13",
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
+    "@types/multer": "^2.1.0",
     "@types/node": "^25.2.3",
     "@types/node-cron": "^3.0.11",
     "@types/qrcode": "^1.5.6",
     "@types/supertest": "^7.2.0",
     "@types/ws": "^8.18.1",
     "concurrently": "^9.2.1",
+    "electron": "^40.7.0",
+    "electron-builder": "^26.8.1",
     "supertest": "^7.2.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
     "vite": "^7.3.1",
-    "vitest": "^4.0.18"
+    "vitest": "^4.0.18",
+    "wait-on": "^9.0.4"
   }
 }

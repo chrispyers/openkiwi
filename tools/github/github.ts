@@ -13,7 +13,7 @@ debug('Module loaded. GH_TOKEN set:', !!process.env.GH_TOKEN);
 
 const toolDescription =
     'Manage files in GitHub repositories (list, read, create, update). ' +
-    'Use this tool instead of web_browser for all GitHub repo access — it has authenticated access to private repos.';
+    'Use this tool instead of chromium for all GitHub repo access — it has authenticated access to private repos.';
 
 async function ghApi(...args: string[]): Promise<any> {
     debug('gh api', args);

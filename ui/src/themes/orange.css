@@ -1,0 +1,17 @@
+:root {
+  --orange-swatch-light: rgb(249, 115, 22);
+  --orange-swatch-dark: rgb(245, 186, 137);
+}
+
+:root.light.theme-orange,
+:root:not(.dark).theme-orange {
+  --accent-primary: var(--orange-swatch-light);
+  --user-chat-bubble-bg: rgb(234, 88, 12);
+  --toggle-on-bg: var(--orange-swatch-light);
+}
+
+:root.dark.theme-orange {
+  --accent-primary: var(--orange-swatch-dark);
+  --user-chat-bubble-bg: rgb(194, 65, 12);
+  --toggle-on-bg: var(--orange-swatch-dark);
+}

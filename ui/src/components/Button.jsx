@@ -44,7 +44,7 @@ export default function Button(props) {
             onClick={props.onClick || (() => { })}
             title={props.title}
         >
-            {props.themed || props.variant === "danger" ? (
+            {props.themed || props.variant === "danger" || hasCustomBg ? (
                 <>
                     {props.icon && (
                         <FontAwesomeIcon
