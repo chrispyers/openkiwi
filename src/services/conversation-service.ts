@@ -685,6 +685,30 @@ function deepMerge(target: Record<string, any>, source: Record<string, any>): Re
     return result;
 }
 
+// ── Retry with delay ────────────────────────────────────────────────────────
+
+async function retryWithDelay<T>(
+    fn: () => Promise<T>,
+    { retries = 3, delayMs = 5000, label = 'LLM call' }: { retries?: number; delayMs?: number; label?: string } = {}
+): Promise<T> {
+    for (let attempt = 1; attempt <= retries; attempt++) {
+        try {
+            return await fn();
+        } catch (err: any) {
+            const isRetryable = err?.message?.includes('400') || err?.message?.includes('429')
+                || err?.message?.includes('503') || err?.message?.includes('insufficient')
+                || err?.message?.includes('Failed to load model') || err?.message?.includes('overload');
+            if (!isRetryable || attempt === retries) throw err;
+            logger.log({
+                type: 'system', level: 'warn',
+                message: `[Conversation] ${label} failed (attempt ${attempt}/${retries}), retrying in ${delayMs / 1000}s: ${err.message?.substring(0, 120)}`
+            });
+            await new Promise(resolve => setTimeout(resolve, delayMs));
+        }
+    }
+    throw new Error('Unreachable');
+}
+
 function stripThinkTags(text: string): { content: string; thinking: string } {
     let thinking = '';
     // First handle complete <think>...</think> blocks
@@ -948,14 +972,17 @@ Notes:
         { role: 'user', content: `Recent conversation:\n${recentTranscript || '(No conversation yet — this is the opening.)'}\n\nBased on the conversation so far, decide:\n1. Who should speak next?\n2. What direction or question for them? (optional)\n3. Should the conversation end?\n\n${responseFormat}` }
     ];
 
-    const result = await runAgentLoop({
-        agentId: orchestratorId,
-        sessionId: `conversation-${config.id}-orchestrator`,
-        llmConfig,
-        messages,
-        maxLoops: 1,
-        abortSignal
-    });
+    const result = await retryWithDelay(
+        () => runAgentLoop({
+            agentId: orchestratorId,
+            sessionId: `conversation-${config.id}-orchestrator`,
+            llmConfig,
+            messages,
+            maxLoops: 1,
+            abortSignal
+        }),
+        { label: 'Orchestrator' }
+    );
 
     try {
         const jsonMatch = result.finalResponse.match(/\{[\s\S]*\}/);
@@ -1265,15 +1292,18 @@ export class ConversationExecutor {
                 AgentManager.setAgentState(nextParticipant.agentId, 'working', `Conversation: ${config.title}`);
 
                 try {
-                    const result = await runAgentLoop({
-                        agentId: nextParticipant.agentId,
-                        sessionId: `conversation-${id}`,
-                        llmConfig,
-                        messages,
-                        maxLoops,
-                        agentToolsConfig: agent.tools,
-                        abortSignal: abortController.signal
-                    });
+                    const result = await retryWithDelay(
+                        () => runAgentLoop({
+                            agentId: nextParticipant.agentId,
+                            sessionId: `conversation-${id}`,
+                            llmConfig,
+                            messages,
+                            maxLoops,
+                            agentToolsConfig: agent.tools,
+                            abortSignal: abortController.signal
+                        }),
+                        { label: `Character turn: ${agent.name}` }
+                    );
 
                     const { content, thinking } = stripThinkTags(result.finalResponse);
 
