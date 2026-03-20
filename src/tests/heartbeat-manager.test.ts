@@ -720,6 +720,107 @@ describe('HeartbeatManager', () => {
     });
 
     // ---------------------------------------------------------------
+    // maxTokens passthrough
+    // ---------------------------------------------------------------
+    describe('maxTokens passthrough', () => {
+        it('should pass maxTokens from provider config to llmConfig in runAgentLoop', async () => {
+            mockLoadConfig.mockReturnValue({
+                ...defaultConfig(),
+                providers: [{
+                    description: 'test-provider',
+                    endpoint: 'http://localhost:1234',
+                    model: 'test-provider',
+                    apiKey: 'test-key',
+                    maxTokens: 2048,
+                }],
+            });
+
+            const agent = makeAgent({
+                heartbeat: {
+                    enabled: true,
+                    schedule: '0 8 * * *',
+                    channels: [{ type: 'telegram', chatId: '111' }],
+                },
+            });
+            mockGetAgent.mockReturnValue(agent);
+
+            await executeHeartbeat('test-agent');
+
+            expect(mockRunAgentLoop).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    llmConfig: expect.objectContaining({
+                        maxTokens: 2048,
+                    }),
+                })
+            );
+        });
+
+        it('should pass undefined maxTokens when provider has no maxTokens', async () => {
+            const agent = makeAgent({
+                heartbeat: {
+                    enabled: true,
+                    schedule: '0 8 * * *',
+                    channels: [{ type: 'telegram', chatId: '111' }],
+                },
+            });
+            mockGetAgent.mockReturnValue(agent);
+
+            await executeHeartbeat('test-agent');
+
+            const llmConfig = mockRunAgentLoop.mock.calls[0][0].llmConfig;
+            expect(llmConfig.maxTokens).toBeUndefined();
+        });
+    });
+
+    // ---------------------------------------------------------------
+    // Locale-aware timestamps (no hardcoded en-US)
+    // ---------------------------------------------------------------
+    describe('locale-aware timestamps', () => {
+        it('should include Local timestamp in heartbeat wakeup message', async () => {
+            const agent = makeAgent({
+                heartbeat: {
+                    enabled: true,
+                    schedule: '0 8 * * *',
+                    channels: [{ type: 'telegram', chatId: '123' }],
+                },
+            });
+            mockGetAgent.mockReturnValue(agent);
+
+            await executeHeartbeat('test-agent');
+
+            const callArgs = mockRunAgentLoop.mock.calls[0][0];
+            const userMessage = callArgs.messages.find((m: any) => m.role === 'user');
+            expect(userMessage.content).toContain('- UTC:');
+            expect(userMessage.content).toContain('- Local:');
+            // Local timestamp should contain the year (basic sanity check)
+            expect(userMessage.content).toMatch(/Local:.*2\d{3}/);
+        });
+
+        it('should not contain hardcoded en-US locale in timestamp formatting', async () => {
+            // Spy on toLocaleString to verify no 'en-US' is passed
+            const spy = vi.spyOn(Date.prototype, 'toLocaleString');
+
+            const agent = makeAgent({
+                heartbeat: {
+                    enabled: true,
+                    schedule: '0 8 * * *',
+                    channels: [{ type: 'telegram', chatId: '123' }],
+                },
+            });
+            mockGetAgent.mockReturnValue(agent);
+
+            await executeHeartbeat('test-agent');
+
+            // Every call to toLocaleString should use undefined (system default), not 'en-US'
+            for (const call of spy.mock.calls) {
+                expect(call[0]).not.toBe('en-US');
+            }
+
+            spy.mockRestore();
+        });
+    });
+
+    // ---------------------------------------------------------------
     // Scheduling (start / refreshAgent)
     // ---------------------------------------------------------------
     describe('scheduling', () => {

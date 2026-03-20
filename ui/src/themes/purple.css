@@ -1,0 +1,17 @@
+:root {
+  --purple-swatch-light: rgb(139, 92, 246);
+  --purple-swatch-dark: rgb(205, 188, 255);
+}
+
+:root.light.theme-purple,
+:root:not(.dark).theme-purple {
+  --accent-primary: var(--purple-swatch-light);
+  --user-chat-bubble-bg: rgb(109, 40, 217);
+  --toggle-on-bg: var(--purple-swatch-light);
+}
+
+:root.dark.theme-purple {
+  --accent-primary: var(--purple-swatch-dark);
+  --user-chat-bubble-bg: rgb(91, 33, 182);
+  --toggle-on-bg: var(--purple-swatch-dark);
+}

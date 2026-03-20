@@ -16,14 +16,17 @@ import ActivityPage from './components/pages/ActivityPage'
 import WorkflowsPage from './components/pages/WorkflowsPage'
 import ProjectsPage from './components/pages/ProjectsPage'
 import WorkspacePage from './components/pages/WorkspacePage'
+import SkillsPage from './components/pages/SettingsPage/Settings_Skills'
 import Sidebar from './components/Sidebar'
 import {
   faPlus,
   faSave,
-  faEdit
+  faEdit,
+  faSearch
 } from '@fortawesome/free-solid-svg-icons'
 import SessionButton from './components/SessionButton'
 import SessionGroup from './components/SessionGroup'
+import Input from './components/Input'
 import { Message, Agent, Session, Model, Config, AgentState } from './types';
 
 interface LogEntry {
@@ -66,7 +69,7 @@ function App() {
   const activeView = getActiveView();
 
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway'>('version');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway' | 'connections'>('version');
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean, isInitializing?: boolean, botUsername?: string | null }>({ connected: false, isInitializing: false, botUsername: null });
   const [isNavExpanded, setIsNavExpanded] = useState(() => {
@@ -90,6 +93,7 @@ function App() {
   const [selectedAgentId, setSelectedAgentId] = useState('');
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [sessionSearch, setSessionSearch] = useState('');
   const [tools, setTools] = useState<ToolDefinition[]>([]);
   const [connectedClients, setConnectedClients] = useState<any[]>([]);
   const [agentStates, setAgentStates] = useState<Record<string, AgentState>>({});
@@ -97,22 +101,23 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>({ name: '', provider: '', heartbeat: { enabled: false, schedule: '0 * * * *', allowManualTrigger: false }, collaboration: { enabled: false, schedule: '0 * * * *' } });
+  const [agentForm, setAgentForm] = useState<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } }>({ name: '', provider: '', heartbeat: { enabled: false, schedule: '0 * * * *', allowManualTrigger: false } });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
   const [messages, setMessages] = useState<Message[]>([]);
   const [inputText, setInputText] = useState('');
   const [isStreaming, setIsStreaming] = useState(false);
+  const [activeTool, setActiveTool] = useState<any>(null);
   const [isGatewayConnected, setIsGatewayConnected] = useState(false);
   const [isProjectManagementEnabled, setIsProjectManagementEnabled] = useState(() => {
     return localStorage.getItem('experimental_projects') === 'true';
   });
-  const [isAgentCollaborationEnabled, setIsAgentCollaborationEnabled] = useState(() => {
-    return localStorage.getItem('experimental_collaboration') === 'true';
-  });
   const [isAgentActivityEnabled, setIsAgentActivityEnabled] = useState(() => {
     return localStorage.getItem('experimental_activity') === 'true';
+  });
+  const [isProjectsEnabled, setIsProjectsEnabled] = useState(() => {
+    return localStorage.getItem('experimental_project_management') === 'true';
   });
 
   useEffect(() => {
@@ -120,8 +125,8 @@ function App() {
       navigate('/chat', { replace: true });
     }
 
-    if (location.pathname === '/workspace' && !isGatewayConnected && !loading) {
-      toast.error("Authentication Required", { description: "Please connect to the gateway to access the workspace." });
+    if (location.pathname === '/files' && !isGatewayConnected && !loading) {
+      toast.error("Authentication Required", { description: "Please connect to the gateway to access files." });
       navigate('/gateway', { replace: true });
     }
   }, [location.pathname, navigate, isGatewayConnected, loading]);
@@ -166,6 +171,7 @@ function App() {
   const presenceWs = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const workflowStepsRef = useRef<any[]>([]);
 
 
   // Don't auto-save gateway settings on every keystroke - only save when user clicks "Connect"
@@ -223,6 +229,11 @@ function App() {
                 ...prev,
                 [msg.agentId]: msg.state
               }));
+            } else if (msg.type === 'workflow_step_progress') {
+              workflowStepsRef.current = [...workflowStepsRef.current, msg];
+              setActiveTool(prev => prev ? { ...prev, workflowProgress: msg } : prev);
+            } else if (msg.type === 'session_updated') {
+              fetchSessions();
             } else if (msg.type === 'system_error') {
               toast.error(msg.title || 'System Error', {
                 description: msg.message,
@@ -420,7 +431,7 @@ function App() {
     if (chatContainerRef.current) {
       const { scrollTop, scrollHeight, clientHeight } = chatContainerRef.current;
       const distanceToBottom = scrollHeight - scrollTop - clientHeight;
-      isAtBottom.current = distanceToBottom < 10; // 10px threshold
+      isAtBottom.current = distanceToBottom < 40; // 40px threshold
     }
   };
 
@@ -804,8 +815,9 @@ function App() {
 
     msgs.forEach(msg => {
       // Check for thought/reasoning tags in assistant messages
-      if (msg.role === 'assistant' && msg.content && /<(think|thought|reasoning)>/.test(msg.content)) {
+      if (msg.role === 'assistant' && msg.content && /<(think|thought|reasoning)>|<\|channel\|>/.test(msg.content)) {
         const thinkMatch = msg.content.match(/<(think|thought|reasoning)>([\s\S]*?)<\/\1>/i);
+        const channelMatch = !thinkMatch && msg.content.match(/<\|channel\|>([\s\S]*?)(?:<\|im_end\|>|$)/i);
         if (thinkMatch) {
           // Add the reasoning message
           processed.push({
@@ -822,6 +834,20 @@ function App() {
               ...msg,
               content: cleanContent
             });
+          }
+        } else if (channelMatch) {
+          // Normalize model-specific <|channel|> routing tokens into a reasoning block.
+          // Discard the routing metadata (before <|message|>); only keep the message content.
+          const parts = channelMatch[1].split('<|message|>');
+          const reasoningContent = (parts.length > 1 ? parts.slice(1).join('\n') : parts[0]).trim();
+          processed.push({
+            role: 'reasoning',
+            content: reasoningContent,
+            timestamp: msg.timestamp
+          });
+          const cleanContent = msg.content.replace(channelMatch[0], '').trim();
+          if (cleanContent || (msg.tool_calls && msg.tool_calls.length > 0)) {
+            processed.push({ ...msg, content: cleanContent });
           }
         } else {
           processed.push({ ...msg });
@@ -916,7 +942,14 @@ function App() {
         agentId: selectedAgentId,
         messages: newMessages
           .filter(m => !m.isEphemeral)
-          .map(m => ({ role: m.role, content: m.content, timestamp: m.timestamp })),
+          .map(m => ({
+            role: m.role,
+            content: m.content,
+            timestamp: m.timestamp,
+            tool_calls: m.tool_calls,
+            tool_call_id: m.tool_call_id,
+            name: m.name
+          })),
         shouldSummarize: config?.chat.generateSummaries || false
       };
       setLogs(prev => prev); // Removed local logging
@@ -933,7 +966,9 @@ function App() {
     let currentAiMessage = '';
     let currentReasoning = '';
     let isInsideReasoning = false;
+    let inChannelHeader = false;
     let completedTools: any[] = [];
+    let currentActiveTool: any = null;
 
     socket.onmessage = (event) => {
       // setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[RECEIVED] ${event.data}` }, ...prev].slice(0, 100)); // Keep last 100 logs
@@ -944,11 +979,28 @@ function App() {
         if (chunk.includes('<think>') || chunk.includes('<thought>') || chunk.includes('<reasoning>')) {
           isInsideReasoning = true;
         }
+        if (chunk.includes('<|channel|>')) {
+          isInsideReasoning = true;
+          inChannelHeader = true;
+        }
 
         if (isInsideReasoning) {
-          currentReasoning += chunk.replace(/<(think|thought|reasoning)>|<\/(think|thought|reasoning)>/gi, '');
-          if (chunk.includes('</think>') || chunk.includes('</thought>') || chunk.includes('</reasoning>')) {
+          if (inChannelHeader) {
+            // Discard routing metadata before <|message|>; only keep content after it
+            if (chunk.includes('<|message|>')) {
+              inChannelHeader = false;
+              const afterMessage = chunk.split('<|message|>').slice(1).join('').replace(/<\|im_end\|>/g, '');
+              currentReasoning += afterMessage;
+            }
+            // else: still in header, discard this chunk entirely
+          } else {
+            currentReasoning += chunk
+              .replace(/<(think|thought|reasoning)>|<\/(think|thought|reasoning)>/gi, '')
+              .replace(/<\|channel\|>|<\|message\|>|<\|im_end\|>/g, '');
+          }
+          if (chunk.includes('</think>') || chunk.includes('</thought>') || chunk.includes('</reasoning>') || chunk.includes('<|im_end|>')) {
             isInsideReasoning = false;
+            inChannelHeader = false;
           }
         } else {
           currentAiMessage += chunk;
@@ -963,13 +1015,32 @@ function App() {
         }
         setMessages(streamingMsgs);
       } else if (data.type === 'tool_call') {
-        completedTools.push(data.toolCall);
+        workflowStepsRef.current = [];
+        currentActiveTool = { ...data.toolCall, startedAt: Date.now() };
+        setActiveTool(currentActiveTool);
         const streamingMsgs: Message[] = [...newMessages];
         if (currentReasoning) {
           streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
         }
-        streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
+        if (currentAiMessage || completedTools.length > 0) {
+          streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
+        }
         setMessages(streamingMsgs);
+      } else if (data.type === 'tool_end') {
+        if (currentActiveTool) {
+          const steps = workflowStepsRef.current.length > 0 ? [...workflowStepsRef.current] : undefined;
+          completedTools.push({ ...currentActiveTool, durationMs: data.durationMs, workflowSteps: steps });
+          currentActiveTool = null;
+          setActiveTool(null);
+          const streamingMsgs: Message[] = [...newMessages];
+          if (currentReasoning) {
+            streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
+          }
+          if (currentAiMessage || completedTools.length > 0) {
+            streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
+          }
+          setMessages(streamingMsgs);
+        }
       } else if (data.type === 'usage') {
         const stats = {
           tps: data.usage.tps,
@@ -990,6 +1061,7 @@ function App() {
         });
       } else if (data.type === 'done') {
         setIsStreaming(false);
+        setActiveTool(null);
         socket.close();
         if (data.messages && data.messages.length > 0) {
           setMessages(processSessionMessages(data.messages));
@@ -1052,13 +1124,14 @@ function App() {
           hasUpdates={config?.system?.latestVersion && config?.system?.version ? config.system.latestVersion > config.system.version : false}
           onSettingsClick={() => setActiveSettingsSection('version')}
           isProjectManagementEnabled={isProjectManagementEnabled}
+          isProjectsEnabled={isProjectsEnabled}
           isAgentActivityEnabled={isAgentActivityEnabled}
         />
 
         {/* Secondary Sidebar (Chat Sessions) */}
         {activeView === 'chat' && (
           <nav className="w-72 bg-sidebar border-r border-divider flex flex-col z-50 transition-all duration-300">
-            <div className="p-5">
+            <div className="p-5 pb-3 flex flex-col gap-3">
               <Button
                 className="w-full"
                 themed={true}
@@ -1068,32 +1141,51 @@ function App() {
               >
                 New Chat
               </Button>
+              <Input
+                placeholder="Search"
+                currentText={sessionSearch}
+                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setSessionSearch(e.target.value)}
+                icon={faSearch}
+                clearText={() => setSessionSearch('')}
+              />
             </div>
 
-            <div className="flex-1 overflow-y-auto px-3 space-y-1 py-2 custom-scrollbar">
-              {agents.map(agent => (
-                <SessionGroup
-                  key={agent.id}
-                  agent={agent}
-                  sessions={sessions.filter(s => s.agentId === agent.id)}
-                  activeSessionId={activeSessionId}
-                  onLoadSession={loadSession}
-                  onDeleteSession={deleteSession}
-                  formatTimestamp={formatTimestamp}
-                />
-              ))}
-              {/* Orphaned sessions */}
-              {sessions.filter(s => !agents.find(a => a.id === s.agentId)).map(s => (
-                <SessionButton
-                  key={s.id}
-                  session={s}
-                  isActive={activeSessionId === s.id}
-                  agent={undefined}
-                  onLoadSession={loadSession}
-                  onDeleteSession={deleteSession}
-                  formatTimestamp={formatTimestamp}
-                />
-              ))}
+            <div className="flex-1 overflow-y-auto px-3 space-y-1 py-2">
+              {(() => {
+                const query = sessionSearch.toLowerCase().trim();
+                const matchesQuery = (s: Session) =>
+                  !query ||
+                  (s.title || '').toLowerCase().includes(query) ||
+                  (s.summary || '').toLowerCase().includes(query);
+                return (
+                  <>
+                    {agents.map(agent => (
+                      <SessionGroup
+                        key={agent.id}
+                        agent={agent}
+                        sessions={sessions.filter(s => s.agentId === agent.id && matchesQuery(s))}
+                        activeSessionId={activeSessionId}
+                        onLoadSession={loadSession}
+                        onDeleteSession={deleteSession}
+                        formatTimestamp={formatTimestamp}
+                        forceExpanded={!!query}
+                      />
+                    ))}
+                    {/* Orphaned sessions */}
+                    {sessions.filter(s => !agents.find(a => a.id === s.agentId) && matchesQuery(s)).map(s => (
+                      <SessionButton
+                        key={s.id}
+                        session={s}
+                        isActive={activeSessionId === s.id}
+                        agent={undefined}
+                        onLoadSession={loadSession}
+                        onDeleteSession={deleteSession}
+                        formatTimestamp={formatTimestamp}
+                      />
+                    ))}
+                  </>
+                );
+              })()}
             </div>
           </nav>
         )}
@@ -1108,6 +1200,7 @@ function App() {
               messages={messages}
               config={config}
               isStreaming={isStreaming}
+              activeTool={activeTool}
               inputText={inputText}
               setInputText={setInputText}
               handleSend={handleSend}
@@ -1134,7 +1227,6 @@ function App() {
               setSelectedAgentId={setAgentsPageAgentId}
               providers={config?.providers || []}
               agents={agents}
-              isAgentCollaborationEnabled={isAgentCollaborationEnabled}
               allowManualHeartbeat={config?.heartbeat?.allowManualTrigger || false}
               agentStates={agentStates}
             />
@@ -1142,7 +1234,6 @@ function App() {
             <WorkflowsPage
               gatewayAddr={gatewayAddr}
               gatewayToken={gatewayToken}
-              agents={agents}
             />
           ) : activeView === 'models' ? (
             <ModelsPage
@@ -1168,8 +1259,10 @@ function App() {
             <ActivityPage agents={agents} agentStates={agentStates} />
           ) : activeView === 'projects' ? (
             <ProjectsPage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
-          ) : activeView === 'workspace' ? (
-            <WorkspacePage />
+          ) : activeView === 'files' ? (
+            <WorkspacePage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
+          ) : activeView === 'skills' ? (
+            <SkillsPage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}
@@ -1201,10 +1294,10 @@ function App() {
               gatewayToken={gatewayToken}
               isProjectManagementEnabled={isProjectManagementEnabled}
               setIsProjectManagementEnabled={setIsProjectManagementEnabled}
-              isAgentCollaborationEnabled={isAgentCollaborationEnabled}
-              setIsAgentCollaborationEnabled={setIsAgentCollaborationEnabled}
               isAgentActivityEnabled={isAgentActivityEnabled}
               setIsAgentActivityEnabled={setIsAgentActivityEnabled}
+              isProjectsEnabled={isProjectsEnabled}
+              setIsProjectsEnabled={setIsProjectsEnabled}
             />
           )}
         </main>

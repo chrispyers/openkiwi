@@ -26,35 +26,54 @@ const formatDuration = (ms: number) => {
 
 const AgentActivityRow: React.FC<{ agent: Agent, state: AgentState }> = ({ agent, state }) => {
     const isIdle = state.status === 'idle';
-    const duration = Date.now() - (state.since || Date.now());
+    const isWaiting = state.status === 'waiting_for_user';
+    const isWorking = !isIdle && !isWaiting;
+
+    let containerClass = 'bg-surface/20';
+    let avatarClass = 'grayscale !bg-neutral-500/10';
+    let statusColor = 'text-neutral-500';
+    let dotClass = 'bg-neutral-500/50';
+    let statusText = 'Idle';
+
+    if (isWaiting) {
+        containerClass = 'bg-amber-500/10 border-l-4 border-l-amber-500';
+        avatarClass = '!bg-amber-500/20 ring-2 ring-amber-500/50 animate-pulse';
+        statusColor = 'text-amber-500';
+        dotClass = 'bg-amber-500 animate-pulse';
+        statusText = 'Waiting on You';
+    } else if (isWorking) {
+        containerClass = 'bg-emerald-500/10 border-l-4 border-l-emerald-500';
+        avatarClass = '!bg-emerald-500/20 shadow-[0_0_15px_rgba(16,185,129,0.3)]';
+        statusColor = 'text-emerald-500';
+        dotClass = 'bg-emerald-500 animate-pulse';
+        statusText = state.status.charAt(0).toUpperCase() + state.status.slice(1);
+    }
 
     return (
-        <div className={`grid grid-cols-12 items-center ${isIdle ? 'bg-surface/20' : 'bg-emerald-500/10 border-l-4 border-l-emerald-500'} hover:bg-surface/40 border border-white/5 rounded-xl p-4 transition-all group`}>
+        <div className={`grid grid-cols-12 items-center ${containerClass} hover:bg-surface/40 border border-white/5 rounded-xl p-4 transition-all group`}>
 
-            <div className="col-span-4 flex items-center gap-4">
-                <AgentAvatar agent={agent} size="md" className={`!w-10 !h-10 ${isIdle ? 'grayscale !bg-neutral-500/10' : '!bg-emerald-500/10'} rounded-full overflow-hidden`} />
-                <div className="flex flex-col">
-                    <Text bold className="transition-colors">{agent.name}</Text>
+            <div className="col-span-5 flex items-center gap-4 border-r border-white/5 pr-4">
+                <AgentAvatar agent={agent} size="md" className={`!w-12 !h-12 ${avatarClass} rounded-full overflow-hidden shrink-0`} />
+                <div className="flex flex-col overflow-hidden">
+                    <Text bold className="transition-colors truncate">{agent.name}</Text>
                     {!isIdle && state.details && (
-                        <Text size="xs" className="text-emerald-400 truncate max-w-[250px]">{state.details}</Text>
+                        <Text size="xs" className={`${statusColor} truncate max-w-full italic`} title={state.details}>
+                            {state.details}
+                        </Text>
                     )}
                 </div>
             </div>
 
-            <div className="col-span-4 text-center">
+            <div className="col-span-4 text-center border-r border-white/5">
                 <Text secondary size="sm" className="opacity-60">{agent.provider || 'AI Assistant'}</Text>
             </div>
-            <div className="col-span-4 flex items-center justify-center gap-2">
-                <span className={`w-2 h-2 rounded-full ${isIdle ? 'bg-amber-500/50' : 'bg-emerald-500 animate-pulse'}`} />
-                <Text className={isIdle ? 'text-amber-500' : 'text-emerald-500'} bold={!isIdle}>
-                    {state.status.charAt(0).toUpperCase() + state.status.slice(1)}
+
+            <div className="col-span-3 flex items-center justify-end pr-4 gap-2">
+                <span className={`w-2 h-2 rounded-full ${dotClass} shadow-lg`} />
+                <Text className={statusColor} bold={!isIdle} size="sm">
+                    {statusText}
                 </Text>
             </div>
-            {/* <div className="col-span-3 text-right">
-                <Text secondary size="sm" className="font-mono opacity-50">
-                    {isIdle ? 'Idle for: ' : 'Active for: '} {formatDuration(duration)}
-                </Text>
-            </div> */}
         </div>
     );
 };

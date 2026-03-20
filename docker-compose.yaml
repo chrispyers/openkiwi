@@ -16,6 +16,7 @@ services:
       - ./.openkiwi.key:/app/.openkiwi.key
       - ./sessions:/app/sessions
       - ./tools:/app/tools
+      - ./skills:/app/skills
       - ./workspace:/app/workspace
       - ./logs:/app/logs
       - ./LATEST_RELEASE.txt:/app/LATEST_RELEASE.txt

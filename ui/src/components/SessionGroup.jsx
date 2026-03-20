@@ -10,7 +10,8 @@ export const SessionGroup = ({
     activeSessionId,
     onLoadSession,
     onDeleteSession,
-    formatTimestamp
+    formatTimestamp,
+    forceExpanded
 }) => {
     const [isExpanded, setIsExpanded] = useState(() => {
         const saved = localStorage.getItem(`chat_group_expanded_${agent.id}`);
@@ -25,13 +26,15 @@ export const SessionGroup = ({
 
     if (sessions.length === 0) return null;
 
+    const expanded = forceExpanded || isExpanded;
+
     return (
         <div className="mb-2">
             <button
                 onClick={toggleExpanded}
                 className="w-full flex items-center gap-2 py-1.5 text-xs font-semibold uppercase tracking-wider text-neutral-500 hover:text-neutral-700 dark:hover:text-neutral-300 transition-colors"
             >
-                {isExpanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                {expanded ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                 <span className="flex items-center gap-1.5">
                     {agent.avatar && <AgentAvatar agent={agent} size="sm" fallbackToInitials={false} />}
                     <Text size="xs" bold={true}>{agent.name}</Text>
@@ -41,7 +44,7 @@ export const SessionGroup = ({
                 </span>
             </button>
 
-            {isExpanded && (
+            {expanded && (
                 <div className="space-y-1 mt-1 pl-2 border-l border-neutral-300 dark:border-neutral-700 ml-1.5">
                     {sessions.map(session => (
                         <SessionButton

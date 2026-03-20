@@ -75,4 +75,96 @@ describe('config-manager', () => {
         expect(config.gateway.port).toBe(1234);
         expect(config.gateway.secretToken).toBeDefined();
     });
+
+    // ---------------------------------------------------------------
+    // maxTokens provider schema
+    // ---------------------------------------------------------------
+    describe('maxTokens provider schema', () => {
+        it('should parse config with maxTokens set on a provider', () => {
+            const cwd = process.cwd();
+            const configPath = `${cwd}/config/config.json`;
+
+            mockFiles[configPath] = JSON.stringify({
+                chat: { showReasoning: true, includeHistory: false, generateSummaries: false },
+                gateway: { port: 3808, secretToken: 'mock-token' },
+                providers: [{
+                    description: 'test',
+                    endpoint: 'http://localhost:1234',
+                    model: 'test-model',
+                    maxTokens: 2048,
+                }],
+                system: { version: '1' },
+            });
+
+            const config = loadConfig();
+            expect(config.providers[0].maxTokens).toBe(2048);
+        });
+
+        it('should parse config without maxTokens on a provider (optional)', () => {
+            const cwd = process.cwd();
+            const configPath = `${cwd}/config/config.json`;
+
+            mockFiles[configPath] = JSON.stringify({
+                chat: { showReasoning: true, includeHistory: false, generateSummaries: false },
+                gateway: { port: 3808, secretToken: 'mock-token' },
+                providers: [{
+                    description: 'test',
+                    endpoint: 'http://localhost:1234',
+                    model: 'test-model',
+                }],
+                system: { version: '1' },
+            });
+
+            const config = loadConfig();
+            expect(config.providers[0].maxTokens).toBeUndefined();
+        });
+
+        it('should reject negative maxTokens via schema validation', () => {
+            const { z } = require('zod');
+            const providerSchema = z.object({
+                description: z.string().default(''),
+                endpoint: z.string().url(),
+                model: z.string(),
+                maxTokens: z.number().int().positive().optional(),
+            });
+
+            expect(() => providerSchema.parse({
+                endpoint: 'http://localhost:1234',
+                model: 'test',
+                maxTokens: -1,
+            })).toThrow();
+        });
+
+        it('should reject zero maxTokens via schema validation', () => {
+            const { z } = require('zod');
+            const providerSchema = z.object({
+                description: z.string().default(''),
+                endpoint: z.string().url(),
+                model: z.string(),
+                maxTokens: z.number().int().positive().optional(),
+            });
+
+            expect(() => providerSchema.parse({
+                endpoint: 'http://localhost:1234',
+                model: 'test',
+                maxTokens: 0,
+            })).toThrow();
+        });
+
+        it('should reject float maxTokens via schema validation', () => {
+            const { z } = require('zod');
+            const providerSchema = z.object({
+                description: z.string().default(''),
+                endpoint: z.string().url(),
+                model: z.string(),
+                maxTokens: z.number().int().positive().optional(),
+            });
+
+            expect(() => providerSchema.parse({
+                endpoint: 'http://localhost:1234',
+                model: 'test',
+                maxTokens: 1024.5,
+            })).toThrow();
+        });
+    });
 });

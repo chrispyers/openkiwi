@@ -16,6 +16,7 @@ import Settings_Agents from './Settings_Agents'
 import Settings_General from './Settings_General'
 import Settings_Messaging from './Settings_Messaging'
 import Settings_Tools from './Settings_Tools'
+import Settings_Connections from './Settings_Connections'
 
 // Re-using types from App.tsx - ideally these should be moved to a types.ts file
 interface Config {
@@ -73,8 +74,8 @@ interface ToolDefinition {
 }
 
 interface SettingsPageProps {
-    activeSettingsSection: 'version' | 'config' | 'chat' | 'agents' | 'general' | 'messaging' | 'tools' | 'gateway';
-    setActiveSettingsSection: (section: 'version' | 'config' | 'chat' | 'agents' | 'general' | 'messaging' | 'tools' | 'gateway') => void;
+    activeSettingsSection: 'version' | 'config' | 'chat' | 'agents' | 'general' | 'messaging' | 'tools' | 'gateway' | 'connections';
+    setActiveSettingsSection: (section: 'version' | 'config' | 'chat' | 'agents' | 'general' | 'messaging' | 'tools' | 'gateway' | 'connections') => void;
     loading: boolean;
     theme: 'dark' | 'light' | 'system';
     setTheme: (theme: 'dark' | 'light' | 'system') => void;
@@ -87,8 +88,8 @@ interface SettingsPageProps {
     setSettingsAgentId: (id: string) => void;
     activeAgentInSettings?: Agent;
     fetchAgents: () => Promise<void>;
-    agentForm: { name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } }>>;
+    agentForm: { name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } }>>;
     saveAgentConfig: () => Promise<void>;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     tools: ToolDefinition[];
@@ -102,10 +103,10 @@ interface SettingsPageProps {
     gatewayToken: string;
     isProjectManagementEnabled: boolean;
     setIsProjectManagementEnabled: (enabled: boolean) => void;
-    isAgentCollaborationEnabled: boolean;
-    setIsAgentCollaborationEnabled: (enabled: boolean) => void;
     isAgentActivityEnabled: boolean;
     setIsAgentActivityEnabled: (enabled: boolean) => void;
+    isProjectsEnabled: boolean;
+    setIsProjectsEnabled: (enabled: boolean) => void;
 }
 
 export default function SettingsPage({
@@ -138,10 +139,10 @@ export default function SettingsPage({
     gatewayToken,
     isProjectManagementEnabled,
     setIsProjectManagementEnabled,
-    isAgentCollaborationEnabled,
-    setIsAgentCollaborationEnabled,
     isAgentActivityEnabled,
-    setIsAgentActivityEnabled
+    setIsAgentActivityEnabled,
+    isProjectsEnabled,
+    setIsProjectsEnabled
 }: SettingsPageProps) {
     const [viewingReadme, setViewingReadme] = useState<{ name: string, content: string } | null>(null);
     const [loadingReadme, setLoadingReadme] = useState(false);
@@ -153,7 +154,7 @@ export default function SettingsPage({
             subtitle="Manage your gateway, providers, and agent personalities."
         >
             <nav className="mb-3 flex gap-6 border-b border-divider overflow-x-auto whitespace-nowrap scrollbar-none pb-px">
-                {['agents', 'chat', 'config', 'general', 'messaging', 'tools', 'version'].map(id => {
+                {['agents', 'chat', 'config', 'connections', 'general', 'messaging', 'tools', 'version'].map(id => {
                     const hasUpdates = id === 'version' && config?.system?.latestVersion && config?.system?.version ? config.system.latestVersion > config.system.version : false;
 
                     return (
@@ -189,12 +190,22 @@ export default function SettingsPage({
                         <Settings_General
                             isProjectManagementEnabled={isProjectManagementEnabled}
                             setIsProjectManagementEnabled={setIsProjectManagementEnabled}
-                            isAgentCollaborationEnabled={isAgentCollaborationEnabled}
-                            setIsAgentCollaborationEnabled={setIsAgentCollaborationEnabled}
                             isAgentActivityEnabled={isAgentActivityEnabled}
                             setIsAgentActivityEnabled={setIsAgentActivityEnabled}
+                            isProjectsEnabled={isProjectsEnabled}
+                            setIsProjectsEnabled={setIsProjectsEnabled}
                             theme={theme}
                             setTheme={setTheme}
+                        />
+                    )}
+
+                    {activeSettingsSection === 'connections' && (
+                        <Settings_Connections
+                            gatewayAddr={gatewayAddr}
+                            gatewayToken={gatewayToken}
+                            config={config}
+                            setConfig={setConfig}
+                            saveConfig={saveConfig}
                         />
                     )}
 

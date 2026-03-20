@@ -12,13 +12,14 @@ FROM node:20-slim
 
 WORKDIR /app
 
-# Install Chromium, dependencies for Puppeteer, dumb-init, curl, and ca-certificates
+# Install Chromium, dependencies for Puppeteer, dumb-init, curl, ca-certificates, and Python3
 RUN apt-get update && apt-get install -y \
     chromium \
     fonts-ipafont-gothic fonts-wqy-zenhei fonts-thai-tlwg fonts-kacst fonts-freefont-ttf libxss1 \
     dumb-init \
     curl \
     ca-certificates \
+    python3 \
     --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
@@ -47,7 +48,7 @@ COPY config/config.json.template ./config/
 COPY agent_personas ./agent_personas
 
 # Create necessary data directories
-RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth
+RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth skills
 
 # Hardening: Only give the node user ownership of the data directories.
 # The app code (dist, src, etc.) remains owned by root and read-only for the node user.

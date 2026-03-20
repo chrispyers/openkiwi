@@ -40,10 +40,6 @@ export interface Agent {
         schedule: string;
         allowManualTrigger?: boolean;
     };
-    collaboration?: {
-        enabled: boolean;
-        schedule: string;
-    };
     systemPrompt: string;
     provider?: string;
     isDefault?: boolean;
@@ -129,6 +125,16 @@ export interface Config {
         allowManualTrigger?: boolean;
     };
     enabledTools?: Record<string, boolean>;
+    connections?: {
+        git: {
+            id: string;
+            label: string;
+            baseUrl: string;
+            pat?: string;
+            verified?: boolean;
+            verifiedUsername?: string;
+        }[];
+    };
 }
 
 export interface Workflow {
@@ -147,24 +153,4 @@ export interface WorkflowState {
     instructions?: string | null;
 }
 
-export interface Task {
-    id: string;
-    workflow_id: string;
-    state_id: string;
-    parent_task_id?: string | null;
-    title: string;
-    description: string;
-    document_content?: string | null; // Note backend doesn't have this but we can keep it
-    locked_by: string | null;
-    locked_at: number | null;
-    created_at: number;
-    updated_at: number;
-}
 
-export interface TaskComment {
-    id: string;
-    task_id: string;
-    agent_id: string | null;
-    content: string;
-    created_at: number;
-}

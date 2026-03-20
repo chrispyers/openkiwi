@@ -7,12 +7,12 @@ class CollabDb {
     private db: Database.Database;
 
     constructor() {
-        const collabDir = path.resolve(process.cwd(), 'workspace', 'agent_collaboration');
-        if (!fs.existsSync(collabDir)) {
-            fs.mkdirSync(collabDir, { recursive: true });
+        const workflowsDir = path.resolve(process.cwd(), 'workspace', 'workflows');
+        if (!fs.existsSync(workflowsDir)) {
+            fs.mkdirSync(workflowsDir, { recursive: true });
         }
 
-        const dbPath = path.join(collabDir, 'main.db');
+        const dbPath = path.join(workflowsDir, 'workflows.db');
         this.db = new Database(dbPath);
 
         this.init();
@@ -43,30 +43,7 @@ class CollabDb {
                     FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
                 );
 
-                CREATE TABLE IF NOT EXISTS tasks (
-                    id TEXT PRIMARY KEY,
-                    parent_task_id TEXT, -- for subtasks
-                    workflow_id TEXT NOT NULL,
-                    state_id TEXT NOT NULL,
-                    title TEXT NOT NULL,
-                    description TEXT,
-                    created_at INTEGER NOT NULL,
-                    updated_at INTEGER NOT NULL,
-                    locked_by TEXT,
-                    locked_at INTEGER,
-                    FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE,
-                    FOREIGN KEY (state_id) REFERENCES workflow_states(id) ON DELETE CASCADE,
-                    FOREIGN KEY (parent_task_id) REFERENCES tasks(id) ON DELETE CASCADE
-                );
 
-                CREATE TABLE IF NOT EXISTS task_comments (
-                    id TEXT PRIMARY KEY,
-                    task_id TEXT NOT NULL,
-                    agent_id TEXT NOT NULL,
-                    content TEXT NOT NULL,
-                    created_at INTEGER NOT NULL,
-                    FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
-                );
             `);
 
             // Migration to add instructions if missing

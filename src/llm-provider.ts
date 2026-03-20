@@ -3,6 +3,7 @@ export interface LLMProviderConfig {
     baseUrl: string;
     modelId: string;
     apiKey?: string;
+    maxTokens?: number;
 }
 
 /**
@@ -114,7 +115,7 @@ export async function* streamChatCompletion(
             model: providerConfig.modelId,
             system: typeof systemMessage?.content === 'string' ? systemMessage.content : undefined,
             messages: normalizedMessages,
-            max_tokens: 4096,
+            max_tokens: providerConfig.maxTokens || 4096,
             stream: true
         };
 
@@ -131,6 +132,7 @@ export async function* streamChatCompletion(
         body = {
             model: providerConfig.modelId,
             messages,
+            max_tokens: providerConfig.maxTokens || 8192,
             stream: true,
             stream_options: { include_usage: true },
         };
@@ -241,7 +243,28 @@ export async function* streamChatCompletion(
                         const choice = json.choices?.[0];
                         const delta = choice?.delta;
 
-                        if (delta) yield delta;
+                        if (delta) {
+                            if (delta.reasoning_content) {
+                                yield { content: `<think>${delta.reasoning_content}</think>` };
+                            }
+                            const cleanDelta: any = { ...delta };
+                            delete cleanDelta.reasoning_content;
+                            if (Object.keys(cleanDelta).length > 0) {
+                                yield cleanDelta;
+                            }
+                        }
+
+                        // LM Studio specific format if using non-standard output structure
+                        if (json.output && Array.isArray(json.output)) {
+                            for (const out of json.output) {
+                                if (out.type === 'reasoning' && out.content) {
+                                    yield { content: `<think>${out.content}</think>` };
+                                } else if (out.type === 'message' && out.content) {
+                                    yield { content: out.content };
+                                }
+                            }
+                        }
+
                         if (json.usage || json.stats) yield { usage: json.usage, stats: json.stats };
 
                         if (choice?.finish_reason) {
@@ -276,13 +299,14 @@ export async function getChatCompletion(
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
             })),
-            max_tokens: 4096,
+            max_tokens: providerConfig.maxTokens || 4096,
             stream: false
         };
     } else {
         body = {
             model: providerConfig.modelId,
             messages,
+            max_tokens: providerConfig.maxTokens || 8192,
             stream: false,
         };
     }
@@ -328,8 +352,28 @@ export async function getChatCompletion(
         };
     }
 
+    let finalContent = json.choices?.[0]?.message?.content || '';
+
+    // LM Studio specific custom output array support
+    if (json.output && Array.isArray(json.output)) {
+        finalContent = json.output.map((out: any) => {
+            if (out.type === 'reasoning' && out.content) {
+                return `<think>${out.content}</think>\n\n`;
+            } else if (out.type === 'message' && out.content) {
+                return out.content;
+            }
+            return '';
+        }).join('');
+    } else {
+        // Standard OpenAI reasoning_content support
+        const reasoningContent = json.choices?.[0]?.message?.reasoning_content;
+        if (reasoningContent) {
+            finalContent = `<think>${reasoningContent}</think>\n\n${finalContent}`;
+        }
+    }
+
     return {
-        content: json.choices[0]?.message?.content || '',
+        content: finalContent,
         usage: json.usage,
         stats: json.stats
     };

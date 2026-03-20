@@ -62,6 +62,7 @@ interface SkillsAndToolsCardProps {
     loadingReadme: boolean;
     setLoadingReadme: (loading: boolean) => void;
     setViewingReadme: (readme: { name: string, content: string } | null) => void;
+    isCore?: boolean;
 }
 
 const SkillsAndToolsCard: React.FC<SkillsAndToolsCardProps> = ({
@@ -73,7 +74,8 @@ const SkillsAndToolsCard: React.FC<SkillsAndToolsCardProps> = ({
     gatewayToken,
     loadingReadme,
     setLoadingReadme,
-    setViewingReadme
+    setViewingReadme,
+    isCore = false
 }) => {
     const handleReadDocumentation = (e: React.MouseEvent) => {
         e.preventDefault();
@@ -133,33 +135,27 @@ const SkillsAndToolsCard: React.FC<SkillsAndToolsCardProps> = ({
     return (
         <Card>
             <div key={tool.name}>
-                <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-2 min-w-0 flex-1">
-                        <Text bold={true} size="lg" className="truncate">{tool.displayName || tool.name}</Text>
-                        <Badge className="shrink-0">Plugin</Badge>
-                    </div>
-
-                    <div className="flex-1 flex justify-center">
-                        {tool.hasReadme && tool.filename && (
-                            <Button
-                                size="sm"
-                                icon={faInfoCircle}
-                                onClick={handleReadDocumentation}
-                                disabled={loadingReadme}
-                            >
-                                Read Documentation
-                            </Button>
-                        )}
-                    </div>
-
-                    <div className="flex items-center shrink-0">
+                <div className="flex items-center gap-3">
+                    <Text bold={true} size="lg" className="truncate flex-1 min-w-0">{tool.displayName || tool.name}</Text>
+                    {tool.hasReadme && tool.filename && (
+                        <Button
+                            size="sm"
+                            icon={faInfoCircle}
+                            onClick={handleReadDocumentation}
+                            disabled={loadingReadme}
+                            className="shrink-0"
+                        >
+                            Read Documentation
+                        </Button>
+                    )}
+                    {!isCore && (
                         <Toggle
                             checked={tool.filename ? (config?.enabledTools?.[tool.filename] ?? false) : true}
                             onChange={handleToggle}
                             disabled={!tool.filename}
                             title={!tool.filename ? "This is a core system function and cannot be deactivated." : undefined}
                         />
-                    </div>
+                    )}
                 </div>
 
                 <div>

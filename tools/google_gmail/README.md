@@ -9,7 +9,7 @@ Read and send emails using the Gmail API, including sending files as attachments
 3. Add `http://localhost:3456/callback` as an authorized redirect URI
 4. Go to APIs and Services > OAuth Consent Screen > Audience and add your email address as a test user
 5. Save the Client ID and Client Secret to the .env file as `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
-6. Run `npm run setup:google` to authorize the tool
+6. Connect your Google account via the Settings > Connections page in the app
 
 ## Example config
 

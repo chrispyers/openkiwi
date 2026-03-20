@@ -13,31 +13,31 @@ export default {
         parameters: {
             type: 'object',
             properties: {
-                filename: {
+                path: {
                     type: 'string',
-                    description: 'The name of the image file (e.g., "screenshot.png").'
+                    description: 'The fully qualified absolute path to the image file (e.g., "/app/workspace/screenshot.png").'
                 },
                 prompt: {
                     type: 'string',
                     description: 'What you want to know about the image (optional).'
                 }
             },
-            required: ['filename']
+            required: ['path']
         }
     },
-    handler: async ({ filename, prompt }: { filename: string; prompt?: string }) => {
+    handler: async ({ path: filePath, prompt }: { path: string; prompt?: string }) => {
         try {
             // Allow subdirectories but prevent directory traversal
-            let fullPath = path.resolve(WORKSPACE_DIR, filename);
+            let fullPath = path.resolve(WORKSPACE_DIR, filePath);
             if (!fullPath.startsWith(WORKSPACE_DIR)) {
-                fullPath = path.resolve(SCREENSHOTS_DIR, filename);
+                fullPath = path.resolve(SCREENSHOTS_DIR, filePath);
                 if (!fullPath.startsWith(SCREENSHOTS_DIR)) {
-                    return { error: `Access denied: ${filename}` };
+                    return { error: `Access denied: ${filePath}` };
                 }
             }
 
             if (!fs.existsSync(fullPath)) {
-                return { error: `Image file "${filename}" not found in workspace or screenshots.` };
+                return { error: `Image file "${filePath}" not found in workspace or screenshots.` };
             }
 
             // Return a URL that the vision processor in index.ts will recognize
@@ -51,7 +51,7 @@ export default {
             // By returning this, the system's vision processor will automatically 
             // attach the image to the conversation context.
             return {
-                message: prompt ? `Looking at ${filename} to address: "${prompt}"` : `Inspecting image: ${filename}`,
+                message: prompt ? `Looking at ${filePath} to address: "${prompt}"` : `Inspecting image: ${filePath}`,
                 image_url: url
             };
         } catch (error: any) {

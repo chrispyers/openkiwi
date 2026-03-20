@@ -1,0 +1,17 @@
+:root {
+  --blue-swatch-light: rgb(59, 130, 246);
+  --blue-swatch-dark: rgb(87, 194, 251);
+}
+
+:root.light.theme-blue,
+:root:not(.dark).theme-blue {
+  --accent-primary: var(--blue-swatch-light);
+  --user-chat-bubble-bg: rgb(37, 99, 235);
+  --toggle-on-bg: var(--blue-swatch-light);
+}
+
+:root.dark.theme-blue {
+  --accent-primary: var(--blue-swatch-dark);
+  --user-chat-bubble-bg: rgb(52, 76, 89);
+  --toggle-on-bg: var(--blue-swatch-dark);
+}

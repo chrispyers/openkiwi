@@ -56,7 +56,7 @@ const MarkdownRenderer: React.FC<MarkdownRendererProps> = ({ content, className 
         // Ensure space after hash for headings
         .replace(/^(#{1,6})([^# \n])/gm, '$1 $2')
         // Rewrite image URLs to use the authenticated proxy
-        .replace(/(?<!\/api\/files\/)(\/screenshots\/|\/workspace-files\/)([^? \n\)]+)/g, (match, prefix, filename) => {
+        .replace(/(?<!\/api\/files)(\/screenshots\/|\/workspace-files\/)([^? \n\)]+)/g, (match, prefix, filename) => {
             const type = prefix.includes('screenshots') ? 'screenshots' : 'workspace-files';
             return `/api/files/${type}/${filename}`;
         });

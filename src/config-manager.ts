@@ -24,7 +24,7 @@ function loadOrCreateEncryptionKey(): Buffer {
 
 const ENCRYPTION_KEY = loadOrCreateEncryptionKey();
 
-function encrypt(text: string): string {
+export function encrypt(text: string): string {
     if (!text || text.startsWith(ENCRYPTION_PREFIX)) return text;
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
@@ -71,6 +71,7 @@ const ConfigSchema = z.object({
         endpoint: z.string().url(),
         model: z.string(),
         apiKey: z.string().optional(),
+        maxTokens: z.number().int().positive().optional(),
         capabilities: z.object({
             vision: z.boolean().optional(),
             reasoning: z.boolean().optional(),
@@ -91,6 +92,16 @@ const ConfigSchema = z.object({
     }).passthrough().default({ allowManualTrigger: false }),
     enabledTools: z.record(z.string(), z.boolean()).default({}),
     tools: z.record(z.string(), z.any()).default({}),
+    connections: z.object({
+        git: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            baseUrl: z.string(),
+            pat: z.string().optional(),
+            verified: z.boolean().optional(),
+            verifiedUsername: z.string().optional(),
+        })).default([]),
+    }).default({ git: [] }),
 }).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -170,6 +181,13 @@ export function loadConfig(): Config {
             json.gateway.secretToken = decrypt(json.gateway.secretToken);
         }
 
+        if (json.connections?.git && Array.isArray(json.connections.git)) {
+            json.connections.git.forEach((conn: any) => {
+                if (conn.pat && !conn.pat.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.pat) conn.pat = decrypt(conn.pat);
+            });
+        }
+
         const config = ConfigSchema.parse(json);
 
 
@@ -247,6 +265,12 @@ export function saveConfig(config: Config): void {
     }
     if (configToSave.gateway && configToSave.gateway.secretToken) {
         configToSave.gateway.secretToken = encrypt(configToSave.gateway.secretToken);
+    }
+
+    if (configToSave.connections?.git && Array.isArray(configToSave.connections.git)) {
+        configToSave.connections.git.forEach((conn: any) => {
+            if (conn.pat) conn.pat = encrypt(conn.pat);
+        });
     }
 
     const data = JSON.stringify(configToSave, null, 2);
