@@ -17,6 +17,7 @@ import apiRouter from './routes.js';
 import { handleChatConnection } from './chat-handler.js';
 import path from 'node:path';
 import { checkForUpdates } from './services/update-service.js';
+import { startCampaignAgentWatchers } from './services/campaign-service.js';
 
 // Manually load .env variables before config starts
 const ENV_PATH = path.resolve(process.cwd(), '.env');
@@ -93,6 +94,9 @@ async function startServer() {
     if (process.env.TELEGRAM_BOT_TOKEN?.trim()) {
         TelegramManager.getInstance().connect();
     }
+
+    // Start campaign agent file watchers for GitHub sync
+    startCampaignAgentWatchers();
 
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {

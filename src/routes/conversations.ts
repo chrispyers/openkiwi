@@ -30,7 +30,7 @@ router.post('/', (req, res) => {
                 closingStrategy: 'max-rounds'
             },
             settings: {
-                maxRounds: 10,
+                maxRounds: 120,
                 ...settings
             }
         });
