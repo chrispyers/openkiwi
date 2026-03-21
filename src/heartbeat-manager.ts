@@ -30,8 +30,8 @@ export class HeartbeatManager {
                 }
             }
         }
-        // Schedule campaign episodes
-        this.scheduleCampaigns();
+        // Campaign episode scheduling disabled — trigger manually via API
+        // this.scheduleCampaigns();
 
         console.log(`💓 Heartbeat Manager: Scheduled ${this.jobs.size} jobs.`);
     }

@@ -261,6 +261,47 @@ ${setting}
 `;
 }
 
+// ── XP & Levelling ──────────────────────────────────────────────────────────
+
+/**
+ * XP required to reach a given level. Progressively harder.
+ * Level 1→2: 10 XP, Level 2→3: 15, Level 3→4: 25, Level 4→5: 40, etc.
+ * Formula: sum of (5 + level * 5) for each level crossed.
+ * Cumulative thresholds: 0, 10, 25, 50, 90, 145, 220, 320, 450, 615...
+ */
+function xpForLevel(level: number): number {
+    let total = 0;
+    for (let l = 1; l < level; l++) {
+        total += 5 + l * 5;
+    }
+    return total;
+}
+
+function xpToNextLevel(currentLevel: number): number {
+    return xpForLevel(currentLevel + 1);
+}
+
+/**
+ * Check if a character should level up based on current XP, and apply it.
+ * Returns the new level if levelled up, or the current level if not.
+ */
+function checkLevelUp(character: Character): { levelled: boolean; newLevel: number } {
+    const xp = character.xp || 0;
+    const currentLevel = character.level || 1;
+    let newLevel = currentLevel;
+
+    // Allow multiple level-ups if XP is high enough
+    while (xp >= xpForLevel(newLevel + 1)) {
+        newLevel++;
+    }
+
+    if (newLevel > currentLevel) {
+        character.level = newLevel;
+        return { levelled: true, newLevel };
+    }
+    return { levelled: false, newLevel: currentLevel };
+}
+
 export class CampaignService {
     static list(): CampaignConfig[] {
         ensureDir(CAMPAIGNS_DIR);
@@ -333,7 +374,7 @@ export class CampaignService {
             maxPcsAtOnce: input.maxPcsAtOnce || 6,
             seasonsPlanned: input.seasonsPlanned || 5,
             episodesPerSeason: input.episodesPerSeason || 12,
-            roundsPerEpisode: input.roundsPerEpisode || 20,
+            roundsPerEpisode: input.roundsPerEpisode || 120,
             persistence: input.persistence,
             settings: input.settings,
             createdAt: now,
@@ -545,12 +586,23 @@ export class CampaignService {
             throw new Error('No active characters. Add characters before starting an episode.');
         }
 
-        // Build participants from active characters
-        const participants: ParticipantConfig[] = activeChars.map(c => ({
-            agentId: c.agentId,
-            role: c.name,
-            characterNotes: buildCharacterNotes(c)
-        }));
+        // Build participants from active characters, including how others see them
+        const participants: ParticipantConfig[] = activeChars.map(c => {
+            let notes = buildCharacterNotes(c);
+
+            // Add how other characters feel about this character
+            const othersView: string[] = [];
+            for (const other of activeChars) {
+                if (other.id === c.id) continue;
+                const rel = other.relationships?.[c.name];
+                if (rel) othersView.push(`- ${other.name}: ${rel}`);
+            }
+            if (othersView.length > 0) {
+                notes += `\n\nHow others see you:\n${othersView.join('\n')}`;
+            }
+
+            return { agentId: c.agentId, role: c.name, characterNotes: notes };
+        });
 
         // Build the orchestrator rules with campaign context
         const seasonArc = state.seasons.find(s => s.season === season);
@@ -596,6 +648,7 @@ export class CampaignService {
             orchestrator,
             settings: {
                 maxRounds: config.roundsPerEpisode,
+                minRounds: Math.floor(config.roundsPerEpisode * 0.15) || 15,
                 enableTools: false,
                 initialWorldState: episodeWorldState,
                 campaignPersistence: config.persistence,
@@ -676,6 +729,17 @@ export class CampaignService {
                     if (upd.characterId && upd.updates) {
                         this.updateCharacter(campaignId, upd.characterId, upd.updates);
                     }
+                }
+            }
+
+            // Flag characters eligible for level-up (but don't apply — requires extended rest)
+            for (const char of state.characters) {
+                if (char.status !== 'active') continue;
+                const xp = char.xp || 0;
+                const lvl = char.level || 1;
+                if (xp >= xpForLevel(lvl + 1)) {
+                    logger.log({ type: 'system', level: 'info',
+                        message: `[Campaign] ${char.name} is eligible to level up (XP: ${xp}/${xpForLevel(lvl + 1)}) — needs extended rest to consolidate` });
                 }
             }
         }
@@ -773,10 +837,13 @@ function deepMerge(target: Record<string, any>, source: Record<string, any>): Re
 
 function buildCharacterNotes(char: Character): string {
     let notes = `# CHARACTER SHEET: ${char.name}\n`;
-    notes += `Race: ${char.race || 'Unknown'} | Class: ${char.class || 'Unknown'} | Level: ${char.level || 1}`;
-    if (char.xp !== undefined) notes += ` | XP: ${char.xp}`;
+    const lvl = char.level || 1;
+    const xp = char.xp || 0;
+    const nextLvlXp = xpToNextLevel(lvl);
+    const eligible = xp >= nextLvlXp;
+    notes += `Race: ${char.race || 'Unknown'} | Class: ${char.class || 'Unknown'} | Level: ${lvl} | XP: ${xp}/${nextLvlXp}${eligible ? ' ★ READY TO LEVEL UP (needs extended rest)' : ''}`;
     const cuf = char.stats?.CUF;
-    if (cuf !== undefined) notes += ` | CUF: ${cuf}/10`;
+    if (cuf !== undefined) notes += ` | CUF: ${cuf}/20`;
     notes += '\n';
 
     if (char.stats) {
@@ -880,11 +947,23 @@ You can manage characters by including these in your response JSON:
   - "conditions": ["poisoned", "exhausted", etc.]. Set to current active conditions.
   - "inventory": updated item list when items are gained/lost/used.
   - "equipped": { "weapon": "...", "armour": "...", etc. } when gear changes.
-  - "relationships": { "CharName": "relationship description" } as bonds form/break.
+  - "relationships": { "CharName": "relationship description" } — UPDATE EVERY EPISODE. Track how bonds evolve: trust, friction, loyalty, rivalry, romance, grudging respect. Relationships should deepen and change over time based on shared experiences. Include both PC-to-PC and PC-to-NPC relationships. Be specific ("trusts after she saved his life in the Ashmark", not just "friendly").
   - "notes": ["survived the Ashmark ambush", etc.] for significant story beats.
-  - "xp": increment for achievements, discoveries, combat victories.
-  - "level": increment when XP milestones are reached (every 100 XP).
+  - "level": only increment during genuine extended rest (days of downtime, between-season breaks, safe haven) where the character can consolidate and reflect. Do NOT force rest scenes for the sake of levelling — rest happens when the story allows it. If the pace is relentless, characters stay at their current level even if XP is sufficient. It is fine for characters to only level up between seasons.
+    When levelling up, apply ONE of the following (choose what fits the character's growth this season):
+    • +1 to a single stat that reflects how they've grown (a scholar who survived combat gets +1 WIL, not +1 STR)
+    • A new ability or trait earned through play (not a menu pick — describe what they've learned)
+    • +1 wound capacity (only at levels 5 and 9 — starts at 3)
   Keep character sheets updated — they persist across episodes and help maintain consistency.
+
+# XP — MANDATORY
+You MUST award XP to characters via "updateCharacters" throughout the episode. XP tracks character growth and is essential for progression. Do not wait until the end — award XP as notable moments happen.
+SET "xp" to the character's NEW CUMULATIVE TOTAL (not an increment). Check each character's current XP in the world state and add to it.
+- 1-2 XP: minor contributions (good roleplay moment, small discovery, helping an NPC)
+- 3-5 XP: significant achievements (solving a puzzle, surviving a dangerous encounter, key story moment, meaningful character development)
+- 5-8 XP: major milestones (defeating a serious threat, critical discovery, selfless sacrifice, completing a quest arc)
+XP thresholds per level: L1→L2 needs 10 XP, L2→L3 needs 25, L3→L4 needs 50, L4→L5 needs 80.
+Every character should earn at least some XP every episode. A typical episode awards 5-15 XP total per character.
 
 # PACING
 - This episode should be self-contained with a clear mini-arc (setup, conflict, resolution/cliffhanger)
@@ -893,4 +972,128 @@ You can manage characters by including these in your response JSON:
 - Don't rush — let characters breathe and interact, but keep momentum`;
 
     return rules;
+}
+
+// ── Campaign Agent Sync to GitHub ───────────────────────────────────────────
+
+const activeAgentWatchers = new Map<string, fs.FSWatcher>();
+
+function pushAgentFileToGitHub(repo: string, branch: string, ghPath: string, content: Buffer, message: string): Promise<void> {
+    const { spawn } = require('child_process') as typeof import('child_process');
+    const encoded = content.toString('base64');
+    const apiPath = `/repos/${repo}/contents/${ghPath}`;
+
+    return new Promise((resolve, reject) => {
+        // Get SHA first
+        const getSha = spawn('gh', ['api', apiPath, '-X', 'GET', '--jq', '.sha'], {
+            stdio: ['pipe', 'pipe', 'pipe'], timeout: 15_000
+        });
+        let shaOut = '';
+        getSha.stdout.on('data', (d: Buffer) => { shaOut += d.toString(); });
+        getSha.on('close', () => {
+            const sha = shaOut.trim().replace(/"/g, '') || undefined;
+            const body: Record<string, any> = { message, content: encoded, branch };
+            if (sha) body.sha = sha;
+
+            const proc = spawn('gh', ['api', apiPath, '-X', 'PUT', '--input', '-'], {
+                stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000
+            });
+            let stderr = '';
+            proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+            proc.on('close', (code: number) => {
+                if (code === 0) resolve();
+                else reject(new Error(`gh api failed (${code}): ${stderr.substring(0, 300)}`));
+            });
+            proc.on('error', reject);
+            proc.stdin.write(JSON.stringify(body));
+            proc.stdin.end();
+        });
+        getSha.on('error', () => {
+            // File doesn't exist yet, push without SHA
+            const body = { message, content: encoded, branch };
+            const proc = spawn('gh', ['api', apiPath, '-X', 'PUT', '--input', '-'], {
+                stdio: ['pipe', 'pipe', 'pipe'], timeout: 60_000
+            });
+            let stderr = '';
+            proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+            proc.on('close', (code: number) => {
+                if (code === 0) resolve();
+                else reject(new Error(stderr.substring(0, 300)));
+            });
+            proc.on('error', reject);
+            proc.stdin.write(JSON.stringify(body));
+            proc.stdin.end();
+        });
+    });
+}
+
+/**
+ * Start file watchers on all campaign agent directories.
+ * When any file changes (config.json, PERSONA.md, RULES.md, MEMORY.md),
+ * sync it to GitHub under campaigns/<campaign-name>/characters/<agent-id>/.
+ */
+export function startCampaignAgentWatchers(): void {
+    const campaigns = CampaignService.list();
+    const skipFiles = new Set(['memory_index.db']);
+    const syncTimeouts = new Map<string, NodeJS.Timeout>();
+
+    for (const campaign of campaigns) {
+        const persistence = campaign.persistence;
+        if (!persistence?.repo || !process.env.GH_TOKEN) continue;
+
+        const campaignName = campaign.title.replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-');
+        const repo = persistence.repo;
+        const branch = persistence.branch || 'main';
+        const data = CampaignService.get(campaign.id);
+        if (!data) continue;
+
+        // Find all agents belonging to this campaign
+        const agentIds = new Set<string>();
+        agentIds.add(campaign.orchestratorAgentId);
+        for (const char of data.state.characters) {
+            if (char.agentId) agentIds.add(char.agentId);
+        }
+
+        for (const agentId of agentIds) {
+            const agentDir = path.join(AGENTS_DIR, agentId);
+            if (!fs.existsSync(agentDir)) continue;
+            if (activeAgentWatchers.has(agentId)) continue;
+
+            try {
+                const watcher = fs.watch(agentDir, (_eventType, filename) => {
+                    if (!filename || skipFiles.has(filename)) return;
+
+                    // Debounce: wait 2s after last change before syncing
+                    const key = `${agentId}/${filename}`;
+                    const existing = syncTimeouts.get(key);
+                    if (existing) clearTimeout(existing);
+
+                    syncTimeouts.set(key, setTimeout(async () => {
+                        syncTimeouts.delete(key);
+                        const filePath = path.join(agentDir, filename);
+                        if (!fs.existsSync(filePath)) return;
+
+                        const ghPath = `campaigns/${campaignName}/characters/${agentId}/${filename}`;
+                        try {
+                            const content = fs.readFileSync(filePath);
+                            await pushAgentFileToGitHub(repo, branch, ghPath, content,
+                                `[OpenKiwi] Sync ${agentId}/${filename}`);
+                            logger.log({ type: 'system', level: 'info',
+                                message: `[Campaign] Synced ${agentId}/${filename} to GitHub` });
+                        } catch (err) {
+                            logger.log({ type: 'error', level: 'error',
+                                message: `[Campaign] Failed to sync ${agentId}/${filename}`, data: String(err) });
+                        }
+                    }, 2000));
+                });
+
+                activeAgentWatchers.set(agentId, watcher);
+                logger.log({ type: 'system', level: 'info',
+                    message: `[Campaign] Watching agent ${agentId} for changes` });
+            } catch (err) {
+                logger.log({ type: 'error', level: 'error',
+                    message: `[Campaign] Failed to watch agent ${agentId}`, data: String(err) });
+            }
+        }
+    }
 }

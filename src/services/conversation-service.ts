@@ -91,6 +91,7 @@ export interface CampaignPersistence {
 
 export interface ConversationSettings {
     maxRounds: number;
+    minRounds?: number;                          // Minimum rounds before shouldEnd is respected
     contextWindowBudget?: number;
     deliverTo?: HeartbeatChannel[];
     enableTools?: boolean;
@@ -455,31 +456,54 @@ async function pushFileToGitHub(
     message: string,
     branch: string = 'main'
 ): Promise<void> {
+    const { spawn } = await import('node:child_process');
+
     const encodedContent = Buffer.from(content).toString('base64');
     const apiPath = `/repos/${repo}/contents/${filePath}`;
 
-    // Check if file exists to get SHA for update
-    let sha: string | undefined;
-    try {
-        const existing = await ghApi(apiPath, '-X', 'GET', '--jq', '.sha');
-        if (existing && typeof existing === 'string') sha = existing;
-    } catch {
-        // File doesn't exist yet, that's fine for create
+    const maxRetries = 3;
+    for (let attempt = 1; attempt <= maxRetries; attempt++) {
+        // Check if file exists to get SHA for update
+        let sha: string | undefined;
+        try {
+            const existing = await ghApi(apiPath, '-X', 'GET', '--jq', '.sha');
+            if (existing && typeof existing === 'string') sha = existing.replace(/"/g, '').trim();
+            if (sha && typeof sha === 'object') sha = (sha as any).sha;
+        } catch {
+            // File doesn't exist yet, that's fine for create
+        }
+
+        // Build JSON body and pass via stdin to avoid E2BIG on large files
+        const body: Record<string, any> = { message, content: encodedContent, branch };
+        if (sha) body.sha = sha;
+
+        try {
+            await new Promise<void>((resolve, reject) => {
+                const proc = spawn('gh', ['api', apiPath, '-X', 'PUT', '--input', '-'], {
+                    stdio: ['pipe', 'pipe', 'pipe'],
+                    timeout: 60_000
+                });
+                let stderr = '';
+                proc.stderr.on('data', (d: Buffer) => { stderr += d.toString(); });
+                proc.on('close', (code: number) => {
+                    if (code === 0) resolve();
+                    else reject(new Error(`gh api failed (${code}): ${stderr.substring(0, 500)}`));
+                });
+                proc.on('error', reject);
+                proc.stdin.write(JSON.stringify(body));
+                proc.stdin.end();
+            });
+            return; // success
+        } catch (err) {
+            const errStr = String(err);
+            if (attempt < maxRetries && (errStr.includes('409') || errStr.includes('422') || errStr.includes('sha'))) {
+                logger.log({ type: 'system', level: 'warn', message: `[Campaign] Conflict on ${filePath}, retrying (${attempt}/${maxRetries})` });
+                await new Promise(r => setTimeout(r, 1000 * attempt));
+                continue;
+            }
+            throw err;
+        }
     }
-
-    // If ghApi returned the full object instead of just sha
-    if (sha && typeof sha === 'object') {
-        sha = (sha as any).sha;
-    }
-
-    const args = [apiPath, '-X', 'PUT',
-        '-f', `message=${message}`,
-        '-f', `content=${encodedContent}`,
-        '-f', `branch=${branch}`
-    ];
-    if (sha) args.push('-f', `sha=${sha}`);
-
-    await ghApi(...args);
 }
 
 async function saveCampaignToGitHub(
@@ -501,8 +525,14 @@ async function saveCampaignToGitHub(
             await ensureGitHubRepo(repo);
         }
 
-        const prefix = `campaigns/${config.id}`;
-        const commitMsg = `[OpenKiwi] ${reason} — round ${state.currentRound}/${config.settings.maxRounds}`;
+        // Use campaign_name/season+episode numbering if available
+        const campaign = state.worldState?._campaign;
+        const campaignName = config.title.replace(/^S\d+E\d+:\s*/, '').replace(/[^a-zA-Z0-9-_ ]/g, '').trim().replace(/\s+/g, '-');
+        const episodeLabel = campaign?.season && campaign?.episode
+            ? `S${String(campaign.season).padStart(2, '0')}E${String(campaign.episode).padStart(2, '0')}`
+            : config.id;
+        const prefix = `campaigns/${campaignName}/${episodeLabel}`;
+        const commitMsg = `[OpenKiwi] ${reason} — ${episodeLabel} round ${state.currentRound}/${config.settings.maxRounds}`;
 
         // Save config, state, transcript, and world state sequentially (parallel causes SHA conflicts)
         const transcript = generateTranscriptMarkdown(config, state);
@@ -825,7 +855,7 @@ function buildConversationOverlay(config: ConversationConfig, participant: Parti
         overlay += `\n\n## Previously in this conversation...\n${memoryRecall.join('\n')}`;
     }
 
-    overlay += `\n\nGuidelines:\n- Stay in character\n- Address others by name\n- Respond to what was said, not generics\n- Keep responses to 2-4 paragraphs`;
+    overlay += `\n\nGuidelines:\n- Stay in character at all times\n- ONLY describe YOUR OWN character's actions, thoughts, speech, and perceptions — NEVER narrate what other characters do, say, think, or feel\n- You may react to what others have done, but do not control or assume their responses\n- Address others by name when speaking to them\n- Respond to what was said and what the GM has narrated, not generics\n- Keep responses to 2-4 paragraphs`;
     return overlay;
 }
 
@@ -948,7 +978,15 @@ async function askOrchestrator(
 
     const isRPG = config.format === 'roleplay';
 
-    let orchestratorSystemPrompt = agent.systemPrompt + `\n\n# ORCHESTRATOR ROLE\nYou are moderating a ${config.format}: "${config.title}"\nTopic: ${config.topic}\n${config.orchestrator.rules ? 'Rules: ' + config.orchestrator.rules + '\n' : ''}\nParticipants:\n${participantList}\n\nCurrent round: ${state.currentRound + 1} of ${config.settings.maxRounds}`;
+    const roundNum = state.currentRound + 1;
+    const maxRounds = config.settings.maxRounds;
+    const isNearEnd = roundNum >= maxRounds * 0.75 || state.status === 'closing';
+
+    let orchestratorSystemPrompt = agent.systemPrompt + `\n\n# ORCHESTRATOR ROLE\nYou are the Game Master narrating a ${config.format}: "${config.title}"\nTopic: ${config.topic}\n${config.orchestrator.rules ? 'Rules: ' + config.orchestrator.rules + '\n' : ''}\nParticipants:\n${participantList}\n\nCurrent round: ${roundNum} of ${maxRounds}\n\nIMPORTANT: All characters respond each round. Your job is to provide the NARRATIVE GLUE between rounds:\n- Describe the consequences of the characters' previous actions\n- Set the scene, environment, sounds, smells, and atmosphere\n- Introduce events, NPC reactions, threats, and developments that the characters must respond to\n- Use "direction" to describe what ALL characters now face (not instructions for one character)\n- Use "nextSpeaker" to indicate which character should respond FIRST this round (most urgent/relevant)`;
+
+    if (isNearEnd) {
+        orchestratorSystemPrompt += `\n\n⚠️ EPISODE ENDING SOON — XP REMINDER: Before the episode ends, you MUST award final XP to ALL characters via "updateCharacters". Review each character's contributions this episode and set their "xp" to their new cumulative total. Every character should earn XP every episode. Also update "relationships" for all characters to reflect how bonds evolved this episode.`;
+    }
 
     if (isRPG && state.worldState) {
         orchestratorSystemPrompt += `\n\n## Current World State\n\`\`\`json\n${JSON.stringify(state.worldState, null, 2)}\n\`\`\``;
@@ -959,18 +997,20 @@ async function askOrchestrator(
         responseFormat = `Respond with ONLY valid JSON:
 {
   "nextSpeaker": "agentId",
-  "direction": "what happens or what the character should respond to",
+  "direction": "narrative description of what ALL characters now face — the scene, consequences, threats, atmosphere",
   "shouldEnd": false,
-  "action": "description of game action",
+  "action": "description of game action from previous round",
   "check": { "type": "Dexterity", "dc": 15, "modifier": 2 },
-  "outcome": "narration of what happens",
+  "outcome": "narration of what happens as a result",
   "worldStateUpdate": { "key": "value" },
   "killCharacter": { "characterId": "uuid", "description": "how they died" },
   "introduceCharacter": { "name": "...", "agentId": "...", "class": "...", "race": "...", "level": 1, "background": "...", "traits": [], "stats": {}, "inventory": [] },
   "updateCharacters": [{ "characterId": "uuid", "updates": { "wounds": 1, "conditions": ["poisoned"], "inventory": ["..."], "xp": 10 } }]
 }
 Notes:
-- "action": describe what the PREVIOUS speaker attempted (omit if no action)
+- ALL characters respond every round. "nextSpeaker" sets which character goes FIRST (most urgent/relevant). The rest follow in random order.
+- "direction": YOUR NARRATIVE — describe the scene, environment, NPC reactions, consequences of previous actions, and what the characters now face. This is the narrative glue that ties the characters' individual actions into a coherent story. Write it for ALL characters, not just one.
+- "action": describe what happened as a result of the PREVIOUS round's actions (omit if no notable action)
 - "check": request a dice check. The SYSTEM rolls d20 and determines success/failure:
   - "type": ability/skill tested (Strength, Stealth, Perception, Attack, Charisma, etc.)
   - "dc": difficulty class (10=easy, 15=moderate, 20=hard, 25=very hard)
@@ -978,11 +1018,10 @@ Notes:
   - Omit "check" entirely if no roll is needed
 - "outcome": narrate what happens (if check requested, the system appends roll result to direction)
 - "worldStateUpdate": partial deep merge into world state (omit if no changes)
-- "direction": what the next speaker faces. Dice results are prepended automatically
 - "killCharacter": kill a character (the system removes them from the active roster). Include characterId from the world state
 - "introduceCharacter": bring in a new character for an agent (usually to replace a dead one). The agentId should match an agent who lost their character
 - "updateCharacters": array of character sheet updates. Use to track wounds, conditions, inventory changes, XP, equipment, relationships. Keep sheets current — they persist across episodes
-- "shouldEnd": set to true to end the episode at a natural break point
+- "shouldEnd": set to true to end the episode at a natural break point (will be ignored before the minimum round count is reached)
 - Omit any field you don't need this turn`;
     } else {
         responseFormat = `Respond with ONLY valid JSON: {"nextSpeaker": "agentId", "direction": "", "shouldEnd": false}`;
@@ -990,7 +1029,7 @@ Notes:
 
     const messages: any[] = [
         { role: 'system', content: orchestratorSystemPrompt },
-        { role: 'user', content: `Recent conversation:\n${recentTranscript || '(No conversation yet — this is the opening.)'}\n\nBased on the conversation so far, decide:\n1. Who should speak next?\n2. What direction or question for them? (optional)\n3. Should the conversation end?\n\n${responseFormat}` }
+        { role: 'user', content: `Recent conversation:\n${recentTranscript || '(No conversation yet — this is the opening.)'}\n\nAll characters will respond this round. Provide:\n1. Narrative direction — describe the scene, consequences of previous actions, and what the characters now face\n2. Which character should respond first (most pressing)?\n3. Should the episode end?\n\n${responseFormat}` }
     ];
 
     const result = await retryWithDelay(
@@ -1147,38 +1186,67 @@ export class ConversationExecutor {
                     break;
                 }
 
-                // Determine next speaker
-                let nextParticipant: ParticipantConfig;
+                // Build the turn order for this round: all participants get a turn
+                let turnOrder: ParticipantConfig[];
                 let direction: string | undefined;
                 let turnMetadata: TranscriptEntry['metadata'] | undefined;
 
                 const strategy = config.orchestrator.selectionStrategy;
                 if (strategy === 'round-robin') {
-                    nextParticipant = selectNextSpeakerRoundRobin(config.participants, state.currentRound);
+                    // Stable order each round
+                    turnOrder = [...config.participants];
                 } else if (strategy === 'random') {
-                    const lastSpeaker = state.transcript.length > 0
-                        ? state.transcript[state.transcript.length - 1].speaker
-                        : undefined;
-                    nextParticipant = selectNextSpeakerRandom(config.participants, lastSpeaker);
+                    // Shuffle participants for variety
+                    turnOrder = [...config.participants];
+                    for (let i = turnOrder.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [turnOrder[i], turnOrder[j]] = [turnOrder[j], turnOrder[i]];
+                    }
                 } else {
-                    // orchestrator strategy
+                    // orchestrator strategy — GM narrates, then all characters respond
                     const decision = await askOrchestrator(config, state, abortController.signal);
 
                     // Log orchestrator decision
                     const gmLogParts = [`\n${'─'.repeat(60)}\n[GM — Round ${state.currentRound + 1}] ${formatTimestamp(Date.now())}`];
                     if (decision.thinking) gmLogParts.push(`\n  💭 GM Internal:\n${decision.thinking.split('\n').map(l => '    ' + l).join('\n')}`);
-                    gmLogParts.push(`\n  → Next speaker: ${decision.nextSpeaker}`);
                     if (decision.direction) gmLogParts.push(`  → Direction: ${decision.direction}`);
                     if (decision.action) gmLogParts.push(`  → Action: ${decision.action}`);
                     if (decision.shouldEnd) gmLogParts.push(`  → Episode ending`);
                     appendEpisodeLog(id, gmLogParts.join('\n'));
 
-                    if (decision.shouldEnd) {
+                    // Save GM/orchestrator decision to transcript
+                    const gmContentParts: string[] = [];
+                    if (decision.action) gmContentParts.push(decision.action);
+                    if (decision.outcome) gmContentParts.push(decision.outcome);
+                    if (decision.direction) gmContentParts.push(decision.direction);
+                    const gmContent = gmContentParts.join('\n\n') || '(The Game Master surveys the scene.)';
+
+                    const orchestratorAgent = AgentManager.getAgent(config.orchestrator.agentId!);
+                    const gmEntry: TranscriptEntry = {
+                        round: state.currentRound,
+                        speaker: config.orchestrator.agentId!,
+                        speakerName: orchestratorAgent?.name || 'Game Master',
+                        role: 'GM',
+                        content: gmContent,
+                        thinking: decision.thinking || undefined,
+                        timestamp: Date.now(),
+                        metadata: {
+                            action: decision.action,
+                            worldStateUpdate: decision.worldStateUpdate
+                        }
+                    };
+                    state.transcript.push(gmEntry);
+
+                    const minRounds = config.settings.minRounds || 0;
+                    if (decision.shouldEnd && state.currentRound >= minRounds) {
                         state.status = 'closing';
+                        writeJSON(statePath(id), state);
                         break;
+                    } else if (decision.shouldEnd && state.currentRound < minRounds) {
+                        logger.log({ type: 'system', level: 'info',
+                            message: `[Conversation] GM requested end at round ${state.currentRound}, but min is ${minRounds} — continuing` });
                     }
-                    nextParticipant = config.participants.find(p => p.agentId === decision.nextSpeaker)
-                        || selectNextSpeakerRoundRobin(config.participants, state.currentRound);
+
                     direction = decision.direction;
 
                     // Phase 3: Apply world state update from orchestrator
@@ -1191,7 +1259,6 @@ export class ConversationExecutor {
                         const diceResult = performCheck(decision.check);
                         const rollText = formatDiceResult(diceResult);
 
-                        // Prepend the roll result to the direction so the next speaker sees it
                         direction = `${rollText}\n${decision.outcome || ''}\n${direction || ''}`.trim();
 
                         turnMetadata = {
@@ -1220,19 +1287,16 @@ export class ConversationExecutor {
                     // Process character events
                     if (decision.killCharacter) {
                         const { characterId, description } = decision.killCharacter;
-                        // Record the event in world state for campaign-service to pick up
                         const events = state.worldState?._campaign?.characterEvents || [];
                         events.push({ type: 'death', characterId, description });
                         state.worldState = deepMerge(state.worldState || {}, {
                             _campaign: { characterEvents: events }
                         });
-                        // Remove from active participants for the rest of this episode
                         config.participants = config.participants.filter(p => {
                             const charList = state.worldState?._campaign?.activeCharacters || [];
                             const deadChar = charList.find((c: any) => c.id === characterId);
                             return !(deadChar && p.agentId === deadChar.agentId && p.role === deadChar.name);
                         });
-                        // Add death narration to direction
                         direction = `${description}\n\n${direction || ''}`.trim();
 
                         broadcastMessage({
@@ -1249,7 +1313,6 @@ export class ConversationExecutor {
                     if (decision.introduceCharacter) {
                         const intro = decision.introduceCharacter;
 
-                        // Auto-create agent if the specified one doesn't exist
                         let agentId = intro.agentId;
                         if (!AgentManager.getAgent(agentId)) {
                             agentId = ensureCampaignAgent(intro);
@@ -1273,7 +1336,6 @@ export class ConversationExecutor {
                                 characterNotes: charNotes
                             });
 
-                            // Record in world state for campaign-service
                             const chars = state.worldState?._campaign?.activeCharacters || [];
                             chars.push({
                                 id: randomUUID(),
@@ -1304,7 +1366,6 @@ export class ConversationExecutor {
                         || (decision.updateCharacter ? [decision.updateCharacter] : []);
                     for (const upd of charUpdates) {
                         if (upd.characterId && upd.updates) {
-                            // Record in world state for campaign-service to process
                             const events = state.worldState?._campaign?.characterUpdates || [];
                             events.push(upd);
                             state.worldState = deepMerge(state.worldState || {}, {
@@ -1313,104 +1374,131 @@ export class ConversationExecutor {
                             logger.log({ type: 'system', level: 'info', message: `Character sheet updated`, data: { conversationId: id, characterId: upd.characterId, updates: upd.updates } });
                         }
                     }
+
+                    // Build turn order: prioritise the GM's chosen speaker first, then shuffle the rest
+                    const firstSpeaker = config.participants.find(p => p.agentId === decision.nextSpeaker);
+                    const others = config.participants.filter(p => p.agentId !== decision.nextSpeaker);
+                    for (let i = others.length - 1; i > 0; i--) {
+                        const j = Math.floor(Math.random() * (i + 1));
+                        [others[i], others[j]] = [others[j], others[i]];
+                    }
+                    turnOrder = firstSpeaker ? [firstSpeaker, ...others] : [...others];
                 }
 
-                const agent = AgentManager.getAgent(nextParticipant.agentId);
-                if (!agent) {
-                    logger.log({ type: 'error', level: 'error', message: `Agent not found: ${nextParticipant.agentId}` });
-                    state.status = 'error';
-                    state.error = `Agent not found: ${nextParticipant.agentId}`;
-                    break;
-                }
-
-                // Build messages and call agent
-                const llmConfig = resolveLlmConfig(agent);
-                const messages = await buildMessagesForAgent(config, state, nextParticipant, direction);
-                const maxLoops = config.settings.enableTools ? 5 : 1;
-
-                AgentManager.setAgentState(nextParticipant.agentId, 'working', `Conversation: ${config.title}`);
-
-                try {
-                    const result = await retryWithDelay(
-                        () => runAgentLoop({
-                            agentId: nextParticipant.agentId,
-                            sessionId: `conversation-${id}`,
-                            llmConfig,
-                            messages,
-                            maxLoops,
-                            agentToolsConfig: agent.tools,
-                            abortSignal: abortController.signal
-                        }),
-                        { label: `Character turn: ${agent.name}` }
-                    );
-
-                    const { content, thinking } = stripThinkTags(result.finalResponse);
-
-                    const entry: TranscriptEntry = {
-                        round: state.currentRound,
-                        speaker: nextParticipant.agentId,
-                        speakerName: agent.name,
-                        role: nextParticipant.role,
-                        content,
-                        thinking: thinking || undefined,
-                        timestamp: Date.now(),
-                        metadata: turnMetadata
-                    };
-
-                    state.transcript.push(entry);
-                    state.currentRound++;
-
-                    // Log character turn + inner monologue
-                    const charLogParts = [`\n[${entry.speakerName}${entry.role ? ' — ' + entry.role : ''}] (Round ${state.currentRound}/${config.settings.maxRounds})`];
-                    if (thinking) charLogParts.push(`\n  💭 Inner monologue:\n${thinking.split('\n').map(l => '    ' + l).join('\n')}`);
-                    charLogParts.push(`\n${content}\n`);
-                    if (turnMetadata?.diceRoll) charLogParts.push(`  [Dice: d20=${turnMetadata.diceRoll}, total=${turnMetadata.total}, ${turnMetadata.success ? 'SUCCESS' : 'FAILURE'}]`);
-                    appendEpisodeLog(id, charLogParts.join('\n'));
-
-                    // Checkpoint state
-                    writeJSON(statePath(id), state);
-
-                    // Phase 2: Store in Qdrant if memory enabled
-                    if (config.settings.enableMemory) {
-                        const collection = config.settings.memoryCollection || 'conversations';
-                        embedAndStore(entry, config.id, collection).catch(() => {});
-                    }
-
-                    // Campaign persistence: auto-save to GitHub every N rounds
-                    const persistence = config.settings.campaignPersistence;
-                    if (persistence && state.currentRound % persistence.saveEveryNRounds === 0) {
-                        saveCampaignToGitHub(config, state, persistence, `Auto-save`).catch(() => {});
-                    }
-
-                    broadcastMessage({
-                        type: 'conversation_turn',
-                        conversationId: id,
-                        entry,
-                        round: state.currentRound,
-                        maxRounds: config.settings.maxRounds
-                    });
-
-                    // Deliver each turn to configured channels (Telegram, etc.)
-                    if (config.settings.deliverTo && config.settings.deliverTo.length > 0) {
-                        const turnLabel = `**[${entry.speakerName}${entry.role ? ' — ' + entry.role : ''}]** (Round ${state.currentRound}/${config.settings.maxRounds})`;
-                        const turnMsg = `${turnLabel}\n\n${entry.content}`;
-                        deliverToChannels(id, config.settings.deliverTo, turnMsg).catch(() => {});
-                    }
-
-                    logger.log({
-                        type: 'system', level: 'info',
-                        agentId: nextParticipant.agentId,
-                        message: `Conversation turn ${state.currentRound}: ${agent.name}`,
-                        data: { conversationId: id, contentLength: content.length }
-                    });
-                } catch (err) {
+                // ── All characters take their turn this round ───────────────
+                let roundBroken = false;
+                for (const participant of turnOrder) {
                     if (abortController.signal.aborted) {
                         state.status = 'cancelled';
+                        roundBroken = true;
                         break;
                     }
-                    throw err;
-                } finally {
-                    AgentManager.setAgentState(nextParticipant.agentId, 'idle');
+
+                    const agent = AgentManager.getAgent(participant.agentId);
+                    if (!agent) {
+                        logger.log({ type: 'error', level: 'error', message: `Agent not found: ${participant.agentId}` });
+                        continue; // skip missing agent, don't kill the whole round
+                    }
+
+                    const llmConfig = resolveLlmConfig(agent);
+                    const messages = await buildMessagesForAgent(config, state, participant, direction);
+                    const maxLoops = config.settings.enableTools ? 5 : 1;
+
+                    AgentManager.setAgentState(participant.agentId, 'working', `Conversation: ${config.title}`);
+
+                    try {
+                        const result = await retryWithDelay(
+                            () => runAgentLoop({
+                                agentId: participant.agentId,
+                                sessionId: `conversation-${id}`,
+                                llmConfig,
+                                messages,
+                                maxLoops,
+                                agentToolsConfig: agent.tools,
+                                abortSignal: abortController.signal
+                            }),
+                            { label: `Character turn: ${agent.name}` }
+                        );
+
+                        const { content, thinking } = stripThinkTags(result.finalResponse);
+
+                        const entry: TranscriptEntry = {
+                            round: state.currentRound,
+                            speaker: participant.agentId,
+                            speakerName: agent.name,
+                            role: participant.role,
+                            content,
+                            thinking: thinking || undefined,
+                            timestamp: Date.now(),
+                            metadata: turnMetadata
+                        };
+
+                        state.transcript.push(entry);
+
+                        // Log character turn + inner monologue
+                        const charLogParts = [`\n[${entry.speakerName}${entry.role ? ' — ' + entry.role : ''}] (Round ${state.currentRound + 1}/${config.settings.maxRounds})`];
+                        if (thinking) charLogParts.push(`\n  💭 Inner monologue:\n${thinking.split('\n').map(l => '    ' + l).join('\n')}`);
+                        charLogParts.push(`\n${content}\n`);
+                        if (turnMetadata?.diceRoll) charLogParts.push(`  [Dice: d20=${turnMetadata.diceRoll}, total=${turnMetadata.total}, ${turnMetadata.success ? 'SUCCESS' : 'FAILURE'}]`);
+                        appendEpisodeLog(id, charLogParts.join('\n'));
+
+                        // Checkpoint state after each character
+                        writeJSON(statePath(id), state);
+
+                        // Store in Qdrant if memory enabled
+                        if (config.settings.enableMemory) {
+                            const collection = config.settings.memoryCollection || 'conversations';
+                            embedAndStore(entry, config.id, collection).catch(() => {});
+                        }
+
+                        broadcastMessage({
+                            type: 'conversation_turn',
+                            conversationId: id,
+                            entry,
+                            round: state.currentRound,
+                            maxRounds: config.settings.maxRounds
+                        });
+
+                        // Deliver each turn to configured channels (Telegram, etc.)
+                        if (config.settings.deliverTo && config.settings.deliverTo.length > 0) {
+                            const turnLabel = `**[${entry.speakerName}${entry.role ? ' — ' + entry.role : ''}]** (Round ${state.currentRound + 1}/${config.settings.maxRounds})`;
+                            const turnMsg = `${turnLabel}\n\n${entry.content}`;
+                            deliverToChannels(id, config.settings.deliverTo, turnMsg).catch(() => {});
+                        }
+
+                        logger.log({
+                            type: 'system', level: 'info',
+                            agentId: participant.agentId,
+                            message: `Conversation turn R${state.currentRound + 1}: ${agent.name}`,
+                            data: { conversationId: id, contentLength: content.length }
+                        });
+
+                        // Only apply dice/action metadata to the first speaker's entry
+                        turnMetadata = undefined;
+                    } catch (err) {
+                        if (abortController.signal.aborted) {
+                            state.status = 'cancelled';
+                            roundBroken = true;
+                            break;
+                        }
+                        // Log error but continue with other characters
+                        logger.log({ type: 'error', level: 'error', message: `Character turn failed: ${agent.name}`, data: String(err) });
+                    } finally {
+                        AgentManager.setAgentState(participant.agentId, 'idle');
+                    }
+
+                    // Keep direction for all characters — GM's narrative applies to everyone this round
+                }
+
+                if (roundBroken) break;
+
+                // Round complete — all characters have spoken
+                state.currentRound++;
+
+                // Campaign persistence: auto-save to GitHub every N rounds
+                const persistence = config.settings.campaignPersistence;
+                if (persistence && state.currentRound % persistence.saveEveryNRounds === 0) {
+                    saveCampaignToGitHub(config, state, persistence, `Auto-save`).catch(() => {});
                 }
             }
 
@@ -1441,19 +1529,34 @@ export class ConversationExecutor {
                 data: { id, rounds: state.currentRound, status: state.status }
             });
 
-            // Phase 2: Deliver transcript to channels
+            // Phase 2: Complete campaign episode (apply XP, character updates, world state carry-over)
+            const campaignId = state.worldState?._campaign?.campaignId;
+            if (campaignId && state.status === 'complete') {
+                try {
+                    // Lazy import to avoid circular dependency with campaign-service
+                    const { CampaignService } = await import('./campaign-service.js');
+                    CampaignService.completeEpisode(campaignId, id);
+                    logger.log({ type: 'system', level: 'info', message: `[Campaign] Episode completed for campaign ${campaignId}` });
+                } catch (err) {
+                    logger.log({ type: 'error', level: 'error', message: '[Campaign] Failed to complete episode', data: String(err) });
+                }
+            }
+
+            // Phase 3: Deliver transcript to channels
             if (config.settings.deliverTo && config.settings.deliverTo.length > 0 && state.status === 'complete') {
                 deliverToChannels(config.id, config.settings.deliverTo, md).catch(err => {
                     logger.log({ type: 'error', level: 'error', message: '[Conversation] Channel delivery failed', data: String(err) });
                 });
             }
 
-            // Campaign persistence: final save to GitHub
+            // Campaign persistence: final save to GitHub (awaited to prevent data loss)
             if (config.settings.campaignPersistence) {
                 const reason = state.status === 'complete' ? 'Campaign complete' : `Campaign ${state.status}`;
-                saveCampaignToGitHub(config, state, config.settings.campaignPersistence, reason).catch(err => {
+                try {
+                    await saveCampaignToGitHub(config, state, config.settings.campaignPersistence, reason);
+                } catch (err) {
                     logger.log({ type: 'error', level: 'error', message: '[Campaign] Final GitHub save failed', data: String(err) });
-                });
+                }
             }
 
         } catch (err) {
