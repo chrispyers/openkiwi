@@ -132,10 +132,12 @@ export async function* streamChatCompletion(
         body = {
             model: providerConfig.modelId,
             messages,
-            max_tokens: providerConfig.maxTokens || 8192,
             stream: true,
             stream_options: { include_usage: true },
         };
+        if (providerConfig.maxTokens) {
+            body.max_tokens = providerConfig.maxTokens;
+        }
 
         if (tools && tools.length > 0) {
             body.tools = tools.map(t => ({
@@ -281,7 +283,8 @@ export async function* streamChatCompletion(
 
 export async function getChatCompletion(
     providerConfig: LLMProviderConfig,
-    messages: { role: string; content: string }[]
+    messages: { role: string; content: string }[],
+    options?: { maxTokens?: number }
 ) {
     // Re-use stream implementation to keep things unified
     // or just implement a simplified version. Since this is mainly used for summaries, we can implement it.
@@ -299,16 +302,19 @@ export async function getChatCompletion(
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
             })),
-            max_tokens: providerConfig.maxTokens || 4096,
+            max_tokens: options?.maxTokens ?? providerConfig.maxTokens ?? 4096,
             stream: false
         };
     } else {
         body = {
             model: providerConfig.modelId,
             messages,
-            max_tokens: providerConfig.maxTokens || 8192,
             stream: false,
         };
+        const maxTok = options?.maxTokens ?? providerConfig.maxTokens;
+        if (maxTok) {
+            body.max_tokens = maxTok;
+        }
     }
 
     let response;

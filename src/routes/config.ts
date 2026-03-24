@@ -8,10 +8,26 @@ const router = Router();
 
 router.get('/public', (req, res) => {
     const config = loadConfig();
-    if (config.gateway?.secretToken) {
-        config.gateway.secretToken = encrypt(config.gateway.secretToken);
+    const safe = JSON.parse(JSON.stringify(config));
+    if (safe.gateway?.secretToken) {
+        safe.gateway.secretToken = encrypt(safe.gateway.secretToken);
     }
-    res.json(config);
+    if (safe.connections?.git) {
+        safe.connections.git.forEach((conn: any) => { if (conn.pat) conn.pat = encrypt(conn.pat); });
+    }
+    if (safe.connections?.anthropic) {
+        safe.connections.anthropic.forEach((conn: any) => { if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey); });
+    }
+    if (safe.connections?.google) {
+        safe.connections.google.forEach((conn: any) => { if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey); });
+    }
+    if (safe.connections?.openai) {
+        safe.connections.openai.forEach((conn: any) => { if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey); });
+    }
+    if (safe.connections?.openrouter) {
+        safe.connections.openrouter.forEach((conn: any) => { if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey); });
+    }
+    res.json(safe);
 });
 
 router.get('/', (req, res) => {
@@ -59,10 +75,12 @@ router.post('/', async (req, res) => {
         }
 
         saveConfig(newConfig);
-        AgentManager.clearMemoryManagers();
-        await AgentManager.initializeAllMemoryManagers(); // Re-initialize to apply new settings immediately
-        await ToolManager.discoverTools();
         res.json({ success: true });
+
+        // Re-initialize in the background after responding — don't block or fail the save
+        AgentManager.clearMemoryManagers();
+        AgentManager.initializeAllMemoryManagers().catch(e => console.error('[Config] Failed to re-init memory managers:', e));
+        ToolManager.discoverTools().catch(e => console.error('[Config] Failed to re-discover tools:', e));
     } catch (error) {
         res.status(400).json({ error: String(error) });
     }
@@ -141,6 +159,95 @@ router.post('/verify-git-connection', async (req, res) => {
     } catch (e: any) {
         console.error(`[verify-git-connection] Network error reaching ${base}:`, e);
         return res.json({ valid: false, error: `Could not reach ${base}: ${e.message}` });
+    }
+});
+
+// Verify an Anthropic API key
+router.post('/verify-anthropic-connection', async (req, res) => {
+    const { apiKey } = req.body ?? {};
+    if (!apiKey) {
+        return res.status(400).json({ error: 'apiKey is required' });
+    }
+
+    try {
+        const r = await fetch('https://api.anthropic.com/v1/models', {
+            headers: {
+                'x-api-key': apiKey as string,
+                'anthropic-version': '2023-06-01',
+            }
+        });
+        const body = await r.text();
+        if (r.ok) {
+            return res.json({ valid: true });
+        }
+        const detail = (() => { try { return JSON.parse(body).error?.message ?? body; } catch { return body; } })();
+        return res.json({ valid: false, error: `Anthropic responded HTTP ${r.status}: ${detail}` });
+    } catch (e: any) {
+        return res.json({ valid: false, error: `Could not reach Anthropic: ${e.message}` });
+    }
+});
+
+// Verify an OpenRouter API key
+router.post('/verify-openrouter-connection', async (req, res) => {
+    const { apiKey } = req.body ?? {};
+    if (!apiKey) {
+        return res.status(400).json({ error: 'apiKey is required' });
+    }
+
+    try {
+        const r = await fetch('https://openrouter.ai/api/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey as string}` }
+        });
+        const body = await r.text();
+        if (r.ok) {
+            return res.json({ valid: true });
+        }
+        const detail = (() => { try { return JSON.parse(body).error?.message ?? body; } catch { return body; } })();
+        return res.json({ valid: false, error: `OpenRouter responded HTTP ${r.status}: ${detail}` });
+    } catch (e: any) {
+        return res.json({ valid: false, error: `Could not reach OpenRouter: ${e.message}` });
+    }
+});
+
+// Verify an OpenAI API key
+router.post('/verify-openai-connection', async (req, res) => {
+    const { apiKey } = req.body ?? {};
+    if (!apiKey) {
+        return res.status(400).json({ error: 'apiKey is required' });
+    }
+
+    try {
+        const r = await fetch('https://api.openai.com/v1/models', {
+            headers: { 'Authorization': `Bearer ${apiKey as string}` }
+        });
+        const body = await r.text();
+        if (r.ok) {
+            return res.json({ valid: true });
+        }
+        const detail = (() => { try { return JSON.parse(body).error?.message ?? body; } catch { return body; } })();
+        return res.json({ valid: false, error: `OpenAI responded HTTP ${r.status}: ${detail}` });
+    } catch (e: any) {
+        return res.json({ valid: false, error: `Could not reach OpenAI: ${e.message}` });
+    }
+});
+
+// Verify a Google Gemini API key
+router.post('/verify-google-connection', async (req, res) => {
+    const { apiKey } = req.body ?? {};
+    if (!apiKey) {
+        return res.status(400).json({ error: 'apiKey is required' });
+    }
+
+    try {
+        const r = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey as string)}`);
+        const body = await r.text();
+        if (r.ok) {
+            return res.json({ valid: true });
+        }
+        const detail = (() => { try { return JSON.parse(body).error?.message ?? body; } catch { return body; } })();
+        return res.json({ valid: false, error: `Google responded HTTP ${r.status}: ${detail}` });
+    } catch (e: any) {
+        return res.json({ valid: false, error: `Could not reach Google: ${e.message}` });
     }
 });
 

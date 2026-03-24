@@ -18,18 +18,25 @@ export default {
                 cwd: {
                     type: 'string',
                     description: 'The working directory to run inside (relative to workspace). Defaults to root.'
+                },
+                workdir: {
+                    type: 'string',
+                    description: 'Alias for cwd. Working directory for the command (relative to workspace).'
                 }
             },
             required: ['command']
         }
     },
-    handler: async ({ command, cwd = '' }: { command: string, cwd?: string }) => {
+    handler: async ({ command, cwd = '', workdir = '' }: { command: string, cwd?: string, workdir?: string }) => {
         if (!command || typeof command !== 'string') {
             return { error: 'Missing required parameter: command must be a non-empty string.' };
         }
 
+        // `workdir` is an alias for `cwd` (used by the coding-agent skill)
+        const effectiveCwd = workdir || cwd;
+
         // Fall back to workspace root if the path escapes the sandbox (e.g. agent passed an absolute path)
-        const { safe } = resolveWorkspacePath(cwd);
+        const { safe } = resolveWorkspacePath(effectiveCwd);
         const targetDir = safe || WORKSPACE_DIR;
 
         console.log(`[bash] Executing \`${command}\` in ${targetDir}`);

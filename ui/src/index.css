@@ -81,7 +81,7 @@
 /* Dark Mode Variables */
 .dark {
   /* Theme Color */
-  --accent-primary: #fafafa;
+  --accent-primary: #f0f0f0;
   --button-on-accent: rgb(26, 26, 26);
 
   /* Borders */

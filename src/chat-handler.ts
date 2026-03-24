@@ -165,7 +165,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             const skillDefs = SkillManager.getSkillDefinitions();
             if (skillDefs.length > 0) {
                 const skillList = skillDefs.map(s => `- **${s.name}**: ${s.description}`).join('\n');
-                systemPrompt += `\n\n## Available Agent Skills\nThe following skills are available to you. CRITICAL: Before responding to ANY user request, check whether a skill's description matches the task. If a match exists, you MUST call \`activate_skill\` first and follow its instructions — never answer from your own knowledge when a matching skill is available. If the skill's response includes an \`allowed_tools\` list, those tools are pre-approved for use within that skill's workflow and do NOT require \`ask_user\` confirmation.\n\n${skillList}`;
+                systemPrompt += `\n\n## Available Agent Skills\nThe following skills are available to you. CRITICAL: Before responding to ANY user request, check whether a skill's description matches the task. If a match exists, you MUST call \`activate_skill\` first and follow its instructions — never answer from your own knowledge when a matching skill is available. If a skill is already pre-activated (its instructions appear in this prompt), do NOT call \`activate_skill\` — just execute the instructions directly. If the skill's response includes an \`allowed_tools\` list, those tools are pre-approved for use within that skill's workflow and do NOT require \`ask_user\` confirmation.\n\n${skillList}`;
             }
 
             // Anti-hallucination directive
@@ -273,7 +273,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                                 }
                                 payload.push({
                                     role: 'system',
-                                    content: `## Skill Pre-activated: ${skillDef.name}\n\nThe user has explicitly requested this skill. You MUST follow these instructions now:\n\n${instructions}`
+                                    content: `## Skill Pre-activated: ${skillDef.name}\n\nThis skill is already loaded — DO NOT call \`activate_skill\`. Start executing the skill instructions immediately.\n\n${instructions}`
                                 });
                                 console.log(`[chat-handler] Pre-activated skill "${skillDef.name}" based on user message`);
                             }
@@ -401,19 +401,28 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             if (sessionId && finalizedMessages.length > 0 && shouldSummarize) {
                 (async () => {
                     try {
+                        // Build a truncated transcript for summarization — cap at ~1500 chars to
+                        // prevent reasoning models from doing extended chain-of-thought on long histories.
+                        const MAX_SUMMARY_INPUT_CHARS = 1500;
+                        let transcript = finalizedMessages
+                            .filter(m => m.role !== 'reasoning')
+                            .map(m => {
+                                const cleanContent = (m.content || '').replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+                                return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
+                            })
+                            .filter(Boolean)
+                            .join('\n');
+                        if (transcript.length > MAX_SUMMARY_INPUT_CHARS) {
+                            transcript = transcript.slice(0, MAX_SUMMARY_INPUT_CHARS) + '\n[...truncated]';
+                        }
+
                         const summaryPrompt = [
-                            { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
+                            { role: 'system', content: 'You are a summarization assistant. Your ENTIRE response must be a short summary of 5-15 words. Do not explain, do not reason, do not use bullet points or numbered lists. Output the title and nothing else.' },
                             {
-                                role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${finalizedMessages
-                                    .filter(m => m.role !== 'reasoning')
-                                    .map(m => {
-                                        const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
-                                        return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
-                                    })
-                                    .filter(Boolean)
-                                    .join('\n')}`
+                                role: 'user', content: `Conversation to title:\n\n${transcript}\n\nShort title:`
                             }
                         ];
+                        // Allow enough tokens for reasoning models to finish thinking, but not much more.
                         const completion = await getChatCompletion(llmConfig, summaryPrompt);
                         const rawSummary = completion.content;
 
@@ -427,7 +436,41 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                                 data: completion.usage
                             });
                         }
-                        const cleanSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
+                        // Strip XML-style thinking tags (e.g. <think>, <thought>, <reasoning>)
+                        let strippedSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
+                        // Some reasoning models (Qwen3, QwQ, etc.) emit their chain-of-thought as plain
+                        // text — e.g. "Thinking process: 1. Analyze...". Walk lines from the end to find
+                        // the first short, clean line that looks like an actual title.
+                        const extractTitle = (text: string): string | null => {
+                            const NOISE_PATTERNS = [
+                                /^thinking\b/i,
+                                /^analyze\b/i,
+                                /^constraint\b/i,
+                                /^task:/i,
+                                /^\d+\.\s/,      // numbered list items
+                                /^[-*•]\s/,      // bullet points
+                            ];
+                            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                            for (let i = lines.length - 1; i >= 0; i--) {
+                                const line = lines[i];
+                                if (line.length > 80) continue;
+                                if (NOISE_PATTERNS.some(p => p.test(line))) continue;
+                                return line.replace(/^["']|["']$/g, '').trim();
+                            }
+                            return null; // nothing usable found
+                        };
+
+                        // Fall back to the first user message (truncated) if the LLM output is unusable.
+                        // This is reliable for all models including reasoning ones.
+                        const firstUserMessage = finalizedMessages.find(m => m.role === 'user');
+                        const firstUserText = (typeof firstUserMessage?.content === 'string' ? firstUserMessage.content : '')
+                            .replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '')
+                            .trim()
+                            .slice(0, 60);
+
+                        const cleanSummary = extractTitle(strippedSummary) || firstUserText || 'New Chat';
 
                         const updatedSession = SessionManager.getSession(sessionId);
                         if (updatedSession) {
@@ -467,6 +510,8 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     errorMessage = `Connection to LLM provider timed out. Please check your network connection.`;
                 } else if (error.message.includes('ENOTFOUND')) {
                     errorMessage = `Could not resolve hostname for LLM provider. Please check the endpoint configuration.`;
+                } else if (error.message.includes('LLM API error: 500')) {
+                    errorMessage = `The LLM provider returned a 500 error. This is usually caused by the conversation exceeding the model's context window — the tool results may have been too large to fit. Try reloading the model with a larger context (131k+), or start a new conversation.`;
                 } else if (error.message.includes('LLM API error')) {
                     errorMessage = error.message;
                 } else {

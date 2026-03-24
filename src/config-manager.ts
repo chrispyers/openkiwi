@@ -101,7 +101,46 @@ const ConfigSchema = z.object({
             verified: z.boolean().optional(),
             verifiedUsername: z.string().optional(),
         })).default([]),
-    }).default({ git: [] }),
+        anthropic: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+        lmstudio: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            endpoint: z.string(),
+        })).default([]),
+        lemonade: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            endpoint: z.string(),
+        })).default([]),
+        google: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+        openai: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+        ollama: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            endpoint: z.string(),
+        })).default([]),
+        openrouter: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+    }).passthrough().default({ git: [], anthropic: [], lmstudio: [], lemonade: [], google: [], openai: [], ollama: [], openrouter: [] }),
 }).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
@@ -185,6 +224,32 @@ export function loadConfig(): Config {
             json.connections.git.forEach((conn: any) => {
                 if (conn.pat && !conn.pat.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
                 if (conn.pat) conn.pat = decrypt(conn.pat);
+                if (conn.verifiedUsername && !conn.verifiedUsername.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.verifiedUsername) conn.verifiedUsername = decrypt(conn.verifiedUsername);
+            });
+        }
+        if (json.connections?.anthropic && Array.isArray(json.connections.anthropic)) {
+            json.connections.anthropic.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+        if (json.connections?.google && Array.isArray(json.connections.google)) {
+            json.connections.google.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+        if (json.connections?.openai && Array.isArray(json.connections.openai)) {
+            json.connections.openai.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+        if (json.connections?.openrouter && Array.isArray(json.connections.openrouter)) {
+            json.connections.openrouter.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
             });
         }
 
@@ -249,7 +314,7 @@ export function loadConfig(): Config {
             },
             enabledTools: {},
             tools: {},
-            connections: { git: [] },
+            connections: { git: [], anthropic: [], lmstudio: [], lemonade: [], google: [], openai: [], ollama: [], openrouter: [] },
         };
     }
 }
@@ -271,6 +336,27 @@ export function saveConfig(config: Config): void {
     if (configToSave.connections?.git && Array.isArray(configToSave.connections.git)) {
         configToSave.connections.git.forEach((conn: any) => {
             if (conn.pat) conn.pat = encrypt(conn.pat);
+            if (conn.verifiedUsername) conn.verifiedUsername = encrypt(conn.verifiedUsername);
+        });
+    }
+    if (configToSave.connections?.anthropic && Array.isArray(configToSave.connections.anthropic)) {
+        configToSave.connections.anthropic.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
+    }
+    if (configToSave.connections?.google && Array.isArray(configToSave.connections.google)) {
+        configToSave.connections.google.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
+    }
+    if (configToSave.connections?.openai && Array.isArray(configToSave.connections.openai)) {
+        configToSave.connections.openai.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
+    }
+    if (configToSave.connections?.openrouter && Array.isArray(configToSave.connections.openrouter)) {
+        configToSave.connections.openrouter.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
         });
     }
 
