@@ -5,6 +5,7 @@ import { AgentManager } from '../agent-manager.js';
 import { ToolManager } from '../tool-manager.js';
 import { loadConfig } from '../config-manager.js';
 import { streamChatCompletion, getChatCompletion } from '../llm-provider.js';
+import { runAgentLoop } from '../agent-loop.js';
 import { WORKSPACE_DIR } from '../security.js';
 
 export interface WorkflowExecutionResult {
@@ -94,6 +95,73 @@ function trimToolResult(result: any): any {
         if (v === null || typeof v !== 'object') trimmed[k] = v;
     }
     return trimmed;
+}
+
+/**
+ * Execute a workflow step by delegating to a full agent (with persona, tools, and memory).
+ * This is used when a step has `assigned_agent_id` set, enabling multi-tool steps
+ * where the agent can use all its configured tools in a single step.
+ */
+async function executeAgentStep(
+    assignedAgentId: string,
+    stepPrompt: string,
+    priorContext: string,
+    fallbackLlmConfig: any
+): Promise<{ response: string; error?: string }> {
+    const stepAgent = AgentManager.getAgent(assignedAgentId);
+    if (!stepAgent) {
+        return { response: '', error: `Assigned agent "${assignedAgentId}" not found.` };
+    }
+
+    // Resolve LLM config: prefer the step agent's own provider, fall back to the workflow agent's
+    let llmConfig = fallbackLlmConfig;
+    if (stepAgent.provider) {
+        const currentConfig = loadConfig();
+        const agentProvider = currentConfig.providers.find(
+            p => p.model === stepAgent.provider || p.description === stepAgent.provider
+        );
+        if (agentProvider) {
+            llmConfig = {
+                baseUrl: agentProvider.endpoint,
+                modelId: agentProvider.model,
+                apiKey: agentProvider.apiKey,
+                maxTokens: agentProvider.maxTokens,
+                supportsTools: !!agentProvider.capabilities?.trained_for_tool_use
+            };
+        }
+    }
+
+    const now = new Date();
+    const userContent =
+        `You are executing a workflow step. Complete the instructions below.\n\n` +
+        `Current time: ${now.toISOString()}\n` +
+        `Workspace directory: ${WORKSPACE_DIR}\n` +
+        priorContext +
+        `\n\nINSTRUCTIONS:\n${stepPrompt}`;
+
+    const messages = [
+        { role: 'system', content: stepAgent.systemPrompt },
+        { role: 'user', content: userContent }
+    ];
+
+    const prevState = AgentManager.getAgentState(assignedAgentId);
+    AgentManager.setAgentState(assignedAgentId, 'working', 'Executing workflow step');
+    try {
+        const result = await runAgentLoop({
+            agentId: assignedAgentId,
+            sessionId: `workflow-step`,
+            llmConfig,
+            messages,
+            maxLoops: 30,
+            signToolUrls: false,
+            agentToolsConfig: stepAgent.tools
+        });
+        return { response: result.finalResponse };
+    } catch (e: any) {
+        return { response: '', error: `Agent step failed: ${e.message}` };
+    } finally {
+        AgentManager.setAgentState(assignedAgentId, prevState.status, prevState.details);
+    }
 }
 
 /**
@@ -320,6 +388,23 @@ export async function executeWorkflow(
             if (parsed.prompt !== undefined) stepPrompt = parsed.prompt;
         } catch { /* plain text instructions */ }
 
+        const priorContext = buildPriorContext(stepResults);
+
+        // ── Agent-as-step: delegate to a full agent with all its tools ──
+        if (state.assigned_agent_id) {
+            const displayToolId = `agent:${state.assigned_agent_id}`;
+            onStepProgress?.({ step: stateIndex + 1, total: totalSteps, stepName: state.name, toolId: displayToolId });
+
+            const agentResult = await executeAgentStep(state.assigned_agent_id, stepPrompt, priorContext, llmConfig);
+            stepResults.push({
+                stepName: state.name,
+                toolId: displayToolId,
+                result: agentResult.error ? { error: agentResult.error } : { response: agentResult.response }
+            });
+            continue;
+        }
+
+        // ── Standard tool-based step ──
         // Find the tool definition so we can restrict the LLM to only this tool
         const allDefs = ToolManager.getToolDefinitions();
         const toolDef = allDefs.find(d => d.name === toolId);
@@ -328,8 +413,6 @@ export async function executeWorkflow(
             stepResults.push({ stepName: state.name, toolId, result: { error: `Tool "${toolId}" is not available.` } });
             continue;
         }
-
-        const priorContext = buildPriorContext(stepResults);
 
         onStepProgress?.({ step: stateIndex + 1, total: totalSteps, stepName: state.name, toolId });
 

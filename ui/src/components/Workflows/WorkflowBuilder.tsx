@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import Text from '../Text'
 import Button from '../Button'
@@ -15,9 +15,15 @@ import {
 } from '@fortawesome/free-solid-svg-icons'
 import { ToolDef, TOOLS, TOOL_CATEGORIES, getToolDef } from './toolDefs'
 
+interface AgentInfo {
+    id: string;
+    name: string;
+}
+
 interface WorkflowNode {
     id: string;
     tool_id: string;
+    assigned_agent_id: string | null;
     label: string;
     prompt: string;
     order_index: number;
@@ -33,15 +39,21 @@ function stateToNode(s: WorkflowState): WorkflowNode {
     } catch {
         // instructions is plain text, treat as prompt
     }
-    return { id: s.id, tool_id, label: s.name, prompt, order_index: s.order_index }
+    // If an agent is assigned, show as agent step
+    if (s.assigned_agent_id) tool_id = 'agent'
+    return { id: s.id, tool_id, assigned_agent_id: s.assigned_agent_id ?? null, label: s.name, prompt, order_index: s.order_index }
 }
 
 function nodeToStatePayload(node: WorkflowNode) {
+    const isAgentStep = node.tool_id === 'agent' && node.assigned_agent_id
     return {
         name: node.label,
         order_index: node.order_index,
-        assigned_agent_id: null,
-        instructions: JSON.stringify({ tool_id: node.tool_id, prompt: node.prompt })
+        assigned_agent_id: isAgentStep ? node.assigned_agent_id : null,
+        instructions: JSON.stringify({
+            tool_id: isAgentStep ? 'agent' : node.tool_id,
+            prompt: node.prompt
+        })
     }
 }
 
@@ -180,15 +192,20 @@ function NodeConnector({ onInsert }: { onInsert: () => void }) {
 // ── Config Panel ───────────────────────────────────────────────────────────────
 function ConfigPanel({
     node,
+    agents,
     onChange,
+    onChangeAgent,
     onChangeTool,
 }: {
     node: WorkflowNode;
+    agents: AgentInfo[];
     onChange: (field: 'label' | 'prompt', value: string) => void;
+    onChangeAgent: (agentId: string) => void;
     onChangeTool: () => void;
 }) {
     const tool = getToolDef(node.tool_id)
     const [expanded, setExpanded] = useState(false)
+    const isAgentStep = node.tool_id === 'agent'
 
     return (
         <div className="border-t border-divider bg-neutral-50 dark:bg-neutral-900/50 p-5">
@@ -200,7 +217,7 @@ function ConfigPanel({
                     >
                         <FontAwesomeIcon icon={tool.icon} className="text-sm" />
                     </div>
-                    <Text bold={true}>Configure: {tool.name}</Text>
+                    <Text bold={true}>Configure: {isAgentStep ? 'Agent Step' : tool.name}</Text>
                     <button
                         onClick={onChangeTool}
                         className="ml-auto text-xs text-accent-primary hover:underline"
@@ -209,18 +226,36 @@ function ConfigPanel({
                     </button>
                 </div>
 
+                {isAgentStep && (
+                    <div>
+                        <label className="block text-sm font-medium text-secondary mb-1">Agent</label>
+                        <select
+                            value={node.assigned_agent_id ?? ''}
+                            onChange={e => onChangeAgent(e.target.value)}
+                            className="w-full rounded-lg border border-divider bg-white dark:bg-neutral-800 text-primary px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-accent-primary"
+                        >
+                            <option value="">Select an agent...</option>
+                            {agents.map(a => (
+                                <option key={a.id} value={a.id}>{a.name}</option>
+                            ))}
+                        </select>
+                    </div>
+                )}
+
                 <Input
                     label="Label"
                     currentText={node.label}
-                    onChange={e => onChange('label', e.target.value)}
-                    placeholder="e.g. Fetch unread emails"
+                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => onChange('label', e.target.value)}
+                    placeholder={isAgentStep ? 'e.g. Research sub-headings' : 'e.g. Fetch unread emails'}
                 />
 
                 <TextArea
                     label="Instructions"
                     currentText={node.prompt}
-                    onChange={e => onChange('prompt', e.target.value)}
-                    placeholder={`What should this ${tool.name} step do? Describe the action, parameters, and what output to pass along.`}
+                    onChange={(e: React.ChangeEvent<HTMLTextAreaElement>) => onChange('prompt', e.target.value)}
+                    placeholder={isAgentStep
+                        ? 'What should this agent do? The agent will have access to all its configured tools, persona, and memory.'
+                        : `What should this ${tool.name} step do? Describe the action, parameters, and what output to pass along.`}
                     rows={expanded ? 12 : 4}
                     textAreaClassName="transition-all duration-300"
                     action={
@@ -244,6 +279,7 @@ function ConfigPanel({
 // ── Main Component ─────────────────────────────────────────────────────────────
 export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }: WorkflowBuilderProps) {
     const [nodes, setNodes] = useState<WorkflowNode[]>([])
+    const [agents, setAgents] = useState<AgentInfo[]>([])
     const [loading, setLoading] = useState(true)
     const [isSaving, setIsSaving] = useState(false)
     const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -254,20 +290,30 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
     const savedNodeIds = useRef<Set<string>>(new Set())
 
     useEffect(() => {
-        const fetchStates = async () => {
+        const fetchData = async () => {
             setLoading(true)
             try {
-                const res = await fetch(`${gatewayAddr.replace(/\/$/, '')}/api/collaboration/workflows/${workflow.id}/states`, {
-                    headers: { 'Authorization': `Bearer ${gatewayToken}` }
-                })
-                if (res.ok) {
-                    const data: WorkflowState[] = await res.json()
+                const base = gatewayAddr.replace(/\/$/, '')
+                const headers = { 'Authorization': `Bearer ${gatewayToken}` }
+
+                const [statesRes, agentsRes] = await Promise.all([
+                    fetch(`${base}/api/collaboration/workflows/${workflow.id}/states`, { headers }),
+                    fetch(`${base}/api/agents`, { headers })
+                ])
+
+                if (statesRes.ok) {
+                    const data: WorkflowState[] = await statesRes.json()
                     const sorted = data.sort((a, b) => a.order_index - b.order_index)
                     const mapped = sorted.map(stateToNode)
                     setNodes(mapped)
                     savedNodeIds.current = new Set(mapped.map(n => n.id))
                 } else {
                     toast.error('Failed to load workflow')
+                }
+
+                if (agentsRes.ok) {
+                    const agentData = await agentsRes.json()
+                    setAgents(agentData.map((a: any) => ({ id: a.id, name: a.name })))
                 }
             } catch (e) {
                 console.error(e)
@@ -276,7 +322,7 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
                 setLoading(false)
             }
         }
-        fetchStates()
+        fetchData()
     }, [workflow.id, gatewayAddr, gatewayToken])
 
     const selectedNode = nodes.find(n => n.id === selectedId) ?? null
@@ -291,7 +337,8 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
         const newNode: WorkflowNode = {
             id: `temp-${Date.now()}`,
             tool_id: tool.id,
-            label: tool.name,
+            assigned_agent_id: null,
+            label: tool.id === 'agent' ? 'Agent Step' : tool.name,
             prompt: '',
             order_index: 0,
         }
@@ -311,6 +358,18 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
 
     const handleChangeNode = (field: 'label' | 'prompt', value: string) => {
         setNodes(prev => prev.map(n => n.id === selectedId ? { ...n, [field]: value } : n))
+    }
+
+    const handleChangeAgent = (agentId: string) => {
+        const agentName = agents.find(a => a.id === agentId)?.name
+        setNodes(prev => prev.map(n => {
+            if (n.id !== selectedId) return n
+            return {
+                ...n,
+                assigned_agent_id: agentId || null,
+                label: agentName || n.label
+            }
+        }))
     }
 
     const handleChangeTool = () => {
@@ -488,7 +547,9 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
             {selectedNode && (
                 <ConfigPanel
                     node={selectedNode}
+                    agents={agents}
                     onChange={handleChangeNode}
+                    onChangeAgent={handleChangeAgent}
                     onChangeTool={handleChangeTool}
                 />
             )}
