@@ -30,6 +30,10 @@ export interface Agent {
         channels?: HeartbeatChannel[];
         maxLoops?: number;
     };
+    collaboration?: {
+        enabled: boolean;
+        schedule: string;
+    };
     tools?: Record<string, any>;
     isDefault?: boolean;
 }

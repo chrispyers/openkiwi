@@ -193,14 +193,10 @@ export const ChatBubble = ({
                         {(!isReasoning || isVisible) && (
                             <>
                                 <div className="w-full">
-                                    {isUser ? (
-                                        <div className="whitespace-pre-wrap text-[15px] leading-relaxed select-text">{content}</div>
-                                    ) : (
-                                        <MarkdownRenderer
-                                            content={content}
-                                            breaks={true}
-                                        />
-                                    )}
+                                    <MarkdownRenderer
+                                        content={content}
+                                        breaks={true}
+                                    />
                                 </div>
                                 <ToolCallTimeline tool_calls={tool_calls} />
                                 {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (

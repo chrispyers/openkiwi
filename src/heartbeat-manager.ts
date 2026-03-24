@@ -238,6 +238,144 @@ Please execute these instructions now.
         }
     }
 
+    private static async executeCollaborationHeartbeat(agentId: string) {
+        const taskKey = `${agentId}:collaboration`;
+        if (this.executingAgents.has(taskKey)) {
+            console.log(`⚠️ Collaboration skipped for ${agentId}: Previous execution still running.`);
+            return;
+        }
+
+        const agent = AgentManager.getAgent(agentId);
+        if (!agent) return;
+
+        this.executingAgents.add(taskKey);
+
+        logger.log({
+            type: 'system',
+            level: 'info',
+            agentId: agent.id,
+            sessionId: 'collaboration',
+            message: '[Collaboration] Session started',
+            data: null
+        });
+
+        console.log(`🤝 Executing collaboration heartbeat for ${agent.name}...`);
+
+        try {
+            // Prepare LLM Request
+            const currentConfig = loadConfig();
+            const providerName = agent.provider;
+            let providerConfig = currentConfig.providers.find(p => p.model === providerName || p.description === providerName);
+
+            if (!providerConfig && currentConfig.providers.length > 0) {
+                providerConfig = currentConfig.providers[0];
+            }
+
+            if (!providerConfig) {
+                console.error(`❌ No provider available for ${agent.name} collaboration.`);
+                return;
+            }
+
+            const llmConfig = {
+                baseUrl: providerConfig.endpoint,
+                modelId: providerConfig.model,
+                apiKey: providerConfig.apiKey,
+                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
+            };
+
+            const now = new Date();
+            const currentTimestampUTC = now.toISOString();
+            const currentTimestampLocal = now.toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: 'full', timeStyle: 'long' });
+
+            const messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[] = [
+                { role: 'system', content: agent.systemPrompt },
+                {
+                    role: 'user',
+                    content: `SYSTEM COLLABORATION CALL: It is time to process your assigned tasks and collaborate with other agents.
+
+# CURRENT TIME
+- UTC: ${currentTimestampUTC}
+- Local: ${currentTimestampLocal}
+                
+# INSTRUCTIONS
+You have been woken up to work on the Agent Collaboration System.
+1. Use the \`get_assigned_tasks\` tool to check for tasks assigned to you.
+2. If there are tasks, read them using \`read_task\`.
+3. Perform the necessary work to progress the task, including researching, thinking, reading files, etc.
+4. When you make progress, use \`add_task_comment\` to explain what you did and your feedback.
+5. If the current workflow state is complete, use \`update_task_state\` to move the task to the next state according to the workflow.
+6. If there are no assignments, or you are finished, just output a short status summary.
+`
+                }
+            ];
+
+            // Execute Loop
+            AgentManager.setAgentState(agent.id, 'working', 'Processing collaboration tasks');
+            const { finalResponse: fullContent } = await runAgentLoop({
+                agentId: agent.id,
+                sessionId: 'collaboration',
+                llmConfig,
+                messages: messages,
+                maxLoops: agent.heartbeat?.maxLoops || 10,
+                signToolUrls: false
+            });
+
+            // Parse thinking content
+            let contentToLog = fullContent;
+            let thinkingContent = '';
+
+            const thinkStart = fullContent.indexOf('<think>');
+            const thinkEnd = fullContent.indexOf('</think>');
+
+            if (thinkStart !== -1) {
+                if (thinkEnd !== -1) {
+                    thinkingContent = fullContent.substring(thinkStart + 7, thinkEnd).trim();
+                    contentToLog = fullContent.substring(0, thinkStart) + fullContent.substring(thinkEnd + 8);
+                } else {
+                    thinkingContent = fullContent.substring(thinkStart + 7).trim();
+                    contentToLog = fullContent.substring(0, thinkStart);
+                }
+            }
+            contentToLog = contentToLog.trim();
+
+            if (thinkingContent && currentConfig.chat.showReasoning) {
+                logger.log({
+                    type: 'thinking',
+                    level: 'info',
+                    agentId: agent.id,
+                    sessionId: 'collaboration',
+                    message: `[Collaboration] Thinking process`,
+                    data: thinkingContent
+                });
+            }
+
+            if (contentToLog) {
+                logger.log({
+                    type: 'response',
+                    level: 'info',
+                    agentId: agent.id,
+                    sessionId: 'collaboration',
+                    message: `[Collaboration] Completed execution`,
+                    data: contentToLog
+                });
+            }
+            console.log(`🤝 Collaboration finished for ${agent.name}:`, contentToLog.substring(0, 100) + '...');
+        } catch (error) {
+            console.error(`❌ Error during collaboration execution for ${agent.name}:`, error);
+        } finally {
+            AgentManager.setAgentState(agent.id, 'idle');
+            this.executingAgents.delete(taskKey);
+            logger.log({
+                type: 'system',
+                level: 'info',
+                agentId: agent.id,
+                sessionId: 'collaboration',
+                message: '[Collaboration] Session ended',
+                data: null
+            });
+        }
+    }
+
     private static async deliverToChannels(agentId: string, agent: Agent, channels: HeartbeatChannel[], cleanContent: string, rawContent: string) {
         for (const channel of channels) {
             try {

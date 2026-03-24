@@ -291,11 +291,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                 }
 
                 const name = toolCall.function.name;
-                let args: any;
+                let args: Record<string, unknown>;
                 try {
                     args = JSON.parse(toolCall.function.arguments || '{}');
                 } catch (parseErr: any) {
                     // Malformed JSON from the LLM — report it back as a tool error so the agent can self-correct
+                    logger.log({ type: 'error', level: 'warn', agentId: options.agentId, sessionId: options.sessionId, message: `Skipping tool call '${name}': malformed JSON arguments`, data: { raw: toolCall.function.arguments?.substring(0, 200) } });
                     chatHistory.push({
                         role: 'tool',
                         tool_call_id: toolCall.id,
