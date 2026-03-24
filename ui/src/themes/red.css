@@ -1,6 +1,6 @@
 :root {
   --red-swatch-light: rgb(239, 68, 68);
-  --red-swatch-dark: rgb(249, 199, 199);
+  --red-swatch-dark: rgb(255, 138, 138);
 }
 
 :root.light.theme-red,
