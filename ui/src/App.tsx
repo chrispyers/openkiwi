@@ -108,7 +108,7 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } }>({ name: '', provider: '', heartbeat: { enabled: false, schedule: '0 * * * *', allowManualTrigger: false } });
+  const [agentForm, setAgentForm] = useState<{ name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } }>({ name: '', provider: '', heartbeat: { enabled: false, schedule: '0 * * * *', allowManualTrigger: false } });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
