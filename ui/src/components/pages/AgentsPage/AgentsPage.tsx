@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { faPlus, faUser, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour, faUsers, faPlay, faStar } from '@fortawesome/free-solid-svg-icons'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { faPlus, faUser, faSave, faClock, faBrain, faMicrochip, faHeartPulse, faTrash, faIdBadge, faShield, faClockFour, faUsers, faPlay, faStar, faLayerGroup, faChevronDown, faChevronRight } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Button from '../../Button'
 import Card from '../../Card'
@@ -25,8 +25,8 @@ interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } }>>
+    agentForm: { name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } }>>
     saveAgentConfig: (formOverride?: any, successMessage?: string, successDescription?: string) => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -76,6 +76,52 @@ export default function AgentsPage({
     const [isHeartbeatModalOpen, setIsHeartbeatModalOpen] = useState(false)
     const [triggeringHeartbeat, setTriggeringHeartbeat] = useState(false)
     const [isAvatarModalOpen, setIsAvatarModalOpen] = useState(false)
+    const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({})
+    const [isGroupDropdownOpen, setIsGroupDropdownOpen] = useState(false)
+    const groupInputRef = useRef<HTMLDivElement>(null)
+
+    const toggleGroup = (group: string) => {
+        setCollapsedGroups(prev => ({ ...prev, [group]: !prev[group] }))
+    }
+
+    const groupedAgents = useMemo(() => {
+        const groups: Record<string, typeof agents> = {}
+        const ungrouped: typeof agents = []
+        for (const agent of agents) {
+            if (agent.group) {
+                if (!groups[agent.group]) groups[agent.group] = []
+                groups[agent.group].push(agent)
+            } else {
+                ungrouped.push(agent)
+            }
+        }
+        return { groups, ungrouped }
+    }, [agents])
+
+    const existingGroups = useMemo(() => {
+        const groups = new Set<string>()
+        for (const agent of agents) {
+            if (agent.group) groups.add(agent.group)
+        }
+        return Array.from(groups).sort()
+    }, [agents])
+
+    const filteredGroups = useMemo(() => {
+        const current = (agentForm.group || '').toLowerCase()
+        if (!current) return existingGroups
+        return existingGroups.filter(g => g.toLowerCase().includes(current) && g !== agentForm.group)
+    }, [agentForm.group, existingGroups])
+
+    // Close group dropdown when clicking outside
+    useEffect(() => {
+        const handleClickOutside = (e: MouseEvent) => {
+            if (groupInputRef.current && !groupInputRef.current.contains(e.target as Node)) {
+                setIsGroupDropdownOpen(false)
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside)
+        return () => document.removeEventListener('mousedown', handleClickOutside)
+    }, [])
 
     // Use selectedAgentId from props
     const selectedAgentId = selectedAgentIdFromParent
@@ -90,6 +136,7 @@ export default function AgentsPage({
                 name: selectedAgent.name,
                 avatar: selectedAgent.avatar,
                 provider: selectedAgent.provider || '',
+                group: selectedAgent.group,
                 heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false }
             })
         }
@@ -228,16 +275,42 @@ export default function AgentsPage({
                                 <Text secondary={true}>No agents discovered yet</Text>
                             </div>
                         ) : (
-
-                            agents.map(a => (
-                                <AgentButton
-                                    key={a.id}
-                                    agent={a}
-                                    isSelected={selectedAgentId === a.id}
-                                    onClick={() => setSelectedAgentId(a.id)}
-                                    provider={providers.find(p => p.description === a.provider)}
-                                />
-                            ))
+                            <>
+                                {Object.entries(groupedAgents.groups).sort(([a], [b]) => a.localeCompare(b)).map(([group, groupAgents]) => (
+                                    <div key={group} className="flex flex-col gap-3">
+                                        <button
+                                            className="w-full flex items-center gap-2 px-3 py-2 text-left hover:bg-neutral-100 dark:hover:bg-neutral-800 rounded-lg transition-colors"
+                                            onClick={() => toggleGroup(group)}
+                                        >
+                                            <FontAwesomeIcon
+                                                icon={collapsedGroups[group] ? faChevronRight : faChevronDown}
+                                                className="text-neutral-400 text-xs w-3"
+                                            />
+                                            <FontAwesomeIcon icon={faLayerGroup} className="text-neutral-400 text-xs" />
+                                            <Text size="xs" bold={true} className="uppercase tracking-wider opacity-60">{group}</Text>
+                                            <Text size="xs" secondary={true} className="ml-auto opacity-50">{groupAgents.length}</Text>
+                                        </button>
+                                        {!collapsedGroups[group] && groupAgents.map(a => (
+                                            <AgentButton
+                                                key={a.id}
+                                                agent={a}
+                                                isSelected={selectedAgentId === a.id}
+                                                onClick={() => setSelectedAgentId(a.id)}
+                                                provider={providers.find(p => p.description === a.provider)}
+                                            />
+                                        ))}
+                                    </div>
+                                ))}
+                                {groupedAgents.ungrouped.map(a => (
+                                    <AgentButton
+                                        key={a.id}
+                                        agent={a}
+                                        isSelected={selectedAgentId === a.id}
+                                        onClick={() => setSelectedAgentId(a.id)}
+                                        provider={providers.find(p => p.description === a.provider)}
+                                    />
+                                ))}
+                            </>
                         )}
                     </Card>
 
@@ -275,6 +348,58 @@ export default function AgentsPage({
                                         <Button
                                             themed={true}
                                             disabled={agentForm.name === selectedAgent?.name || !agentForm.name.trim()}
+                                            onClick={() => saveAgentConfig(agentForm)}
+                                            icon={faSave}
+                                        >
+                                            Save
+                                        </Button>
+                                    </Column>
+                                </Row>
+
+                                <Row align="end" gap="gap-4">
+                                    <Column grow={true}>
+                                        <div ref={groupInputRef} className="relative">
+                                            <Input
+                                                label="Group"
+                                                currentText={agentForm.group || ''}
+                                                onFocus={() => existingGroups.length > 0 && setIsGroupDropdownOpen(true)}
+                                                onChange={e => {
+                                                    setAgentForm({ ...agentForm, group: e.target.value || undefined })
+                                                    setIsGroupDropdownOpen(true)
+                                                }}
+                                                clearText={() => {
+                                                    setAgentForm({ ...agentForm, group: undefined });
+                                                    saveAgentConfig({ ...agentForm, group: null });
+                                                    setIsGroupDropdownOpen(false);
+                                                }}
+                                                icon={faLayerGroup}
+                                                placeholder={existingGroups.length > 0 ? "Type or select a group..." : "e.g., Campaign, Research, Assistants"}
+                                            />
+                                            {isGroupDropdownOpen && filteredGroups.length > 0 && (
+                                                <div className="absolute z-50 mt-1 w-full bg-card border border-neutral-200 dark:border-neutral-700 rounded-xl shadow-lg overflow-hidden">
+                                                    {filteredGroups.map(group => (
+                                                        <button
+                                                            key={group}
+                                                            className="w-full px-4 py-2.5 text-left text-sm hover:bg-neutral-100 dark:hover:bg-neutral-800 transition-colors flex items-center gap-2"
+                                                            onClick={() => {
+                                                                const updated = { ...agentForm, group };
+                                                                setAgentForm(updated);
+                                                                setIsGroupDropdownOpen(false);
+                                                                saveAgentConfig(updated);
+                                                            }}
+                                                        >
+                                                            <FontAwesomeIcon icon={faLayerGroup} className="text-neutral-400 text-xs" />
+                                                            <Text size="sm">{group}</Text>
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                        </div>
+                                    </Column>
+                                    <Column>
+                                        <Button
+                                            themed={true}
+                                            disabled={(agentForm.group || '') === (selectedAgent?.group || '')}
                                             onClick={() => saveAgentConfig(agentForm)}
                                             icon={faSave}
                                         >

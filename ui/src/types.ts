@@ -43,6 +43,7 @@ export interface Agent {
     systemPrompt: string;
     provider?: string;
     isDefault?: boolean;
+    group?: string;
 }
 
 export interface AgentState {

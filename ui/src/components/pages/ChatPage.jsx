@@ -1,4 +1,4 @@
-import React, { useEffect, Fragment } from 'react'
+import React, { useEffect, Fragment, useMemo } from 'react'
 import {
     AlertCircle
 } from 'lucide-react'
@@ -60,6 +60,36 @@ export default function ChatPage({
     const isNoAgentSelected = !selectedAgentId;
     const isAgentMissing = !currentAgent && !!selectedAgentId;
 
+    const agentSelectData = useMemo(() => {
+        const groups = {};
+        const ungrouped = [];
+        for (const a of (agents || [])) {
+            if (a.group) {
+                if (!groups[a.group]) groups[a.group] = [];
+                groups[a.group].push({ value: a.id, label: a.name });
+            } else {
+                ungrouped.push({ value: a.id, label: a.name });
+            }
+        }
+        const hasGroups = Object.keys(groups).length > 0;
+        if (!hasGroups) {
+            return {
+                options: [{ value: '', label: 'Choose an Agent' }, ...ungrouped],
+                optionGroups: undefined
+            };
+        }
+        const optionGroups = Object.entries(groups)
+            .sort(([a], [b]) => a.localeCompare(b))
+            .map(([label, options]) => ({ label, options }));
+        if (ungrouped.length > 0) {
+            optionGroups.push({ label: 'Other', options: ungrouped });
+        }
+        return {
+            options: [{ value: '', label: 'Choose an Agent' }],
+            optionGroups
+        };
+    }, [agents]);
+
     let askUserQuestion = null;
     let askUserOptions = null;
     if (!isStreaming && messages.length > 0) {
@@ -118,10 +148,8 @@ export default function ChatPage({
                                 width="w-[180px]"
                                 value={selectedAgentId}
                                 onChange={(e) => setSelectedAgentId(e.target.value)}
-                                options={[
-                                    { value: '', label: 'Choose an Agent' },
-                                    ...agents.map(a => ({ value: a.id, label: `${a.name}` }))
-                                ]}
+                                options={agentSelectData.options}
+                                optionGroups={agentSelectData.optionGroups}
                             />
                         </div>
 

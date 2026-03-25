@@ -9,6 +9,7 @@ const Select = ({
   icon,
   label,
   options,
+  optionGroups,
   value,
   onChange,
   width,
@@ -41,7 +42,7 @@ const Select = ({
             value={value}
             onChange={onChange}
           >
-            {options.map(option => {
+            {options && options.map(option => {
               const optValue = typeof option === 'string' ? option : option.value;
               const optLabel = typeof option === 'string' ? option : option.label;
               return (
@@ -50,6 +51,19 @@ const Select = ({
                 </option>
               );
             })}
+            {optionGroups && optionGroups.map(group => (
+              <optgroup key={group.label} label={group.label}>
+                {group.options.map(option => {
+                  const optValue = typeof option === 'string' ? option : option.value;
+                  const optLabel = typeof option === 'string' ? option : option.label;
+                  return (
+                    <option key={optValue} value={optValue}>
+                      {optLabel}
+                    </option>
+                  );
+                })}
+              </optgroup>
+            ))}
           </select>
 
         </Text>
