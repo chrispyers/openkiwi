@@ -45,7 +45,7 @@ export default {
     definition: {
         name: 'postgres_query',
         displayName: 'PostgreSQL Query',
-        description: 'Execute read-only SQL queries against a PostgreSQL database. Only SELECT and WITH (CTE) queries are permitted. Use this to inspect fitness data, workout logs, body metrics, and training history.',
+        description: 'Execute read-only SQL queries against a PostgreSQL database. Only SELECT and WITH (CTE) queries are permitted.',
         parameters: {
             type: 'object',
             properties: {
