@@ -44,7 +44,8 @@ function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; 
         headers['x-api-key'] = providerConfig.apiKey || '';
         headers['anthropic-version'] = '2023-06-01';
         // Anthropic uses /v1/messages for chat-like completions
-        return { url: `${normalizedUrl}/messages`, headers };
+        const anthropicBase = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+        return { url: `${anthropicBase}/messages`, headers };
     }
 
     // Detect OpenRouter
