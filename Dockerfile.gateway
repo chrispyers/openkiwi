@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install --ignore-scripts
 
 COPY . .
 RUN npm run build
@@ -37,7 +37,12 @@ ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
     PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
 
 COPY package*.json ./
-RUN npm install
+# Remove the postinstall script (which tries to install ui/) before installing,
+# but allow other lifecycle scripts so native modules like better-sqlite3 compile.
+RUN node -e "const p=require('./package.json'); delete p.scripts.postinstall; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2))" && \
+    apt-get update && apt-get install -y make g++ --no-install-recommends && \
+    npm install && \
+    apt-get purge -y make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/dist ./dist
 # Source code is needed for tsx to run the dynamic tools
