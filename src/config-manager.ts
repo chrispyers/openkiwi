@@ -10,7 +10,7 @@ function loadOrCreateEncryptionKey(): Buffer {
     if (process.env.OPENKIWI_ENCRYPTION_KEY) {
         return Buffer.from(process.env.OPENKIWI_ENCRYPTION_KEY, 'hex');
     }
-    const keyPath = path.resolve(process.cwd(), '.openkiwi.key');
+    const keyPath = path.resolve(process.cwd(), 'config', '.openkiwi.key');
     if (fs.existsSync(keyPath)) {
         const existing = fs.readFileSync(keyPath, 'utf-8').trim();
         if (existing.length === 64) {
@@ -151,7 +151,7 @@ export type Config = z.infer<typeof ConfigSchema>;
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'config', 'config.json');
 const LEGACY_MOUNT_PATH = path.resolve(process.cwd(), 'config.json.legacy');
-const TEMPLATE_PATH = path.resolve(process.cwd(), 'config', 'config.json.template');
+const TEMPLATE_PATH = path.resolve(process.cwd(), 'config.json.template');
 let hasLoggedToken = false;
 
 function ensureConfigDir() {
@@ -284,8 +284,12 @@ export function loadConfig(): Config {
         }
 
         return config;
-    } catch (error) {
-        console.error('Failed to load config.json, using defaults:', error);
+    } catch (error: any) {
+        if (error?.code === 'ENOENT') {
+            console.log('[Config] No config.json found — using defaults.');
+        } else {
+            console.error('[Config] Failed to load config.json, using defaults:', error);
+        }
         return {
 
             chat: {

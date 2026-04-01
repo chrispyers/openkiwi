@@ -10,12 +10,8 @@ services:
       - "3808:3808" # Host 3808 -> Container 3808
     volumes:
       - ./agents:/app/agents
-      - ./agent_personas:/app/agent_personas
       - ./config:/app/config
-      - ./config.json:/app/config.json.legacy
-      - ./.openkiwi.key:/app/.openkiwi.key
       - ./sessions:/app/sessions
-      - ./tools:/app/tools
       - ./skills:/app/skills
       - ./workspace:/app/workspace
       - ./logs:/app/logs
