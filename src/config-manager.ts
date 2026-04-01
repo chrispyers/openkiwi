@@ -152,7 +152,6 @@ export type Config = z.infer<typeof ConfigSchema>;
 const CONFIG_PATH = path.resolve(process.cwd(), 'config', 'config.json');
 const LEGACY_MOUNT_PATH = path.resolve(process.cwd(), 'config.json.legacy');
 const TEMPLATE_PATH = path.resolve(process.cwd(), 'config.json.template');
-let hasLoggedToken = false;
 
 function ensureConfigDir() {
     const configDir = path.dirname(CONFIG_PATH);
@@ -269,14 +268,6 @@ export function loadConfig(): Config {
             console.log('\n' + line);
             console.log(message);
             console.log(line + '\n');
-            hasLoggedToken = true;
-        } else if (!hasLoggedToken) {
-            const message = `Starting gateway with token: ${config.gateway.secretToken}`;
-            const line = '-'.repeat(message.length);
-            console.log('\n' + line);
-            console.log(message);
-            console.log(line + '\n');
-            hasLoggedToken = true;
         }
 
         if (needsMigration) {

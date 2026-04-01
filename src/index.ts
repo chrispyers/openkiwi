@@ -108,8 +108,11 @@ app.use(cors({
         const currentConfig = loadConfig();
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
-        // Prevent wildcard usage with credentials
-        if (allowed.includes('*') || allowed.includes(origin)) {
+        // Merge in origins from CORS_ALLOWED_ORIGINS env var (comma-separated)
+        const envOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean) || [];
+        const allAllowed = [...allowed, ...envOrigins];
+
+        if (allAllowed.includes('*') || allAllowed.includes(origin)) {
             callback(null, true);
         } else {
             console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);

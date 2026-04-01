@@ -86,7 +86,7 @@ function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
-    return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
+    return localStorage.getItem('gateway_addr') || window.location.origin;
   });
 
   const [gatewayToken, setGatewayToken] = useState(() => {
@@ -203,8 +203,9 @@ function App() {
       const token = localStorage.getItem('gateway_token') || '';
       return `${protocol}//${url.host}/ws?hostname=${hostname}&token=${token}`;
     } catch (e) {
-      // Fallback for invalid URLs
-      return `ws://${window.location.hostname}:3808/ws`;
+      // Fallback: use current host
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}/ws`;
     }
   };
 
