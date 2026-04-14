@@ -10,7 +10,7 @@ function loadOrCreateEncryptionKey(): Buffer {
     if (process.env.OPENKIWI_ENCRYPTION_KEY) {
         return Buffer.from(process.env.OPENKIWI_ENCRYPTION_KEY, 'hex');
     }
-    const keyPath = path.resolve(process.cwd(), '.openkiwi.key');
+    const keyPath = path.resolve(process.cwd(), 'config', '.openkiwi.key');
     if (fs.existsSync(keyPath)) {
         const existing = fs.readFileSync(keyPath, 'utf-8').trim();
         if (existing.length === 64) {
@@ -24,7 +24,7 @@ function loadOrCreateEncryptionKey(): Buffer {
 
 const ENCRYPTION_KEY = loadOrCreateEncryptionKey();
 
-function encrypt(text: string): string {
+export function encrypt(text: string): string {
     if (!text || text.startsWith(ENCRYPTION_PREFIX)) return text;
     const iv = crypto.randomBytes(16);
     const cipher = crypto.createCipheriv(ENCRYPTION_ALGORITHM, ENCRYPTION_KEY, iv);
@@ -83,23 +83,74 @@ const ConfigSchema = z.object({
         embeddingsModel: z.string().default(""),
     }).passthrough().default({ useEmbeddings: false, embeddingsModel: "" }),
     system: z.object({
-        version: z.string().default("2026-02-18"),
         latestVersion: z.string().default(""),
         updateCheckInterval: z.number().default(3600000),
-    }).passthrough().default({ version: "2026-02-18", latestVersion: "", updateCheckInterval: 3600000 }),
+    }).passthrough().default({ latestVersion: "", updateCheckInterval: 3600000 }),
     heartbeat: z.object({
         allowManualTrigger: z.boolean().default(false),
     }).passthrough().default({ allowManualTrigger: false }),
     enabledTools: z.record(z.string(), z.boolean()).default({}),
     tools: z.record(z.string(), z.any()).default({}),
+    mcpServers: z.record(z.string(), z.object({
+        command: z.string(),
+        args: z.array(z.string()).default([]),
+    }).passthrough()).default({}),
+    connections: z.object({
+        git: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            baseUrl: z.string(),
+            pat: z.string().optional(),
+            verified: z.boolean().optional(),
+            verifiedUsername: z.string().optional(),
+        })).default([]),
+        anthropic: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+        lmstudio: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            endpoint: z.string(),
+        })).default([]),
+        lemonade: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            endpoint: z.string(),
+        })).default([]),
+        google: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+        openai: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+        ollama: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            endpoint: z.string(),
+        })).default([]),
+        openrouter: z.array(z.object({
+            id: z.string(),
+            label: z.string(),
+            apiKey: z.string(),
+            verified: z.boolean().optional(),
+        })).default([]),
+    }).passthrough().default({ git: [], anthropic: [], lmstudio: [], lemonade: [], google: [], openai: [], ollama: [], openrouter: [] }),
 }).passthrough();
 
 export type Config = z.infer<typeof ConfigSchema>;
 
 const CONFIG_PATH = path.resolve(process.cwd(), 'config', 'config.json');
 const LEGACY_MOUNT_PATH = path.resolve(process.cwd(), 'config.json.legacy');
-const TEMPLATE_PATH = path.resolve(process.cwd(), 'config', 'config.json.template');
-let hasLoggedToken = false;
+const TEMPLATE_PATH = path.resolve(process.cwd(), 'config.json.template');
 
 function ensureConfigDir() {
     const configDir = path.dirname(CONFIG_PATH);
@@ -171,6 +222,39 @@ export function loadConfig(): Config {
             json.gateway.secretToken = decrypt(json.gateway.secretToken);
         }
 
+        if (json.connections?.git && Array.isArray(json.connections.git)) {
+            json.connections.git.forEach((conn: any) => {
+                if (conn.pat && !conn.pat.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.pat) conn.pat = decrypt(conn.pat);
+                if (conn.verifiedUsername && !conn.verifiedUsername.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.verifiedUsername) conn.verifiedUsername = decrypt(conn.verifiedUsername);
+            });
+        }
+        if (json.connections?.anthropic && Array.isArray(json.connections.anthropic)) {
+            json.connections.anthropic.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+        if (json.connections?.google && Array.isArray(json.connections.google)) {
+            json.connections.google.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+        if (json.connections?.openai && Array.isArray(json.connections.openai)) {
+            json.connections.openai.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+        if (json.connections?.openrouter && Array.isArray(json.connections.openrouter)) {
+            json.connections.openrouter.forEach((conn: any) => {
+                if (conn.apiKey && !conn.apiKey.startsWith(ENCRYPTION_PREFIX)) needsMigration = true;
+                if (conn.apiKey) conn.apiKey = decrypt(conn.apiKey);
+            });
+        }
+
         const config = ConfigSchema.parse(json);
 
 
@@ -183,14 +267,6 @@ export function loadConfig(): Config {
             console.log('\n' + line);
             console.log(message);
             console.log(line + '\n');
-            hasLoggedToken = true;
-        } else if (!hasLoggedToken) {
-            const message = `Starting gateway with token: ${config.gateway.secretToken}`;
-            const line = '-'.repeat(message.length);
-            console.log('\n' + line);
-            console.log(message);
-            console.log(line + '\n');
-            hasLoggedToken = true;
         }
 
         if (needsMigration) {
@@ -198,8 +274,12 @@ export function loadConfig(): Config {
         }
 
         return config;
-    } catch (error) {
-        console.error('Failed to load config.json, using defaults:', error);
+    } catch (error: any) {
+        if (error?.code === 'ENOENT') {
+            console.log('[Config] No config.json found — using defaults.');
+        } else {
+            console.error('[Config] Failed to load config.json, using defaults:', error);
+        }
         return {
 
             chat: {
@@ -223,7 +303,6 @@ export function loadConfig(): Config {
                 embeddingsModel: "",
             },
             system: {
-                version: "2026-02-18",
                 latestVersion: "",
                 updateCheckInterval: 3600000,
             },
@@ -231,7 +310,9 @@ export function loadConfig(): Config {
                 allowManualTrigger: false,
             },
             enabledTools: {},
-            tools: {}
+            tools: {},
+            mcpServers: {},
+            connections: { git: [], anthropic: [], lmstudio: [], lemonade: [], google: [], openai: [], ollama: [], openrouter: [] },
         };
     }
 }
@@ -248,6 +329,33 @@ export function saveConfig(config: Config): void {
     }
     if (configToSave.gateway && configToSave.gateway.secretToken) {
         configToSave.gateway.secretToken = encrypt(configToSave.gateway.secretToken);
+    }
+
+    if (configToSave.connections?.git && Array.isArray(configToSave.connections.git)) {
+        configToSave.connections.git.forEach((conn: any) => {
+            if (conn.pat) conn.pat = encrypt(conn.pat);
+            if (conn.verifiedUsername) conn.verifiedUsername = encrypt(conn.verifiedUsername);
+        });
+    }
+    if (configToSave.connections?.anthropic && Array.isArray(configToSave.connections.anthropic)) {
+        configToSave.connections.anthropic.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
+    }
+    if (configToSave.connections?.google && Array.isArray(configToSave.connections.google)) {
+        configToSave.connections.google.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
+    }
+    if (configToSave.connections?.openai && Array.isArray(configToSave.connections.openai)) {
+        configToSave.connections.openai.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
+    }
+    if (configToSave.connections?.openrouter && Array.isArray(configToSave.connections.openrouter)) {
+        configToSave.connections.openrouter.forEach((conn: any) => {
+            if (conn.apiKey) conn.apiKey = encrypt(conn.apiKey);
+        });
     }
 
     const data = JSON.stringify(configToSave, null, 2);

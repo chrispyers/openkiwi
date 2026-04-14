@@ -3,7 +3,7 @@ FROM node:20-slim AS builder
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm install
+RUN npm install --ignore-scripts
 
 COPY . .
 RUN npm run build
@@ -32,19 +32,34 @@ RUN curl -fsSL https://cli.github.com/packages/githubcli-archive-keyring.gpg \
     apt-get install -y gh --no-install-recommends && \
     rm -rf /var/lib/apt/lists/*
 
+# Install Docker CLI for Docker-out-of-Docker (security scanners launch sibling containers)
+RUN ARCH=$(uname -m) && \
+    curl -fsSL "https://download.docker.com/linux/static/stable/${ARCH}/docker-27.5.1.tgz" | \
+    tar xz --strip-components=1 -C /usr/local/bin docker/docker
+
 # Tell Puppeteer to skip installing Chrome. We'll use the installed package.
+ARG APP_VERSION=dev
 ENV PUPPETEER_SKIP_CHROMIUM_DOWNLOAD=true \
-    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium
+    PUPPETEER_EXECUTABLE_PATH=/usr/bin/chromium \
+    APP_VERSION=$APP_VERSION
+LABEL org.opencontainers.image.version=$APP_VERSION
 
 COPY package*.json ./
-RUN npm install
+# Remove the postinstall script (which tries to install ui/) before installing,
+# but allow other lifecycle scripts so native modules like better-sqlite3 compile.
+RUN node -e "const p=require('./package.json'); delete p.scripts.postinstall; require('fs').writeFileSync('./package.json', JSON.stringify(p, null, 2))" && \
+    chmod 644 package.json && \
+    apt-get update && apt-get install -y make g++ --no-install-recommends && \
+    npm install && \
+    apt-get purge -y make g++ && apt-get autoremove -y && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /app/dist ./dist
 # Source code is needed for tsx to run the dynamic tools
 COPY src ./src
 COPY tools ./tools
 COPY tsconfig.json ./
-COPY config/config.json.template ./config/
+# Place template outside config/ so bind mounts don't hide it
+COPY config/config.json.template ./config.json.template
 COPY agent_personas ./agent_personas
 
 # Create necessary data directories
@@ -52,8 +67,13 @@ RUN mkdir -p agents sessions workspace logs screenshots config whatsapp_auth ski
 
 # Hardening: Only give the node user ownership of the data directories.
 # The app code (dist, src, etc.) remains owned by root and read-only for the node user.
+# Ensure all app files are world-readable (some build environments use a restrictive umask).
 RUN chown -R node:node agents sessions workspace logs screenshots config whatsapp_auth && \
-    chmod -R 770 agents sessions workspace logs screenshots config whatsapp_auth
+    chmod -R 770 agents sessions workspace logs screenshots config whatsapp_auth && \
+    find /app -not -path '*/agents/*' -not -path '*/sessions/*' -not -path '*/workspace/*' \
+         -not -path '*/logs/*' -not -path '*/screenshots/*' -not -path '*/config/*' \
+         -not -path '*/whatsapp_auth/*' \
+         \( -type f -exec chmod a+r {} + -o -type d -exec chmod a+rx {} + \)
 
 # Use dumb-init for proper signal handling
 ENTRYPOINT ["/usr/bin/dumb-init", "--"]

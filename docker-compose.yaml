@@ -3,6 +3,9 @@ services:
     build:
       context: .
       dockerfile: Dockerfile.gateway
+    environment:
+      - CORS_ALLOWED_ORIGINS=http://localhost:3000,http://127.0.0.1:3000
+      - DOCKER_HOST_WORKSPACE=${PWD}/workspace
     env_file:
       - path: .env
         required: false
@@ -10,16 +13,12 @@ services:
       - "3808:3808" # Host 3808 -> Container 3808
     volumes:
       - ./agents:/app/agents
-      - ./agent_personas:/app/agent_personas
       - ./config:/app/config
-      - ./config.json:/app/config.json.legacy
-      - ./.openkiwi.key:/app/.openkiwi.key
       - ./sessions:/app/sessions
-      - ./tools:/app/tools
       - ./skills:/app/skills
       - ./workspace:/app/workspace
       - ./logs:/app/logs
-      - ./LATEST_RELEASE.txt:/app/LATEST_RELEASE.txt
+      - /var/run/docker.sock:/var/run/docker.sock
     restart: unless-stopped
 
   gateway-ui:

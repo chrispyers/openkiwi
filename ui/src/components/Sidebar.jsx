@@ -10,10 +10,12 @@ import {
     faFileLines,
     faGear,
     faArrowsSpin,
-    faDiagramProject,
     faFolder,
     faFolderOpen,
-    faPuzzlePiece
+    faScroll,
+    faBolt,
+    faPlug,
+    faTerminal
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function Sidebar({
@@ -28,27 +30,30 @@ export default function Sidebar({
     onSettingsClick,
     isProjectManagementEnabled,
     isProjectsEnabled,
-    isAgentActivityEnabled
+    isAgentActivityEnabled,
+    isCodeEnabled
 }) {
     const navigate = useNavigate();
     const { theme } = useTheme();
 
     const navItems = [
         { id: 'chat', icon: faComments, label: 'Chat' },
+        { id: 'code', icon: faTerminal, label: 'Code', experimentalCode: true },
         { id: 'activity', icon: faArrowsSpin, label: 'Activity', showActive: hasActiveAgents, experimentalActivity: true },
-        { experimentalProjectManagement: true },
+        {},
         { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjects: true },
         { id: 'files', icon: faFolderOpen, label: 'Files' },
-        { id: 'workflows', icon: faDiagramProject, label: 'Workflows', experimentalProjectManagement: true },
+        { id: 'workflows', icon: faScroll, label: 'Workflows' },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
+        { id: 'mcp', icon: faPlug, label: 'MCP Servers' },
         { id: 'models', icon: faCube, label: 'Models', showAlert: !hasModels },
-        { id: 'skills', icon: faPuzzlePiece, label: 'Skills' },
+        { id: 'skills', icon: faBolt, label: 'Skills' },
     ].filter((item) => {
-        if (item.experimentalProjectManagement && !isProjectManagementEnabled) return false;
         if (item.experimentalProjects && !isProjectsEnabled) return false;
         if (item.experimentalActivity && !isAgentActivityEnabled) return false;
+        if (item.experimentalCode && !isCodeEnabled) return false;
         return true;
     });
 
@@ -64,7 +69,7 @@ export default function Sidebar({
                 navigate('/' + item.id);
             }}
             className={`w-[calc(100%-1rem)] mx-2 px-3 py-3 rounded-xl transition-all duration-50 group relative flex items-center gap-4 ${activeView === item.id
-                ? `bg-accent-primary text-white dark:text-neutral-600 shadow-lg shadow-accent-primary/20`
+                ? `bg-accent-primary text-[var(--button-on-accent)] shadow-lg shadow-accent-primary/20`
                 : 'text-primary hover:bg-neutral-200 dark:hover:bg-neutral-800'
                 }`}
             title={isNavExpanded ? undefined : item.label}

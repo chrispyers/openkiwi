@@ -17,6 +17,7 @@ const TextArea = forwardRef(({
     disabled,
     value,
     code = false,
+    action,
     ...rest
 }, ref) => {
     const context = useContext(ThemeContext);
@@ -48,11 +49,17 @@ const TextArea = forwardRef(({
                         placeholder-neutral-300 dark:placeholder-neutral-500
                         ${getThemeInputClasses()}
                         ${code ? 'font-mono' : ''}
+                        ${action ? 'pr-9' : ''}
                         ${className || ""} ${textAreaClassName || ""}`}
                     value={value !== undefined ? value : currentText}
                     onChange={onChange || (() => { })}
                     placeholder={placeholder}
                 ></textarea>
+                {action && (
+                    <div className="absolute top-2 right-2">
+                        {action}
+                    </div>
+                )}
             </div>
         </div>
     );

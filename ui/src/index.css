@@ -1,8 +1,17 @@
+@import './themes/blue.css';
+@import './themes/purple.css';
+@import './themes/green.css';
+@import './themes/red.css';
+@import './themes/orange.css';
+
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
-:root {}
+:root {
+  --default-swatch-light: rgb(82, 82, 82);
+  --default-swatch-dark: rgb(250, 250, 250);
+}
 
 /* Light Mode */
 .light,
@@ -26,6 +35,7 @@
 :root:not(.dark) {
   /* Theme Color */
   --accent-primary: rgb(70, 70, 70);
+  --button-on-accent: white;
 
   /* Borders */
   --border-color: rgb(232, 232, 232);
@@ -71,7 +81,8 @@
 /* Dark Mode Variables */
 .dark {
   /* Theme Color */
-  --accent-primary: #fafafa;
+  --accent-primary: #f0f0f0;
+  --button-on-accent: rgb(26, 26, 26);
 
   /* Borders */
   --border-color: #383838;
@@ -154,7 +165,8 @@
   }
 
   .nav-button-active {
-    @apply bg-accent-primary text-white border-accent-primary;
+    @apply bg-accent-primary border-accent-primary;
+    color: var(--button-on-accent);
     /* box-shadow: 0 0 15px rgba(99, 102, 241, 0.3); */
   }
 
@@ -343,4 +355,63 @@
     /* fallback */
     @apply bg-neutral-100 dark:bg-white/5;
   }
+}
+
+/* Code page markdown overrides — terminal aesthetic */
+.code-markdown {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #c9d1d9;
+}
+
+.code-markdown p {
+  margin: 0.5em 0;
+}
+
+.code-markdown code {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.85em;
+}
+
+.code-markdown pre {
+  background: #161b22 !important;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+}
+
+.code-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.code-markdown ul, .code-markdown ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.code-markdown li {
+  margin: 0.25em 0;
+}
+
+.code-markdown h1, .code-markdown h2, .code-markdown h3 {
+  color: #e6edf3;
+  margin: 0.75em 0 0.25em;
+}
+
+.code-markdown a {
+  color: #58a6ff;
+}
+
+.code-markdown blockquote {
+  border-left: 3px solid #30363d;
+  padding-left: 1em;
+  color: #8b949e;
+  margin: 0.5em 0;
 }

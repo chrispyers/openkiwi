@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
-import { faPlus, faCloudArrowUp } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faCloudArrowUp, faDownload, faBolt, faTriangleExclamation, faFileCircleCheck } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import JSZip from 'jszip'
 import Text from '../../Text'
@@ -253,17 +253,50 @@ export default function Settings_Skills({ gatewayAddr, gatewayToken }) {
         >
             <Column>
 
-                <Text secondary={true} size="sm">
-                    Find more skills at{' '}
-                    <a
-                        href="https://skillsmp.com/search"
-                        target="_blank"
-                        rel="noreferrer"
-                        className="text-accent-primary hover:underline"
-                    >
-                        skillsmp.com/search
-                    </a>
-                </Text>
+                {/* How-to cards */}
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-2">
+                    <div className="rounded-xl border border-divider bg-card p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-accent-primary">
+                            <FontAwesomeIcon icon={faDownload} className="text-sm" />
+                            <Text bold={true} size="sm">1. Find &amp; Download</Text>
+                        </div>
+                        <Text secondary={true} size="sm">
+                            Browse skills at{' '}
+                            <a href="https://skillsmp.com/search" target="_blank" rel="noreferrer" className="text-accent-primary hover:underline">
+                                skillsmp.com/search
+                            </a>
+                            . Each skill is a <code className="font-mono">.zip</code> archive containing a <code className="font-mono">SKILL.md</code> file and any supporting scripts.
+                        </Text>
+                    </div>
+
+                    <div className="rounded-xl border border-divider bg-card p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-accent-primary">
+                            <FontAwesomeIcon icon={faFileCircleCheck} className="text-sm" />
+                            <Text bold={true} size="sm">2. Install</Text>
+                        </div>
+                        <Text secondary={true} size="sm">
+                            Click <strong>Install Skill</strong> above and drop the <code className="font-mono">.zip</code> into the dialog. The skill becomes available to all agents immediately - no restart required.
+                        </Text>
+                    </div>
+
+                    <div className="rounded-xl border border-divider bg-card p-4 flex flex-col gap-2">
+                        <div className="flex items-center gap-2 text-accent-primary">
+                            <FontAwesomeIcon icon={faBolt} className="text-sm" />
+                            <Text bold={true} size="sm">3. Use</Text>
+                        </div>
+                        <Text secondary={true} size="sm">
+                            Skills are activated automatically when your agent decides they are relevant. You can also ask your agent directly, e.g. <em>"use the X skill to…"</em>
+                        </Text>
+                    </div>
+                </div>
+
+                {/* Model requirement callout */}
+                <div className="rounded-xl border border-amber-500/30 bg-amber-500/5 px-4 py-3 flex gap-3 items-start mb-2">
+                    <FontAwesomeIcon icon={faTriangleExclamation} className="text-amber-500 mt-0.5 shrink-0" />
+                    <Text size="sm" secondary={true}>
+                        <strong className="text-primary">Model requirement:</strong> The model that your agent uses must be <strong>trained for tool use</strong> in order to activate skills.
+                    </Text>
+                </div>
 
                 {loading && <Text secondary={true} size="sm">Loading skills...</Text>}
                 {error && <Text size="sm" className="text-red-500">Failed to load skills: {error}</Text>}
@@ -293,7 +326,7 @@ export default function Settings_Skills({ gatewayAddr, gatewayToken }) {
                                         </div>
                                     </div>
                                     <span className="shrink-0 text-xs px-2 py-0.5 rounded-full bg-accent-primary/10 text-accent-primary font-mono">
-                                        active
+                                        installed
                                     </span>
                                 </div>
                             </button>

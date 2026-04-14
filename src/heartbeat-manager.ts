@@ -27,9 +27,6 @@ export class HeartbeatManager {
                 if (agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
                     this.scheduleHeartbeat(agent, 'heartbeat');
                 }
-                if (agent.collaboration && agent.collaboration.enabled && agent.collaboration.schedule) {
-                    this.scheduleHeartbeat(agent, 'collaboration');
-                }
             }
         }
         console.log(`💓 Heartbeat Manager: Scheduled ${this.jobs.size} agents.`);
@@ -41,15 +38,13 @@ export class HeartbeatManager {
     }
 
     static refreshAgent(agentId: string) {
-        // Stop existing jobs if any
-        ['heartbeat', 'collaboration'].forEach(type => {
-            const key = `${agentId}:${type}`;
-            if (this.jobs.has(key)) {
-                this.jobs.get(key).stop();
-                this.jobs.delete(key);
-                console.log(`💓 Heartbeat Manager: Stopped existing job for ${key}`);
-            }
-        });
+        // Stop existing job if any
+        const key = `${agentId}:heartbeat`;
+        if (this.jobs.has(key)) {
+            this.jobs.get(key).stop();
+            this.jobs.delete(key);
+            console.log(`💓 Heartbeat Manager: Stopped existing job for ${key}`);
+        }
 
         // Get updated agent config
         const agent = AgentManager.getAgent(agentId);
@@ -57,14 +52,11 @@ export class HeartbeatManager {
             if (agent.heartbeat && agent.heartbeat.enabled && agent.heartbeat.schedule) {
                 this.scheduleHeartbeat(agent, 'heartbeat');
             }
-            if (agent.collaboration && agent.collaboration.enabled && agent.collaboration.schedule) {
-                this.scheduleHeartbeat(agent, 'collaboration');
-            }
         }
     }
 
-    private static scheduleHeartbeat(agent: Agent, type: 'heartbeat' | 'collaboration') {
-        const schedule = type === 'heartbeat' ? agent.heartbeat?.schedule : agent.collaboration?.schedule;
+    private static scheduleHeartbeat(agent: Agent, type: 'heartbeat') {
+        const schedule = agent.heartbeat?.schedule;
         if (!schedule) return;
 
         try {
@@ -75,11 +67,7 @@ export class HeartbeatManager {
             }
 
             const job = cron.schedule(schedule, () => {
-                if (type === 'heartbeat') {
-                    this.executeHeartbeat(agent.id);
-                } else {
-                    this.executeCollaborationHeartbeat(agent.id);
-                }
+                this.executeHeartbeat(agent.id);
             });
 
             const key = `${agent.id}:${type}`;
@@ -292,13 +280,12 @@ Please execute these instructions now.
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
                 apiKey: providerConfig.apiKey,
-                maxTokens: providerConfig.maxTokens,
                 supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
             };
 
             const now = new Date();
             const currentTimestampUTC = now.toISOString();
-            const currentTimestampLocal = now.toLocaleString(undefined, { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: 'full', timeStyle: 'long' });
+            const currentTimestampLocal = now.toLocaleString('en-US', { timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone, dateStyle: 'full', timeStyle: 'long' });
 
             const messages: { role: string; content: string | null; tool_calls?: any[]; tool_call_id?: string; name?: string }[] = [
                 { role: 'system', content: agent.systemPrompt },
@@ -329,7 +316,7 @@ You have been woken up to work on the Agent Collaboration System.
                 sessionId: 'collaboration',
                 llmConfig,
                 messages: messages,
-                maxLoops: 10,
+                maxLoops: agent.heartbeat?.maxLoops || 10,
                 signToolUrls: false
             });
 

@@ -1,9 +1,18 @@
 
+import { Agent } from 'undici';
+
+// Long timeout dispatcher for LLM requests that may take minutes to process large prompts
+const llmDispatcher = new Agent({
+    bodyTimeout: 10 * 60 * 1000,    // 10 minutes for body/streaming
+    headersTimeout: 10 * 60 * 1000, // 10 minutes waiting for first response headers
+});
+
 export interface LLMProviderConfig {
     baseUrl: string;
     modelId: string;
     apiKey?: string;
     maxTokens?: number;
+    maxContextLength?: number;
 }
 
 /**
@@ -35,7 +44,8 @@ function getProviderEndpoint(providerConfig: LLMProviderConfig): { url: string; 
         headers['x-api-key'] = providerConfig.apiKey || '';
         headers['anthropic-version'] = '2023-06-01';
         // Anthropic uses /v1/messages for chat-like completions
-        return { url: `${normalizedUrl}/messages`, headers };
+        const anthropicBase = normalizedUrl.endsWith('/v1') ? normalizedUrl : `${normalizedUrl}/v1`;
+        return { url: `${anthropicBase}/messages`, headers };
     }
 
     // Detect OpenRouter
@@ -132,10 +142,12 @@ export async function* streamChatCompletion(
         body = {
             model: providerConfig.modelId,
             messages,
-            max_tokens: providerConfig.maxTokens || 8192,
             stream: true,
             stream_options: { include_usage: true },
         };
+        if (providerConfig.maxTokens) {
+            body.max_tokens = providerConfig.maxTokens;
+        }
 
         if (tools && tools.length > 0) {
             body.tools = tools.map(t => ({
@@ -157,6 +169,8 @@ export async function* streamChatCompletion(
             headers,
             body: JSON.stringify(body),
             signal: abortSignal,
+            // @ts-expect-error -- Node fetch accepts undici dispatcher option
+            dispatcher: llmDispatcher,
         });
     } catch (error) {
         if (error instanceof Error) {
@@ -281,7 +295,8 @@ export async function* streamChatCompletion(
 
 export async function getChatCompletion(
     providerConfig: LLMProviderConfig,
-    messages: { role: string; content: string }[]
+    messages: { role: string; content: string }[],
+    options?: { maxTokens?: number }
 ) {
     // Re-use stream implementation to keep things unified
     // or just implement a simplified version. Since this is mainly used for summaries, we can implement it.
@@ -299,16 +314,19 @@ export async function getChatCompletion(
                 role: m.role === 'assistant' ? 'assistant' : 'user',
                 content: m.content
             })),
-            max_tokens: providerConfig.maxTokens || 4096,
+            max_tokens: options?.maxTokens ?? providerConfig.maxTokens ?? 4096,
             stream: false
         };
     } else {
         body = {
             model: providerConfig.modelId,
             messages,
-            max_tokens: providerConfig.maxTokens || 8192,
             stream: false,
         };
+        const maxTok = options?.maxTokens ?? providerConfig.maxTokens;
+        if (maxTok) {
+            body.max_tokens = maxTok;
+        }
     }
 
     let response;
@@ -317,6 +335,8 @@ export async function getChatCompletion(
             method: 'POST',
             headers,
             body: JSON.stringify(body),
+            // @ts-expect-error -- Node fetch accepts undici dispatcher option
+            dispatcher: llmDispatcher,
         });
     } catch (error) {
         if (error instanceof Error) {
@@ -427,6 +447,71 @@ export async function createEmbedding(
     return json.data.map((d: any) => d.embedding);
 }
 
+/**
+ * Detect model capabilities from Ollama's /api/show response.
+ *
+ * Priority:
+ *   1. Native `capabilities` array returned by Ollama ≥ 0.6 (authoritative)
+ *   2. Fallback: heuristic inspection of the chat template and model metadata
+ *
+ * Ollama's native capabilities use these string values:
+ *   "completion", "tools", "vision", "embedding"
+ *
+ * Reasoning is not (yet) a native Ollama capability, so we always detect it
+ * via heuristics.
+ */
+function detectOllamaCapabilities(
+    model: any,
+    showData: any
+): { vision?: boolean; trained_for_tool_use?: boolean; reasoning?: boolean } {
+    const nativeCaps: string[] = Array.isArray(showData.capabilities) ? showData.capabilities : [];
+    const hasNativeCaps = nativeCaps.length > 0;
+
+    // --- Tool use ---
+    let trained_for_tool_use = nativeCaps.includes('tools');
+    if (!trained_for_tool_use && !hasNativeCaps) {
+        // Fallback: parse template for tool-related syntax
+        const template = (showData.template || '').toLowerCase();
+        const modelfile = (showData.modelfile || '').toLowerCase();
+        const toolPatterns = [
+            '{{- if .tools }}', '{{ if .tools }}', '.tools',
+            '<tool_call>', '<|python_tag|>', '[tool_calls]',
+            '<function_call>', '"tool_calls"', '<tools>',
+            'functools', 'hermes',
+        ];
+        trained_for_tool_use = toolPatterns.some(p => template.includes(p) || modelfile.includes(p));
+    }
+
+    // --- Vision ---
+    let vision = nativeCaps.includes('vision');
+    if (!vision && !hasNativeCaps) {
+        const modelId = (model.id || '').toLowerCase();
+        const family = (showData.details?.family || '').toLowerCase();
+        const families: string[] = (showData.details?.families || []).map((f: string) => f.toLowerCase());
+        const visionPatterns = ['llava', 'vision', 'moondream', 'bakllava', 'minicpm-v', 'cogvlm'];
+        vision = visionPatterns.some(p => modelId.includes(p) || family.includes(p))
+            || families.includes('clip')
+            || families.includes('mllama');
+    }
+
+    // --- Reasoning (always heuristic — Ollama doesn't expose this natively yet) ---
+    const modelId = (model.id || '').toLowerCase();
+    const template = (showData.template || '').toLowerCase();
+    const reasoningPatterns = ['deepseek-r1', 'qwq', 'reasoning', 'thinking', 'r1-'];
+    const reasoning = reasoningPatterns.some(p => modelId.includes(p))
+        || template.includes('<think>');
+
+    const caps: any = {};
+    if (trained_for_tool_use) caps.trained_for_tool_use = true;
+    if (vision) caps.vision = true;
+    if (reasoning) caps.reasoning = true;
+
+    console.log(`[listModels] Detected capabilities for ${model.id}:`,
+        hasNativeCaps ? `(native: [${nativeCaps.join(', ')}])` : '(heuristic)',
+        caps);
+    return caps;
+}
+
 export async function listModels(
     providerConfig: LLMProviderConfig
 ): Promise<any[]> {
@@ -503,10 +588,70 @@ export async function listModels(
             if (response.ok) {
                 const json = await response.json();
                 if (json.models && Array.isArray(json.models)) {
-                    return json.models.map((m: any) => ({
+                    const models = json.models.map((m: any) => ({
                         ...m,
                         id: m.name || m.model
                     }));
+
+                    // Fetch runtime context lengths from /api/ps for currently loaded models.
+                    // When a model is loaded with a custom num_ctx (e.g. 121k), /api/ps
+                    // exposes it via details.context_length — this takes priority over the
+                    // static model metadata default.
+                    const runtimeCtx = new Map<string, number>();
+                    try {
+                        const psRes = await fetch(`${baseUrl}/api/ps`, { method: 'GET' });
+                        if (psRes.ok) {
+                            const psData = await psRes.json();
+                            for (const rm of psData.models || []) {
+                                const name = rm.name || rm.model;
+                                const ctx = rm.details?.context_length;
+                                if (name && typeof ctx === 'number' && ctx > 0) {
+                                    runtimeCtx.set(name, ctx);
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        console.warn(`[listModels] Failed to fetch /api/ps:`, e);
+                    }
+
+                    // Fetch detailed info from /api/show for each model to detect capabilities
+                    const showUrl = `${baseUrl}/api/show`;
+                    const enriched = await Promise.all(models.map(async (model: any) => {
+                        try {
+                            const showRes = await fetch(showUrl, {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ name: model.id }),
+                            });
+                            if (showRes.ok) {
+                                const showData = await showRes.json();
+                                model.capabilities = detectOllamaCapabilities(model, showData);
+
+                                // Context length priority:
+                                // 1. Runtime context from /api/ps (actual loaded context window)
+                                // 2. num_ctx from Modelfile parameters (user-configured default)
+                                // 3. model_info metadata (architecture default)
+                                const runtimeContext = runtimeCtx.get(model.id);
+                                if (runtimeContext) {
+                                    model.max_context_length = runtimeContext;
+                                } else {
+                                    // Check for num_ctx in modelfile parameters
+                                    const numCtxMatch = (showData.parameters || '').match(/^num_ctx\s+(\d+)/m);
+                                    const numCtx = numCtxMatch ? parseInt(numCtxMatch[1], 10) : null;
+                                    const metaCtx = showData.model_info?.['general.context_length']
+                                        ?? showData.model_info?.['llama.context_length'];
+
+                                    model.max_context_length = numCtx || (typeof metaCtx === 'number' ? metaCtx : undefined);
+                                }
+                            }
+                        } catch (e) {
+                            // Non-fatal — model still usable, just without detected capabilities
+                            console.warn(`[listModels] Failed to fetch /api/show for ${model.id}:`, e);
+                        }
+                        return model;
+                    }));
+
+                    return enriched;
                 }
             }
         } catch (e) {

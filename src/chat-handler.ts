@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { WebSocket } from 'ws';
 import { IncomingMessage } from 'node:http';
 import { loadConfig } from './config-manager.js';
@@ -7,7 +9,7 @@ import { ToolManager } from './tool-manager.js';
 import { logger } from './logger.js';
 import { runAgentLoop } from './agent-loop.js';
 import { getChatCompletion } from './llm-provider.js';
-import { connectedClients, pendingToolCalls } from './state.js';
+import { connectedClients, pendingToolCalls, pendingApprovals } from './state.js';
 import { SkillManager } from './skill-manager.js';
 
 export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
@@ -144,8 +146,19 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 return;
             }
 
+            // Handle Tool Approval Responses from the UI
+            if (parsed.type === 'tool_approval_response') {
+                const { id, approved } = parsed;
+                const pending = pendingApprovals.get(id);
+                if (pending) {
+                    pending.resolve(!!approved);
+                    pendingApprovals.delete(id);
+                }
+                return;
+            }
+
             // Assume it's a Chat Message if not a control type
-            const { messages: userMessages, shouldSummarize } = parsed;
+            const { messages: userMessages, shouldSummarize, mode } = parsed;
             sessionId = parsed.sessionId;
             agentId = parsed.agentId;
 
@@ -160,15 +173,63 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             const payload: any[] = [];
             let systemPrompt = agent?.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
 
+            // Re-read MEMORY.md and SHARED_MEMORY.md fresh from disk so mid-session updates are reflected
+            if (agent?.path) {
+                const freshMemory = AgentManager.readFile(path.join(agent.path, 'MEMORY.md'));
+                const sharedMemoryPath = path.resolve(process.cwd(), 'config', 'SHARED_MEMORY.md');
+                const freshSharedMemory = fs.existsSync(sharedMemoryPath) ? fs.readFileSync(sharedMemoryPath, 'utf-8') : undefined;
+
+                // Replace the cached memory sections with fresh content
+                systemPrompt = systemPrompt.replace(
+                    /## Your Memory\n[\s\S]*?(?=\n## (?!Your Memory)|Whenever the user shares)/,
+                    freshMemory
+                        ? `## Your Memory\nThe following is your long-term memory. Use this to recall facts about the user and past interactions without needing to search.\n\n${freshMemory}\n\n`
+                        : ''
+                );
+                systemPrompt = systemPrompt.replace(
+                    /## Shared Memory \(all agents\)\n[\s\S]*?(?=\n## (?!Shared Memory)|Whenever the user shares)/,
+                    freshSharedMemory
+                        ? `## Shared Memory (all agents)\nThe following memory is shared across all agents.\n\n${freshSharedMemory}\n\n`
+                        : ''
+                );
+            }
+
             // Inject available skills into system prompt
             const skillDefs = SkillManager.getSkillDefinitions();
             if (skillDefs.length > 0) {
                 const skillList = skillDefs.map(s => `- **${s.name}**: ${s.description}`).join('\n');
-                systemPrompt += `\n\n## Available Agent Skills\nThe following skills are available to you. CRITICAL: Before responding to ANY user request, check whether a skill's description matches the task. If a match exists, you MUST call \`activate_skill\` first and follow its instructions — never answer from your own knowledge when a matching skill is available. If the skill's response includes an \`allowed_tools\` list, those tools are pre-approved for use within that skill's workflow and do NOT require \`ask_user\` confirmation.\n\n${skillList}`;
+                systemPrompt += `\n\n## Available Agent Skills\nThe following skills are available to you. CRITICAL: Before responding to ANY user request, check whether a skill's description matches the task. If a match exists, you MUST call \`activate_skill\` first and follow its instructions — never answer from your own knowledge when a matching skill is available. If a skill is already pre-activated (its instructions appear in this prompt), do NOT call \`activate_skill\` — just execute the instructions directly. If the skill's response includes an \`allowed_tools\` list, those tools are pre-approved for use within that skill's workflow and do NOT require \`ask_user\` confirmation.\n\n${skillList}`;
             }
 
             // Anti-hallucination directive
             systemPrompt += "\n\nCRITICAL: Always use the provided tools to take actions — never claim to have done something without calling the corresponding tool and receiving a successful response. Use exact tool names; do not invent tool names or use filenames as tool names.";
+
+            // Multi-agent delegation hint (Option 1 escape hatch)
+            const agentIds = AgentManager.listAgents();
+            if (agentIds.length > 1) {
+                systemPrompt += `\n\n## Multi-Agent Delegation\nYou can delegate tasks to other agents using the \`delegate_to_agent\` tool. Available agents: ${agentIds.join(', ')}. ` +
+                    `For parallel work, call delegate_to_agent multiple times with \`wait: false\` and the same \`run_id\`, then call \`wait_for_agents\` to collect results. ` +
+                    `Use the \`scratchpad_write\` and \`scratchpad_read\` tools to share data between agents. ` +
+                    `Only delegate when the task genuinely benefits from multiple agents working in parallel — for simple tasks, just handle it yourself.`;
+            }
+
+            // Code mode: append coding-focused system prompt supplement
+            if (mode === 'code') {
+                systemPrompt += `\n\n## Code Mode
+You are operating in CODE MODE — a terminal-like coding environment optimized for software engineering.
+
+Key behaviors:
+- Use tools proactively to explore, read, edit, and test code
+- Show your work: explain what you're doing before and after tool calls
+- When editing files, always read them first to understand context
+- After making changes, verify them (run tests, re-read the file, etc.)
+- Use bash for git operations, running tests, installing packages, etc.
+- Be concise in explanations but thorough in code changes
+- The workspace directory is your project root
+- Available tools are your primary interface — use them liberally
+- When asked to implement something, write the actual code using write/edit tools
+- Break complex tasks into steps and execute them methodically`;
+            }
 
             if (systemPrompt) {
                 const now = new Date();
@@ -209,7 +270,8 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 modelId: providerConfig.model,
                 apiKey: providerConfig.apiKey,
                 maxTokens: providerConfig.maxTokens,
-                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
+                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
+                maxContextLength: (providerConfig as any).max_context_length as number | undefined
             };
 
             if (currentConfig.chat.includeHistory) {
@@ -246,6 +308,42 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                 }
             }
 
+            // Pre-activate any skill the user explicitly named in their message.
+            // This bypasses model non-determinism — if the user says "run the X skill",
+            // the skill instructions are injected directly rather than relying on the
+            // model deciding to call activate_skill.
+            if (skillDefs.length > 0) {
+                const lastUserText = (() => {
+                    const msgs = userMessages.filter((m: any) => m.role === 'user');
+                    const last = msgs[msgs.length - 1];
+                    return typeof last?.content === 'string' ? last.content : '';
+                })();
+                if (lastUserText) {
+                    for (const skillDef of skillDefs) {
+                        const escaped = skillDef.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                        if (new RegExp(`\\b${escaped}\\b`, 'i').test(lastUserText)) {
+                            const content = SkillManager.getSkillContent(skillDef.name);
+                            if (content) {
+                                let instructions = content.body;
+                                if (content.scriptFiles.length > 0) {
+                                    const scriptsPath = path.join(skillDef.skillPath, 'scripts');
+                                    instructions = instructions.replace(
+                                        new RegExp(`~/.claude/skills/${skillDef.name}/scripts`, 'g'),
+                                        scriptsPath
+                                    );
+                                }
+                                payload.push({
+                                    role: 'system',
+                                    content: `## Skill Pre-activated: ${skillDef.name}\n\nThis skill is already loaded — DO NOT call \`activate_skill\`. Start executing the skill instructions immediately.\n\n${instructions}`
+                                });
+                                console.log(`[chat-handler] Pre-activated skill "${skillDef.name}" based on user message`);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+
             logger.log({
                 type: 'request',
                 level: 'info',
@@ -258,7 +356,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             let fullContent = '';
 
             AgentManager.setAgentState(effectiveAgentId, 'working', 'Processing user prompt');
-            let finalAiResponse, lastTps, totalUsage, chatHistory;
+            let finalAiResponse, lastTps, lastPromptTokens, totalUsage, chatHistory;
             let yieldStateMsg: any = null;
             currentAbortController = new AbortController();
             try {
@@ -268,7 +366,7 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     llmConfig,
                     messages: payload,
                     visionEnabled: !!providerConfig?.capabilities?.vision,
-                    maxLoops: 5,
+                    maxLoops: agent?.maxLoops || 100,
                     signToolUrls: true,
                     abortSignal: currentAbortController.signal,
                     onDelta: (content: string) => {
@@ -282,13 +380,42 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     onToolCall: (toolCall: any) => {
                         ws.send(JSON.stringify({ type: 'tool_call', toolCall }));
                     },
-                    onToolEnd: (toolCallId: string, name: string, durationMs: number, success: boolean) => {
-                        ws.send(JSON.stringify({ type: 'tool_end', toolCallId, name, durationMs, success }));
+                    onToolEnd: (toolCallId: string, name: string, durationMs: number, success: boolean, result?: any) => {
+                        let resultPayload = result;
+                        if (result) {
+                            const serialized = typeof result === 'string' ? result : JSON.stringify(result);
+                            if (serialized.length > 50_000) {
+                                resultPayload = { _truncated: true, preview: serialized.slice(0, 50_000) + '...' };
+                            }
+                        }
+                        ws.send(JSON.stringify({ type: 'tool_end', toolCallId, name, durationMs, success, result: resultPayload }));
+                    },
+                    onCompact: () => {
+                        ws.send(JSON.stringify({ type: 'compacting' }));
+                    },
+                    onToolApprovalRequest: (toolCallId: string, toolName: string, toolArgs: any) => {
+                        return new Promise<boolean>((resolve) => {
+                            pendingApprovals.set(toolCallId, { resolve });
+                            ws.send(JSON.stringify({
+                                type: 'tool_approval_request',
+                                id: toolCallId,
+                                name: toolName,
+                                args: toolArgs,
+                            }));
+                            // Auto-deny after 60 seconds if no response
+                            setTimeout(() => {
+                                if (pendingApprovals.has(toolCallId)) {
+                                    pendingApprovals.delete(toolCallId);
+                                    resolve(false);
+                                }
+                            }, 60_000);
+                        });
                     }
                 });
 
                 finalAiResponse = result.finalResponse;
                 lastTps = result.lastTps;
+                lastPromptTokens = result.lastPromptTokens;
                 totalUsage = result.usage;
                 chatHistory = result.chatHistory;
                 if (result.yieldState) {
@@ -336,9 +463,9 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                         stats: {
                             tps: lastTps,
                             tokens: totalUsage.completion_tokens,
-                            inputTokens: totalUsage.prompt_tokens,
+                            inputTokens: lastPromptTokens || totalUsage.prompt_tokens,
                             outputTokens: totalUsage.completion_tokens,
-                            totalTokens: totalUsage.total_tokens
+                            totalTokens: (lastPromptTokens || totalUsage.prompt_tokens) + totalUsage.completion_tokens
                         }
                     };
                 }
@@ -364,19 +491,28 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
             if (sessionId && finalizedMessages.length > 0 && shouldSummarize) {
                 (async () => {
                     try {
+                        // Build a truncated transcript for summarization — cap at ~1500 chars to
+                        // prevent reasoning models from doing extended chain-of-thought on long histories.
+                        const MAX_SUMMARY_INPUT_CHARS = 1500;
+                        let transcript = finalizedMessages
+                            .filter(m => m.role !== 'reasoning')
+                            .map(m => {
+                                const cleanContent = (m.content || '').replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+                                return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
+                            })
+                            .filter(Boolean)
+                            .join('\n');
+                        if (transcript.length > MAX_SUMMARY_INPUT_CHARS) {
+                            transcript = transcript.slice(0, MAX_SUMMARY_INPUT_CHARS) + '\n[...truncated]';
+                        }
+
                         const summaryPrompt = [
-                            { role: 'system', content: 'You are a helpful assistant that provides extremely concise, 5-10 word summaries of chat sessions. Do not use quotes or introductory text. Just the summary.' },
+                            { role: 'system', content: 'You are a summarization assistant. Your ENTIRE response must be a short summary of 5-15 words. Do not explain, do not reason, do not use bullet points or numbered lists. Output the title and nothing else.' },
                             {
-                                role: 'user', content: `Summarize this conversation in 10 words or less:\n\n${finalizedMessages
-                                    .filter(m => m.role !== 'reasoning')
-                                    .map(m => {
-                                        const cleanContent = m.content.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
-                                        return cleanContent ? `${m.role.toUpperCase()}: ${cleanContent}` : '';
-                                    })
-                                    .filter(Boolean)
-                                    .join('\n')}`
+                                role: 'user', content: `Conversation to title:\n\n${transcript}\n\nShort title:`
                             }
                         ];
+                        // Allow enough tokens for reasoning models to finish thinking, but not much more.
                         const completion = await getChatCompletion(llmConfig, summaryPrompt);
                         const rawSummary = completion.content;
 
@@ -390,14 +526,48 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                                 data: completion.usage
                             });
                         }
-                        const cleanSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
+                        // Strip XML-style thinking tags (e.g. <think>, <thought>, <reasoning>)
+                        let strippedSummary = rawSummary.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').trim();
+
+                        // Some reasoning models (Qwen3, QwQ, etc.) emit their chain-of-thought as plain
+                        // text — e.g. "Thinking process: 1. Analyze...". Walk lines from the end to find
+                        // the first short, clean line that looks like an actual title.
+                        const extractTitle = (text: string): string | null => {
+                            const NOISE_PATTERNS = [
+                                /^thinking\b/i,
+                                /^analyze\b/i,
+                                /^constraint\b/i,
+                                /^task:/i,
+                                /^\d+\.\s/,      // numbered list items
+                                /^[-*•]\s/,      // bullet points
+                            ];
+                            const lines = text.split('\n').map(l => l.trim()).filter(Boolean);
+                            for (let i = lines.length - 1; i >= 0; i--) {
+                                const line = lines[i];
+                                if (line.length > 80) continue;
+                                if (NOISE_PATTERNS.some(p => p.test(line))) continue;
+                                return line.replace(/^["']|["']$/g, '').trim();
+                            }
+                            return null; // nothing usable found
+                        };
+
+                        // Fall back to the first user message (truncated) if the LLM output is unusable.
+                        // This is reliable for all models including reasoning ones.
+                        const firstUserMessage = finalizedMessages.find(m => m.role === 'user');
+                        const firstUserText = (typeof firstUserMessage?.content === 'string' ? firstUserMessage.content : '')
+                            .replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '')
+                            .trim()
+                            .slice(0, 60);
+
+                        const cleanSummary = extractTitle(strippedSummary) || firstUserText || 'New Chat';
 
                         const updatedSession = SessionManager.getSession(sessionId);
                         if (updatedSession) {
                             updatedSession.summary = cleanSummary;
                             SessionManager.saveSession(updatedSession);
-                            // Optional: notify client via WS that summary is ready? 
-                            // For now, the next time they fetch sessions it will be there.
+                            const { broadcastMessage } = await import('./state.js');
+                            broadcastMessage({ type: 'session_updated', sessionId });
                         }
                     } catch (err) {
                         const errorMessage = err instanceof Error ? err.message : String(err);
@@ -430,6 +600,8 @@ export function handleChatConnection(ws: WebSocket, req: IncomingMessage) {
                     errorMessage = `Connection to LLM provider timed out. Please check your network connection.`;
                 } else if (error.message.includes('ENOTFOUND')) {
                     errorMessage = `Could not resolve hostname for LLM provider. Please check the endpoint configuration.`;
+                } else if (error.message.includes('LLM API error: 500')) {
+                    errorMessage = `The LLM provider returned a 500 error. This is usually caused by the conversation exceeding the model's context window — the tool results may have been too large to fit. Try reloading the model with a larger context (131k+), or start a new conversation.`;
                 } else if (error.message.includes('LLM API error')) {
                     errorMessage = error.message;
                 } else {

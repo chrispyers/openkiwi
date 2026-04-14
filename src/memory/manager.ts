@@ -239,17 +239,42 @@ export class MemoryIndexManager {
         let currentLines: string[] = [];
         let currentSize = 0;
         let startLine = 1;
+        let currentSectionHeader: string | null = null;
 
         for (let i = 0; i < lines.length; i++) {
             const line = lines[i];
+
+            // Detect section headers — prefer splitting at section boundaries
+            const isHeader = /^## .+$/.test(line);
+            if (isHeader) {
+                // Flush current chunk before starting a new section
+                if (currentLines.join('').trim().length > 0) {
+                    chunks.push({
+                        id: crypto.randomUUID(),
+                        text: currentLines.join('\n'),
+                        startLine: startLine,
+                        endLine: i
+                    });
+                }
+                currentLines = [];
+                currentSize = 0;
+                startLine = i + 1;
+                currentSectionHeader = line;
+            }
+
             currentLines.push(line);
             currentSize += line.length;
 
             if (currentSize >= CHUNK_SIZE_CHARS || i === lines.length - 1) {
                 if (currentLines.join('').trim().length > 0) {
+                    // If this chunk doesn't start with the section header, prepend it for context
+                    let chunkText = currentLines.join('\n');
+                    if (currentSectionHeader && !chunkText.startsWith(currentSectionHeader)) {
+                        chunkText = currentSectionHeader + '\n' + chunkText;
+                    }
                     chunks.push({
                         id: crypto.randomUUID(),
-                        text: currentLines.join('\n'),
+                        text: chunkText,
                         startLine: startLine,
                         endLine: i + 1
                     });

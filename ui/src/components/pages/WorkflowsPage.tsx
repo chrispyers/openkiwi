@@ -8,9 +8,10 @@ import Button from '../Button'
 import Modal from '../Modal'
 import Input from '../Input'
 import WorkflowBuilder from '../Workflows/WorkflowBuilder'
-import { Workflow } from '../../types'
+import { getToolDef, toolIdFromInstructions } from '../Workflows/toolDefs'
+import { Workflow, WorkflowState } from '../../types'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
-import { faPlus, faDiagramProject, faArrowLeft, faTrash, faPen } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faScroll, faArrowLeft, faTrash, faPen, faArrowRight } from '@fortawesome/free-solid-svg-icons'
 
 interface WorkflowsPageProps {
     gatewayAddr: string;
@@ -19,6 +20,7 @@ interface WorkflowsPageProps {
 
 export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPageProps) {
     const [workflows, setWorkflows] = useState<Workflow[]>([])
+    const [workflowNodes, setWorkflowNodes] = useState<Record<string, WorkflowState[]>>({})
     const [loading, setLoading] = useState(true)
     const [selectedWorkflow, setSelectedWorkflow] = useState<Workflow | null>(null)
     const [showNewDialog, setShowNewDialog] = useState(false)
@@ -32,14 +34,23 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
     useEffect(() => {
         const fetchWorkflows = async () => {
             try {
-                const res = await fetch(`${gatewayAddr.replace(/\/$/, '')}/api/collaboration/workflows`, {
-                    headers: { 'Authorization': `Bearer ${gatewayToken}` }
-                })
-                if (res.ok) {
-                    setWorkflows(await res.json())
-                } else {
-                    toast.error('Failed to load workflows')
-                }
+                const base = gatewayAddr.replace(/\/$/, '')
+                const headers = { 'Authorization': `Bearer ${gatewayToken}` }
+                const res = await fetch(`${base}/api/collaboration/workflows`, { headers })
+                if (!res.ok) { toast.error('Failed to load workflows'); return }
+                const list: Workflow[] = await res.json()
+                setWorkflows(list)
+                // Fetch states for all workflows in parallel
+                const entries = await Promise.all(
+                    list.map(async wf => {
+                        try {
+                            const r = await fetch(`${base}/api/collaboration/workflows/${wf.id}/states`, { headers })
+                            const states: WorkflowState[] = r.ok ? await r.json() : []
+                            return [wf.id, states.sort((a, b) => a.order_index - b.order_index)] as const
+                        } catch { return [wf.id, []] as const }
+                    })
+                )
+                setWorkflowNodes(Object.fromEntries(entries))
             } catch (e) {
                 console.error(e)
                 toast.error('Error fetching workflows')
@@ -117,6 +128,7 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
             })
             if (res.ok) {
                 setWorkflows(prev => prev.filter(w => w.id !== pendingDelete.id))
+                setWorkflowNodes(prev => { const next = { ...prev }; delete next[pendingDelete.id]; return next })
                 toast.success('Workflow deleted')
             } else {
                 toast.error('Failed to delete workflow')
@@ -203,10 +215,10 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
             ) : workflows.length === 0 ? (
                 <div className="text-center p-20 space-y-4">
                     <div className="w-20 h-20 bg-accent-primary/10 text-accent-primary rounded-3xl flex items-center justify-center mx-auto mb-6">
-                        <FontAwesomeIcon icon={faDiagramProject} className="text-3xl" />
+                        <FontAwesomeIcon icon={faScroll} className="text-3xl" />
                     </div>
                     <Text size="xl" bold={true}>No workflows yet</Text>
-                    <Column>
+                    <Column align="center">
                         <Text secondary={true}>Create a workflow to automate tasks by chaining tools together.</Text>
                     </Column>
                 </div>
@@ -218,6 +230,7 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
                             className="cursor-pointer hover:border-accent-primary transition-colors relative group"
                             onClick={() => setSelectedWorkflow(wf)}
                         >
+                            {/* Row 1: name + actions */}
                             <div className="flex items-start justify-between gap-2">
                                 <Text bold={true} size="lg">{wf.name}</Text>
                                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity shrink-0 -mt-1 -mr-1">
@@ -237,9 +250,33 @@ export default function WorkflowsPage({ gatewayAddr, gatewayToken }: WorkflowsPa
                                     </button>
                                 </div>
                             </div>
-                            {wf.description && (
-                                <Text size="sm" secondary={true} className="mt-2 line-clamp-2">{wf.description}</Text>
-                            )}
+
+                            {/* Row 2: node icons */}
+                            {(() => {
+                                const nodes = workflowNodes[wf.id]
+                                if (!nodes || nodes.length === 0) return null
+                                return (
+                                    <div className="flex items-center gap-1 mt-3 flex-wrap">
+                                        {nodes.map((node, idx) => {
+                                            const tool = getToolDef(toolIdFromInstructions(node.instructions))
+                                            return (
+                                                <div key={node.id} className="flex items-center gap-1">
+                                                    <div
+                                                        className="w-6 h-6 rounded-md flex items-center justify-center flex-shrink-0"
+                                                        style={{ backgroundColor: tool.color + '22', color: tool.color }}
+                                                        title={tool.name}
+                                                    >
+                                                        <FontAwesomeIcon icon={tool.icon} className="text-xs" />
+                                                    </div>
+                                                    {idx < nodes.length - 1 && (
+                                                        <FontAwesomeIcon icon={faArrowRight} className="text-xs text-neutral-400 dark:text-neutral-600" />
+                                                    )}
+                                                </div>
+                                            )
+                                        })}
+                                    </div>
+                                )
+                            })()}
                         </Card>
                     ))}
                 </div>

@@ -30,6 +30,7 @@ interface ProviderProps {
     onSave: () => Promise<void>;
     isEditable?: boolean;
     footer?: React.ReactNode;
+    credentialSlot?: React.ReactNode;
 }
 
 export default function Provider({
@@ -47,7 +48,8 @@ export default function Provider({
     onScan,
     onSave,
     isEditable = true,
-    footer
+    footer,
+    credentialSlot,
 }: ProviderProps) {
     return (
         <Page padding={0}>
@@ -55,19 +57,21 @@ export default function Provider({
             {/* <SectionHeader title={name} /> */}
             <Row align="end">
                 <Column grow={true}>
-                    <Input
-                        label={inputLabel}
-                        icon={inputIcon}
-                        currentText={endpoint}
-                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => onEndpointChange(e.target.value)}
-                        placeholder={inputPlaceholder}
-                        clearText={() => onEndpointChange("")}
-                    />
+                    {credentialSlot ?? (
+                        <Input
+                            label={inputLabel}
+                            icon={inputIcon}
+                            currentText={endpoint}
+                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => onEndpointChange(e.target.value)}
+                            placeholder={inputPlaceholder}
+                            clearText={() => onEndpointChange("")}
+                        />
+                    )}
                 </Column>
                 <Column align="end">
                     <Button
                         themed={true}
-                        className="px-6 text-white whitespace-nowrap flex items-center justify-center shrink-0 mb-1"
+                        className="px-6 whitespace-nowrap flex items-center justify-center shrink-0 mb-1"
                         onClick={onScan}
                         disabled={!isEditable}
                         icon={faRefresh}>Scan</Button>
@@ -98,12 +102,19 @@ export default function Provider({
                     <TABLE header={[
                         { name: "Model Name", alignment: "left" },
                         { name: "Capabilities", alignment: "center" },
+                        { name: "Max Context", alignment: "center" },
                         { name: "Status", alignment: "center" }
                     ]} className="w-full">
                         {models.map((m) => {
                             const modelId = (m.id || "").toLowerCase();
                             const displayName = (m.displayName || m.display_name || "").toLowerCase();
                             const description = (m.description || "").toLowerCase();
+
+                            const formatContextLength = (n: number) => {
+                                if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
+                                if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+                                return `${n}`;
+                            };
 
                             // Vision detection
                             const isVision = m.capabilities?.vision ||
@@ -154,6 +165,11 @@ export default function Provider({
                                             {isTool && <ToolIcon />}
                                             {isReasoning && <BrainIcon />}
                                         </div>
+                                    </TD>
+                                    <TD className="w-24 text-center">
+                                        <Text size="sm" secondary={!m.max_context_length}>
+                                            {m.max_context_length ? formatContextLength(m.max_context_length) : '—'}
+                                        </Text>
                                     </TD>
                                     <TD className="w-24 text-center">
                                         {model === m.id && (

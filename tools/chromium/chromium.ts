@@ -50,7 +50,7 @@ export default {
             required: ['action', 'input']
         }
     },
-    handler: async ({ action, input }: { action: 'search' | 'browse' | 'search_images'; input: string }) => {
+    handler: async ({ action, input, screenshot = false }: { action: 'search' | 'browse' | 'search_images'; input: string; screenshot?: boolean }) => {
         let page: any = null;
 
         try {
@@ -160,10 +160,14 @@ export default {
                 console.warn(`[Chromium] Page responded with status ${response.status()}`);
             }
 
-            // Take Screenshot
+            // Take Screenshot (only when explicitly requested)
             const filename = `screenshot-${Date.now()}.png`;
-            const screenshotPath = path.join(SCREENSHOTS_DIR, filename);
-            await page.screenshot({ path: screenshotPath, fullPage: false });
+            let screenshotTaken = false;
+            if (screenshot) {
+                const screenshotPath = path.join(SCREENSHOTS_DIR, filename);
+                await page.screenshot({ path: screenshotPath, fullPage: false });
+                screenshotTaken = true;
+            }
 
             // Extract text content - focusing on main content if possible
             const textContent = await page.evaluate(() => {
@@ -259,26 +263,27 @@ export default {
                     console.error(`[Chromium] Error extracting images: ${e.message}`);
                 }
 
-                // Fallback to screenshot if still no images
-                if (imageResults.length === 0) {
-                    const screenshotUrl = `/screenshots/${filename}`;
+                // Fallback to screenshot if still no images and a screenshot was taken
+                if (imageResults.length === 0 && screenshotTaken) {
                     imageResults.push({
                         title: 'Screenshot of Search Results',
-                        url: screenshotUrl
+                        url: `/screenshots/${filename}`
                     });
                 }
                 console.log(`[Chromium] Found ${imageResults.length} images for search_images`);
             }
 
-            const screenshotUrl = `/screenshots/${filename}`;
             const pageTitle = await page.title();
 
             const result: any = {
                 title: pageTitle,
                 url: urlToVisit,
-                screenshot_url: screenshotUrl,
                 content_snippet: textContent
             };
+
+            if (screenshotTaken) {
+                result.screenshot_url = `/screenshots/${filename}`;
+            }
 
             if (searchResults && searchResults.length > 0) {
                 result.search_results = searchResults;

@@ -17,6 +17,8 @@ import WorkflowsPage from './components/pages/WorkflowsPage'
 import ProjectsPage from './components/pages/ProjectsPage'
 import WorkspacePage from './components/pages/WorkspacePage'
 import SkillsPage from './components/pages/SettingsPage/Settings_Skills'
+import MCPServersPage from './components/pages/MCPServersPage'
+import CodePage from './components/pages/CodePage'
 import Sidebar from './components/Sidebar'
 import {
   faPlus,
@@ -69,7 +71,13 @@ function App() {
   const activeView = getActiveView();
 
 
-  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway' | 'connections'>('version');
+  const [activeSettingsSection, setActiveSettingsSection] = useState<'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway' | 'connections'>(
+    () => (localStorage.getItem('settings_section') as any) ?? 'general'
+  );
+  const setActiveSettingsSectionPersisted = (section: 'agents' | 'tools' | 'messaging' | 'version' | 'config' | 'chat' | 'general' | 'gateway' | 'connections') => {
+    localStorage.setItem('settings_section', section);
+    setActiveSettingsSection(section);
+  };
   const [whatsappStatus, setWhatsappStatus] = useState<{ connected: boolean, qrCode: string | null, isInitializing?: boolean }>({ connected: false, qrCode: null, isInitializing: false });
   const [telegramStatus, setTelegramStatus] = useState<{ connected: boolean, isInitializing?: boolean, botUsername?: string | null }>({ connected: false, isInitializing: false, botUsername: null });
   const [isNavExpanded, setIsNavExpanded] = useState(() => {
@@ -78,7 +86,7 @@ function App() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const { theme, resolvedTheme, setTheme } = useTheme();
   const [gatewayAddr, setGatewayAddr] = useState(() => {
-    return localStorage.getItem('gateway_addr') || 'http://localhost:3808';
+    return localStorage.getItem('gateway_addr') || window.location.origin;
   });
 
   const [gatewayToken, setGatewayToken] = useState(() => {
@@ -91,6 +99,7 @@ function App() {
   // Agent & Session State
   const [agents, setAgents] = useState<Agent[]>([]);
   const [selectedAgentId, setSelectedAgentId] = useState('');
+  const [contextWarning, setContextWarning] = useState<string | null>(null);
   const [sessions, setSessions] = useState<Session[]>([]);
   const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
   const [sessionSearch, setSessionSearch] = useState('');
@@ -101,7 +110,7 @@ function App() {
   // Settings: Agent Specific State
   const [settingsAgentId, setSettingsAgentId] = useState<string>('');
   const [agentsPageAgentId, setAgentsPageAgentId] = useState<string>('');
-  const [agentForm, setAgentForm] = useState<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>({ name: '', provider: '', heartbeat: { enabled: false, schedule: '0 * * * *', allowManualTrigger: false }, collaboration: { enabled: false, schedule: '0 * * * *' } });
+  const [agentForm, setAgentForm] = useState<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; maxLoops?: number }>({ name: '', provider: '', heartbeat: { enabled: false, schedule: '0 * * * *', allowManualTrigger: false } });
   const [viewingFile, setViewingFile] = useState<{ title: string, content: string, isEditing: boolean, agentId: string } | null>(null);
 
   // Chat State
@@ -113,14 +122,14 @@ function App() {
   const [isProjectManagementEnabled, setIsProjectManagementEnabled] = useState(() => {
     return localStorage.getItem('experimental_projects') === 'true';
   });
-  const [isAgentCollaborationEnabled, setIsAgentCollaborationEnabled] = useState(() => {
-    return localStorage.getItem('experimental_collaboration') === 'true';
-  });
   const [isAgentActivityEnabled, setIsAgentActivityEnabled] = useState(() => {
     return localStorage.getItem('experimental_activity') === 'true';
   });
   const [isProjectsEnabled, setIsProjectsEnabled] = useState(() => {
     return localStorage.getItem('experimental_project_management') === 'true';
+  });
+  const [isCodeEnabled, setIsCodeEnabled] = useState(() => {
+    return localStorage.getItem('experimental_code') !== 'false';
   });
 
   useEffect(() => {
@@ -174,6 +183,7 @@ function App() {
   const presenceWs = useRef<WebSocket | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const workflowStepsRef = useRef<any[]>([]);
 
 
   // Don't auto-save gateway settings on every keystroke - only save when user clicks "Connect"
@@ -193,8 +203,9 @@ function App() {
       const token = localStorage.getItem('gateway_token') || '';
       return `${protocol}//${url.host}/ws?hostname=${hostname}&token=${token}`;
     } catch (e) {
-      // Fallback for invalid URLs
-      return `ws://${window.location.hostname}:3808/ws`;
+      // Fallback: use current host
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${protocol}//${window.location.host}/ws`;
     }
   };
 
@@ -231,6 +242,11 @@ function App() {
                 ...prev,
                 [msg.agentId]: msg.state
               }));
+            } else if (msg.type === 'workflow_step_progress') {
+              workflowStepsRef.current = [...workflowStepsRef.current, msg];
+              setActiveTool(prev => prev ? { ...prev, workflowProgress: msg } : prev);
+            } else if (msg.type === 'session_updated') {
+              fetchSessions();
             } else if (msg.type === 'system_error') {
               toast.error(msg.title || 'System Error', {
                 description: msg.message,
@@ -655,6 +671,43 @@ function App() {
     }
   }
 
+  useEffect(() => {
+    if (!selectedAgentId || !config) {
+      setContextWarning(null);
+      return;
+    }
+    const agent = agents.find(a => a.id === selectedAgentId);
+    if (!agent) { setContextWarning(null); return; }
+
+    const providerConfig = config.providers.find(
+      p => p.model === agent.provider || p.description === agent.provider
+    );
+    if (!providerConfig) { setContextWarning(null); return; }
+
+    const endpoint = providerConfig.endpoint.replace(/\/$/, '');
+
+    (async () => {
+      try {
+        const res = await fetch(`${endpoint}/api/v0/models`);
+        if (!res.ok) { setContextWarning(null); return; }
+        const json = await res.json();
+        const entry = (json?.data as any[])?.find(
+          (m: any) => m.id === providerConfig.model || m.id?.includes(providerConfig.model)
+        );
+        const loaded: number | undefined = entry?.loaded_context_length;
+        if (loaded && loaded < 16_000) {
+          setContextWarning(
+            `This model is loaded with only ${loaded.toLocaleString()} tokens of context. Multi-step tasks may fail silently. In LM Studio, reload the model with a larger context window (32k+ recommended).`
+          );
+        } else {
+          setContextWarning(null);
+        }
+      } catch {
+        setContextWarning(null);
+      }
+    })();
+  }, [selectedAgentId, config]);
+
   async function fetchSessions(addr?: string, token?: string) {
     try {
       const response = await fetch(getApiUrl('/api/sessions', addr), {
@@ -731,14 +784,20 @@ function App() {
         },
         body: JSON.stringify(configToSave),
       });
-      if (response.ok && e) {
-        if (activeView === 'gateway') {
-          toast.success('Gateway persistent state updated', {
-            description: 'Port changes will take effect next time the service is launched.'
-          });
-        } else {
-          toast.success('Configuration saved successfully!');
+      if (response.ok) {
+        if (e) {
+          if (activeView === 'gateway') {
+            toast.success('Gateway persistent state updated', {
+              description: 'Port changes will take effect next time the service is launched.'
+            });
+          } else {
+            toast.success('Configuration saved successfully!');
+          }
         }
+      } else {
+        const errText = await response.text().catch(() => 'Unknown error');
+        console.error('Failed to save config:', errText);
+        toast.error('Failed to save configuration', { description: errText });
       }
 
       // Refresh local config state and agents from server to ensure we're in sync
@@ -746,6 +805,8 @@ function App() {
       fetchAgents();
     } catch (error) {
       console.error('Failed to save config:', error);
+      toast.error('Failed to save configuration — check your connection');
+      fetchConfig();
     }
   };
 
@@ -812,10 +873,29 @@ function App() {
 
     msgs.forEach(msg => {
       // Check for thought/reasoning tags in assistant messages
-      if (msg.role === 'assistant' && msg.content && /<(think|thought|reasoning)>|<\|channel\|>/.test(msg.content)) {
+      if (msg.role === 'assistant' && msg.content && (/<(think|thought|reasoning)>|<\|channel\|>/.test(msg.content) || msg.content.includes('</think>'))) {
         const thinkMatch = msg.content.match(/<(think|thought|reasoning)>([\s\S]*?)<\/\1>/i);
-        const channelMatch = !thinkMatch && msg.content.match(/<\|channel\|>([\s\S]*?)(?:<\|im_end\|>|$)/i);
-        if (thinkMatch) {
+        // Qwen 3.5 style: reasoning emitted without opening tag, closed with </think>
+        const implicitThinkMatch = !thinkMatch && /^([\s\S]*?)<\/think>([\s\S]*)$/.exec(msg.content);
+        const channelMatch = !thinkMatch && !implicitThinkMatch && msg.content.match(/<\|channel\|>([\s\S]*?)(?:<\|im_end\|>|$)/i);
+        if (implicitThinkMatch) {
+          const cleanContent = implicitThinkMatch[2].replace(/^\n+/, '').trim();
+          if (cleanContent) {
+            // There is a real response after </think> — keep it as a separate bubble
+            // and stash the pre-tag text as a (potentially hidden) reasoning bubble.
+            processed.push({
+              role: 'reasoning',
+              content: implicitThinkMatch[1].trim(),
+              timestamp: msg.timestamp
+            });
+            processed.push({ ...msg, content: cleanContent });
+          } else {
+            // Nothing after </think> — the thinking text IS the model's response for
+            // this turn (it was visible as a chat bubble during streaming too). Show it
+            // as regular assistant content so it doesn't vanish when "show reasoning" is off.
+            processed.push({ ...msg, content: implicitThinkMatch[1].trim() });
+          }
+        } else if (thinkMatch) {
           // Add the reasoning message
           processed.push({
             role: 'reasoning',
@@ -964,8 +1044,30 @@ function App() {
     let currentReasoning = '';
     let isInsideReasoning = false;
     let inChannelHeader = false;
-    let completedTools: any[] = [];
+    // Tools that completed but haven't been paired with a text segment yet.
+    // Mirrors the processSessionMessages merge: tool-only turns get prepended
+    // to the next turn that has text, so the interleaving matches post-session.
+    let pendingTools: any[] = [];
+    // Fully committed message segments (each is one agent loop turn).
+    let completedSegments: Message[] = [];
     let currentActiveTool: any = null;
+
+    // Build the messages array to show during streaming.
+    // Committed segments come first (already interleaved), then the current
+    // in-progress segment (pendingTools + growing text).
+    const buildStreamingMsgs = (): Message[] => {
+      const msgs: Message[] = [...newMessages];
+      if (currentReasoning) {
+        msgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
+      }
+      for (const seg of completedSegments) {
+        msgs.push(seg);
+      }
+      if (pendingTools.length > 0 || currentAiMessage) {
+        msgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...pendingTools] } as Message);
+      }
+      return msgs;
+    };
 
     socket.onmessage = (event) => {
       // setLogs(prev => [{ timestamp: new Date().toISOString(), data: `[RECEIVED] ${event.data}` }, ...prev].slice(0, 100)); // Keep last 100 logs
@@ -1001,40 +1103,47 @@ function App() {
           }
         } else {
           currentAiMessage += chunk;
+
+          // Qwen 3.5 / some models emit reasoning without an opening <think> tag,
+          // closing with </think> only. Retroactively split when we detect this.
+          if (!currentReasoning && currentAiMessage.includes('</think>')) {
+            const closeIdx = currentAiMessage.indexOf('</think>');
+            currentReasoning = currentAiMessage.slice(0, closeIdx);
+            currentAiMessage = currentAiMessage.slice(closeIdx + '</think>'.length).replace(/^\n+/, '');
+          }
         }
 
-        const streamingMsgs: Message[] = [...newMessages];
-        if (currentReasoning) {
-          streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
-        }
-        if (currentAiMessage || completedTools.length > 0) {
-          streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
-        }
-        setMessages(streamingMsgs);
+        setMessages(buildStreamingMsgs());
       } else if (data.type === 'tool_call') {
+        workflowStepsRef.current = [];
         currentActiveTool = { ...data.toolCall, startedAt: Date.now() };
         setActiveTool(currentActiveTool);
-        const streamingMsgs: Message[] = [...newMessages];
-        if (currentReasoning) {
-          streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
-        }
-        if (currentAiMessage || completedTools.length > 0) {
-          streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
-        }
-        setMessages(streamingMsgs);
+        setMessages(buildStreamingMsgs());
       } else if (data.type === 'tool_end') {
         if (currentActiveTool) {
-          completedTools.push({ ...currentActiveTool, durationMs: data.durationMs });
+          const steps = workflowStepsRef.current.length > 0 ? [...workflowStepsRef.current] : undefined;
+          const completedTool = { ...currentActiveTool, durationMs: data.durationMs, workflowSteps: steps };
           currentActiveTool = null;
           setActiveTool(null);
-          const streamingMsgs: Message[] = [...newMessages];
-          if (currentReasoning) {
-            streamingMsgs.push({ role: 'reasoning', content: currentReasoning, timestamp: aiResponseTimestamp });
+
+          if (currentAiMessage) {
+            // This turn had text before the tool call — commit it as a finished segment.
+            completedSegments.push({
+              role: 'assistant',
+              content: currentAiMessage,
+              tool_calls: [...pendingTools, completedTool],
+              timestamp: aiResponseTimestamp,
+            } as Message);
+            pendingTools = [];
+            currentAiMessage = '';
+          } else {
+            // No text for this turn yet — hold the tool as pending so it gets
+            // prepended to the next segment that has text (matching the
+            // processSessionMessages merge behaviour).
+            pendingTools.push(completedTool);
           }
-          if (currentAiMessage || completedTools.length > 0) {
-            streamingMsgs.push({ role: 'assistant', content: currentAiMessage, timestamp: aiResponseTimestamp, tool_calls: [...completedTools] });
-          }
-          setMessages(streamingMsgs);
+
+          setMessages(buildStreamingMsgs());
         }
       } else if (data.type === 'usage') {
         const stats = {
@@ -1117,10 +1226,11 @@ function App() {
           hasModels={(config?.providers?.length ?? 0) > 0}
           hasActiveAgents={hasActiveAgents}
           hasUpdates={config?.system?.latestVersion && config?.system?.version ? config.system.latestVersion > config.system.version : false}
-          onSettingsClick={() => setActiveSettingsSection('version')}
+          onSettingsClick={() => {}}
           isProjectManagementEnabled={isProjectManagementEnabled}
           isProjectsEnabled={isProjectsEnabled}
           isAgentActivityEnabled={isAgentActivityEnabled}
+          isCodeEnabled={isCodeEnabled}
         />
 
         {/* Secondary Sidebar (Chat Sessions) */}
@@ -1206,6 +1316,17 @@ function App() {
               chatContainerRef={chatContainerRef}
               handleScroll={handleScroll}
               formatTimestamp={formatTimestamp}
+              contextWarning={contextWarning}
+            />
+          ) : activeView === 'code' ? (
+            <CodePage
+              gatewayAddr={gatewayAddr}
+              gatewayToken={gatewayToken}
+              agents={agents}
+              config={config}
+              isGatewayConnected={isGatewayConnected}
+              getApiUrl={getApiUrl}
+              getWsUrl={getWsUrl}
             />
           ) : activeView === 'logs' ? (
             <LogsPage logs={logs} onClear={handleClearLogs} />
@@ -1222,7 +1343,6 @@ function App() {
               setSelectedAgentId={setAgentsPageAgentId}
               providers={config?.providers || []}
               agents={agents}
-              isAgentCollaborationEnabled={isAgentCollaborationEnabled}
               allowManualHeartbeat={config?.heartbeat?.allowManualTrigger || false}
               agentStates={agentStates}
             />
@@ -1251,10 +1371,17 @@ function App() {
               config={config}
               saveConfig={saveConfig}
             />
+          ) : activeView === 'mcp' ? (
+            <MCPServersPage
+              config={config}
+              saveConfig={saveConfig}
+              gatewayAddr={gatewayAddr}
+              gatewayToken={gatewayToken}
+            />
           ) : activeView === 'activity' ? (
             <ActivityPage agents={agents} agentStates={agentStates} />
           ) : activeView === 'projects' ? (
-            <ProjectsPage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
+            <ProjectsPage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} agents={agents} />
           ) : activeView === 'files' ? (
             <WorkspacePage gatewayAddr={gatewayAddr} gatewayToken={gatewayToken} />
           ) : activeView === 'skills' ? (
@@ -1262,7 +1389,7 @@ function App() {
           ) : (
             <SettingsPage
               activeSettingsSection={activeSettingsSection}
-              setActiveSettingsSection={setActiveSettingsSection}
+              setActiveSettingsSection={setActiveSettingsSectionPersisted}
               loading={loading}
               theme={theme}
               setTheme={setTheme}
@@ -1290,12 +1417,12 @@ function App() {
               gatewayToken={gatewayToken}
               isProjectManagementEnabled={isProjectManagementEnabled}
               setIsProjectManagementEnabled={setIsProjectManagementEnabled}
-              isAgentCollaborationEnabled={isAgentCollaborationEnabled}
-              setIsAgentCollaborationEnabled={setIsAgentCollaborationEnabled}
               isAgentActivityEnabled={isAgentActivityEnabled}
               setIsAgentActivityEnabled={setIsAgentActivityEnabled}
               isProjectsEnabled={isProjectsEnabled}
               setIsProjectsEnabled={setIsProjectsEnabled}
+              isCodeEnabled={isCodeEnabled}
+              setIsCodeEnabled={setIsCodeEnabled}
             />
           )}
         </main>

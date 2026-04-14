@@ -17,6 +17,8 @@ export interface WorkflowState {
     assigned_agent_id: string | null;
     requires_approval: boolean;
     instructions: string | null;
+    /** JSON array of step IDs that must complete before this step runs. Null = depends on all prior steps (sequential). */
+    depends_on: string | null;
 }
 
 export class WorkflowService {
@@ -67,23 +69,23 @@ export class WorkflowService {
         return collabDb.prepare('SELECT * FROM workflow_states WHERE id = ?').get(id) as WorkflowState | undefined;
     }
 
-    static createWorkflowState(workflowId: string, name: string, orderIndex: number, assignedAgentId: string | null = null, requiresApproval: boolean = false, instructions: string | null = null): WorkflowState {
+    static createWorkflowState(workflowId: string, name: string, orderIndex: number, assignedAgentId: string | null = null, requiresApproval: boolean = false, instructions: string | null = null, dependsOn: string[] | null = null): WorkflowState {
         const id = crypto.randomUUID();
         const stmt = collabDb.prepare(`
-            INSERT INTO workflow_states (id, workflow_id, name, order_index, assigned_agent_id, requires_approval, instructions)
-            VALUES (?, ?, ?, ?, ?, ?, ?)
+            INSERT INTO workflow_states (id, workflow_id, name, order_index, assigned_agent_id, requires_approval, instructions, depends_on)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?)
         `);
-        stmt.run(id, workflowId, name, orderIndex, assignedAgentId, requiresApproval ? 1 : 0, instructions);
+        stmt.run(id, workflowId, name, orderIndex, assignedAgentId, requiresApproval ? 1 : 0, instructions, dependsOn ? JSON.stringify(dependsOn) : null);
         return collabDb.prepare('SELECT * FROM workflow_states WHERE id = ?').get(id) as WorkflowState;
     }
 
-    static updateWorkflowState(id: string, name: string, orderIndex: number, assignedAgentId: string | null, requiresApproval: boolean, instructions: string | null = null): WorkflowState | undefined {
+    static updateWorkflowState(id: string, name: string, orderIndex: number, assignedAgentId: string | null, requiresApproval: boolean, instructions: string | null = null, dependsOn: string[] | null = null): WorkflowState | undefined {
         const stmt = collabDb.prepare(`
-            UPDATE workflow_states 
-            SET name = ?, order_index = ?, assigned_agent_id = ?, requires_approval = ?, instructions = ?
+            UPDATE workflow_states
+            SET name = ?, order_index = ?, assigned_agent_id = ?, requires_approval = ?, instructions = ?, depends_on = ?
             WHERE id = ?
         `);
-        const result = stmt.run(name, orderIndex, assignedAgentId, requiresApproval ? 1 : 0, instructions, id);
+        const result = stmt.run(name, orderIndex, assignedAgentId, requiresApproval ? 1 : 0, instructions, dependsOn ? JSON.stringify(dependsOn) : null, id);
         if (result.changes === 0) return undefined;
         return collabDb.prepare('SELECT * FROM workflow_states WHERE id = ?').get(id) as WorkflowState;
     }

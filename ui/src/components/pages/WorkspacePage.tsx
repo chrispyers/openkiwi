@@ -256,7 +256,7 @@ export default function WorkspacePage({ gatewayAddr, gatewayToken }: WorkspacePa
         const ext = getExtension(selectedFile.name);
 
         if (fileContent === '__IMAGE__') {
-            const imageUrl = `${gatewayAddr.replace(/\/$/, '')}/files/workspace-files/${selectedFile.path}?token=${gatewayToken}`;
+            const imageUrl = `${gatewayAddr.replace(/\/$/, '')}/api/files/workspace-files/${selectedFile.path}?token=${gatewayToken}`;
             return (
                 <div className="flex items-center justify-center h-full p-8">
                     <img src={imageUrl} alt={selectedFile.name} className="max-w-full max-h-full object-contain rounded-xl" />

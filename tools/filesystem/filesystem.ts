@@ -12,14 +12,23 @@ export default {
         name: 'file_manager',
         displayName: 'File Operations',
         pluginType: 'tool',
-        description: 'Perform structural file system operations: delete files or directories, create directories, move/rename, and copy.',
+        description: 'Perform structural file system operations: delete files or directories, clear a directory\'s contents (rm -rf dir/*), create directories, move/rename, and copy.',
+        /** Deduplicate retries by action + target path. */
+        resultKey(args: { action: string; path: string; newPath?: string }): string | null {
+            const action = args?.action || 'unknown';
+            const target = args?.path || '';
+            if (action === 'move' || action === 'copy') {
+                return `${action}:${target}:${args?.newPath || ''}`;
+            }
+            return `${action}:${target}`;
+        },
         parameters: {
             type: 'object',
             properties: {
                 action: {
                     type: 'string',
-                    enum: ['delete', 'mkdir', 'move', 'copy'],
-                    description: 'The file operation to perform.'
+                    enum: ['delete', 'clear', 'mkdir', 'move', 'copy'],
+                    description: 'The file operation to perform. Use "clear" to delete all contents inside a directory while keeping the directory itself (equivalent to rm -rf dir/*).'
                 },
                 path: {
                     type: 'string',
@@ -48,6 +57,16 @@ export default {
                         fs.unlinkSync(safePath);
                     }
                     return { success: true, message: `${stats.isDirectory() ? 'Directory' : 'File'} ${filePath} deleted successfully` };
+
+                case 'clear': {
+                    if (!fs.existsSync(safePath)) throw new Error('Path not found');
+                    if (!fs.statSync(safePath).isDirectory()) throw new Error('Path is not a directory — use "delete" to remove a file');
+                    const entries = fs.readdirSync(safePath);
+                    for (const entry of entries) {
+                        fs.rmSync(path.join(safePath, entry), { recursive: true, force: true });
+                    }
+                    return { success: true, message: `Cleared ${entries.length} item${entries.length === 1 ? '' : 's'} from ${filePath}` };
+                }
 
                 case 'mkdir':
                     if (fs.existsSync(safePath)) throw new Error('Path already exists');

@@ -13,6 +13,7 @@ import collaborationRouter from './routes/collaboration.js';
 import projectsRouter from './routes/projects.js';
 import workspaceRouter from './routes/workspace.js'; // serves /files
 import { TelegramManager } from './telegram-manager.js';
+import mcpRouter from './routes/mcp.js';
 
 const router = Router();
 
@@ -39,6 +40,7 @@ router.use('/system', systemRouter);
 router.use('/collaboration', collaborationRouter);
 router.use('/projects', projectsRouter);
 router.use('/files', workspaceRouter);
+router.use('/mcp', mcpRouter);
 
 // Telegram routes
 router.get('/telegram/status', (req, res) => {

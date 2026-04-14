@@ -1,6 +1,6 @@
 # Qdrant
 
-Semantic search across Qdrant vector stores. Converts natural language queries into embeddings and searches for similar content.
+Semantic search and ingestion for Qdrant vector stores. Embeds content from your workspace and stores it for later retrieval, or searches existing collections with natural language queries.
 
 ## Prerequisites
 
@@ -36,18 +36,18 @@ Add stores under `tools.qdrant.stores` and configure the embedding model under `
 ### Store Options
 
 | Field | Required | Description |
-|-------|----------|-------------|
-| `url` | Yes | Qdrant server URL |
-| `collection` | Yes | Collection name to search |
-| `dimensions` | No | Truncate embeddings to this size ([Matryoshka](https://qdrant.tech/articles/matryoshka-embeddings/) support) |
-| `apiKey` | No | Qdrant API key (falls back to `QDRANT_API_KEY` env var) |
+|---|---|---|
+| `url` | ✅ | Qdrant server URL |
+| `collection` | ✅ | Collection name |
+| `dimensions` | | Truncate embeddings to this size ([Matryoshka](https://qdrant.tech/articles/matryoshka-embeddings/) support). Auto-detected from the embedding model if omitted. |
+| `apiKey` | | Qdrant API key (falls back to `QDRANT_API_KEY` env var) |
 
 ### Environment Variables
 
-| Variable | Required | Description |
-|----------|----------|-------------|
-| `QDRANT_API_KEY` | No | Default API key for all stores |
-| `QDRANT_DEBUG` | No | Set to `true` for debug logging |
+| Variable | Description |
+|---|---|
+| `QDRANT_API_KEY` | Default API key for all stores |
+| `QDRANT_DEBUG` | Set to `true` for verbose debug logging |
 
 ## Actions
 

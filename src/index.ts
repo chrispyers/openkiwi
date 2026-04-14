@@ -51,8 +51,10 @@ const wss = new WebSocketServer({
 
         const currentConfig = loadConfig();
         const allowed = currentConfig.gateway.allowedOrigins || [];
+        const envOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean) || [];
+        const allAllowed = [...allowed, ...envOrigins];
 
-        if (allowed.includes('*') || allowed.includes(origin)) {
+        if (allAllowed.includes('*') || allAllowed.includes(origin)) {
             callback(true);
         } else {
             console.warn(`[WebSocket] Blocked connection from unauthorized origin: ${origin}`);
@@ -97,6 +99,11 @@ async function startServer() {
     const PORT = config.gateway.port;
     server.listen(PORT, '0.0.0.0', () => {
         console.log(`Gateway service is hot and running on port ${PORT}`);
+        const message = `Gateway Token: ${config.gateway.secretToken}`;
+        const line = '-'.repeat(message.length);
+        console.log('\n' + line);
+        console.log(message);
+        console.log(line + '\n');
     });
 }
 
@@ -108,8 +115,11 @@ app.use(cors({
         const currentConfig = loadConfig();
         const allowed = currentConfig.gateway.allowedOrigins || [];
 
-        // Prevent wildcard usage with credentials
-        if (allowed.includes('*') || allowed.includes(origin)) {
+        // Merge in origins from CORS_ALLOWED_ORIGINS env var (comma-separated)
+        const envOrigins = process.env.CORS_ALLOWED_ORIGINS?.split(',').map(o => o.trim()).filter(Boolean) || [];
+        const allAllowed = [...allowed, ...envOrigins];
+
+        if (allAllowed.includes('*') || allAllowed.includes(origin)) {
             callback(null, true);
         } else {
             console.warn(`[CORS] Blocked request from unauthorized origin: ${origin}`);

@@ -88,8 +88,8 @@ interface SettingsPageProps {
     setSettingsAgentId: (id: string) => void;
     activeAgentInSettings?: Agent;
     fetchAgents: () => Promise<void>;
-    agentForm: { name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; }; collaboration?: { enabled: boolean; schedule: string; } }>>;
+    agentForm: { name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; } }>>;
     saveAgentConfig: () => Promise<void>;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
     tools: ToolDefinition[];
@@ -103,12 +103,12 @@ interface SettingsPageProps {
     gatewayToken: string;
     isProjectManagementEnabled: boolean;
     setIsProjectManagementEnabled: (enabled: boolean) => void;
-    isAgentCollaborationEnabled: boolean;
-    setIsAgentCollaborationEnabled: (enabled: boolean) => void;
     isAgentActivityEnabled: boolean;
     setIsAgentActivityEnabled: (enabled: boolean) => void;
     isProjectsEnabled: boolean;
     setIsProjectsEnabled: (enabled: boolean) => void;
+    isCodeEnabled: boolean;
+    setIsCodeEnabled: (enabled: boolean) => void;
 }
 
 export default function SettingsPage({
@@ -141,12 +141,12 @@ export default function SettingsPage({
     gatewayToken,
     isProjectManagementEnabled,
     setIsProjectManagementEnabled,
-    isAgentCollaborationEnabled,
-    setIsAgentCollaborationEnabled,
     isAgentActivityEnabled,
     setIsAgentActivityEnabled,
     isProjectsEnabled,
-    setIsProjectsEnabled
+    setIsProjectsEnabled,
+    isCodeEnabled,
+    setIsCodeEnabled
 }: SettingsPageProps) {
     const [viewingReadme, setViewingReadme] = useState<{ name: string, content: string } | null>(null);
     const [loadingReadme, setLoadingReadme] = useState(false);
@@ -194,12 +194,12 @@ export default function SettingsPage({
                         <Settings_General
                             isProjectManagementEnabled={isProjectManagementEnabled}
                             setIsProjectManagementEnabled={setIsProjectManagementEnabled}
-                            isAgentCollaborationEnabled={isAgentCollaborationEnabled}
-                            setIsAgentCollaborationEnabled={setIsAgentCollaborationEnabled}
                             isAgentActivityEnabled={isAgentActivityEnabled}
                             setIsAgentActivityEnabled={setIsAgentActivityEnabled}
                             isProjectsEnabled={isProjectsEnabled}
                             setIsProjectsEnabled={setIsProjectsEnabled}
+                            isCodeEnabled={isCodeEnabled}
+                            setIsCodeEnabled={setIsCodeEnabled}
                             theme={theme}
                             setTheme={setTheme}
                         />
@@ -209,6 +209,9 @@ export default function SettingsPage({
                         <Settings_Connections
                             gatewayAddr={gatewayAddr}
                             gatewayToken={gatewayToken}
+                            config={config}
+                            setConfig={setConfig}
+                            saveConfig={saveConfig}
                         />
                     )}
 

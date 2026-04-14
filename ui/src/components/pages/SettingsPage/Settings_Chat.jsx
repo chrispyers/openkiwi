@@ -42,7 +42,7 @@ export default function Settings_Chat({ config, setConfig, saveConfig }) {
                         <TextWithIcon icon={faHistory} bold={true}>
                             Stateful Conversations
                         </TextWithIcon>
-                        <Text size="sm" secondary={true}>Preserve context across multiple message turns</Text>
+                        <Text size="sm" secondary={true}>When ON, the full conversation history is sent with each message, so the agent remembers prior turns. When OFF, only your latest message is sent — each reply is independent with no memory of previous exchanges.</Text>
                     </Column>
                     <Column align="end">
                         <Toggle
@@ -90,7 +90,7 @@ export default function Settings_Chat({ config, setConfig, saveConfig }) {
                         <TextWithIcon icon={faGaugeHigh} bold={true}>
                             Show Token Statistics
                         </TextWithIcon>
-                        <Text size="sm" secondary={true}>Display generation speed (TPS) and token counts on AI messages</Text>
+                        <Text size="sm" secondary={true}>Show stats on each agent response: TPS (tokens per second for the last LLM call), tokens sent (context size including system prompt and history), and tokens received (total output tokens generated across all LLM calls in that turn, including tool use).</Text>
                     </Column>
                     <Column align="end">
                         <Toggle

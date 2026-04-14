@@ -9,51 +9,11 @@ import { Workflow, WorkflowState } from '../../types'
 import Column from '../Column'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import {
-    faPlus, faTrash, faSave, faEnvelope, faListCheck, faCalendar,
-    faCode, faMagnifyingGlass, faTerminal, faFolder,
-    faRobot, faDatabase, faCloud, faEye, faChevronRight, faXmark,
-    faBolt, faWrench, faArrowRight, faShieldHalved, faCodeBranch
+    faPlus, faTrash, faSave, faXmark,
+    faBolt, faArrowRight,
+    faUpRightAndDownLeftFromCenter, faDownLeftAndUpRightToCenter
 } from '@fortawesome/free-solid-svg-icons'
-
-interface ToolDef {
-    id: string;
-    name: string;
-    category: string;
-    icon: any;
-    color: string;
-    description: string;
-}
-
-const TOOLS: ToolDef[] = [
-    { id: 'google_gmail', name: 'Gmail', category: 'Google', icon: faEnvelope, color: '#EA4335', description: 'Read, search, and send emails' },
-    { id: 'google_tasks', name: 'Tasks', category: 'Google', icon: faListCheck, color: '#4285F4', description: 'Manage Google Tasks lists' },
-    { id: 'google_calendar', name: 'Calendar', category: 'Google', icon: faCalendar, color: '#34A853', description: 'Manage calendar events' },
-    { id: 'github', name: 'GitHub', category: 'Dev', icon: faCode, color: '#6e40c9', description: 'Interact with GitHub repos' },
-    { id: 'git', name: 'Git', category: 'Dev', icon: faCodeBranch, color: '#F05033', description: 'Run git commands in the workspace' },
-    { id: 'security_scanner', name: 'Security Scanner', category: 'Security', icon: faShieldHalved, color: '#E53E3E', description: 'Run Semgrep, Gitleaks, Bandit, or Trivy' },
-    { id: 'web_search', name: 'Web Search', category: 'Web', icon: faMagnifyingGlass, color: '#F5A623', description: 'Search the web' },
-    { id: 'web_fetch', name: 'Web Fetch', category: 'Web', icon: faCloud, color: '#7B68EE', description: 'Fetch content from a URL' },
-    { id: 'curl', name: 'Curl', category: 'Web', icon: faCloud, color: '#38A169', description: 'Call JSON APIs and public endpoints directly' },
-    { id: 'bash', name: 'Bash', category: 'System', icon: faTerminal, color: '#2D2D2D', description: 'Execute shell commands' },
-    { id: 'filesystem', name: 'Filesystem', category: 'System', icon: faFolder, color: '#E8A020', description: 'Read and write files' },
-    { id: 'vision', name: 'Vision', category: 'AI', icon: faEye, color: '#9B59B6', description: 'Analyze images with AI' },
-    { id: 'agent', name: 'Agent', category: 'AI', icon: faRobot, color: '#1ABC9C', description: 'Delegate to an AI agent' },
-    { id: 'qdrant', name: 'Qdrant', category: 'Data', icon: faDatabase, color: '#DC3545', description: 'Vector database operations' },
-    { id: 'weather', name: 'Weather', category: 'Data', icon: faCloud, color: '#3498DB', description: 'Fetch weather data' },
-]
-
-const TOOL_CATEGORIES = ['Security', 'Dev', 'Google', 'Web', 'AI', 'System', 'Data']
-
-function getToolDef(id: string): ToolDef {
-    return TOOLS.find(t => t.id === id) ?? {
-        id,
-        name: id,
-        category: 'Other',
-        icon: faWrench,
-        color: '#888888',
-        description: ''
-    }
-}
+import { ToolDef, TOOLS, TOOL_CATEGORIES, getToolDef } from './toolDefs'
 
 interface WorkflowNode {
     id: string;
@@ -149,54 +109,69 @@ function NodeCard({
     const tool = getToolDef(node.tool_id)
 
     return (
-        <div className="flex items-center">
-            <div
-                onClick={onSelect}
-                className={`relative w-44 rounded-2xl border-2 cursor-pointer transition-all duration-150 group overflow-hidden
-                    ${isSelected
-                        ? 'border-accent-primary shadow-lg shadow-accent-primary/20'
-                        : 'border-divider hover:border-neutral-400 dark:hover:border-neutral-500'
-                    }
-                    bg-card`}
-            >
-                {/* Color accent top bar */}
-                <div className="h-1 w-full" style={{ backgroundColor: tool.color }} />
+        <div
+            onClick={onSelect}
+            className={`relative w-44 rounded-2xl border-2 cursor-pointer transition-all duration-150 group overflow-hidden flex-shrink-0
+                ${isSelected
+                    ? 'border-accent-primary shadow-lg shadow-accent-primary/20'
+                    : 'border-divider hover:border-neutral-400 dark:hover:border-neutral-500'
+                }
+                bg-card`}
+        >
+            {/* Color accent top bar */}
+            <div className="h-1 w-full" style={{ backgroundColor: tool.color }} />
 
-                <div className="p-4">
-                    {/* Step number + delete */}
-                    <div className="flex items-center justify-between mb-3">
-                        <span className="text-xs font-bold text-secondary uppercase tracking-wider">Step {index + 1}</span>
-                        {!isOnly && (
-                            <button
-                                onClick={e => { e.stopPropagation(); onDelete() }}
-                                className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
-                            >
-                                <FontAwesomeIcon icon={faXmark} className="text-xs" />
-                            </button>
-                        )}
-                    </div>
-
-                    {/* Tool icon + name */}
-                    <div className="flex items-center gap-2 mb-2">
-                        <div
-                            className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                            style={{ backgroundColor: tool.color + '22', color: tool.color }}
+            <div className="p-4">
+                {/* Step number + delete */}
+                <div className="flex items-center justify-between mb-3">
+                    <span className="text-xs font-bold text-secondary uppercase tracking-wider">Step {index + 1}</span>
+                    {!isOnly && (
+                        <button
+                            onClick={e => { e.stopPropagation(); onDelete() }}
+                            className="opacity-0 group-hover:opacity-100 w-5 h-5 flex items-center justify-center rounded-full text-neutral-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-all"
                         >
-                            <FontAwesomeIcon icon={tool.icon} className="text-sm" />
-                        </div>
-                        <span className="text-xs font-semibold text-secondary">{tool.name}</span>
-                    </div>
+                            <FontAwesomeIcon icon={faXmark} className="text-xs" />
+                        </button>
+                    )}
+                </div>
 
-                    {/* Label */}
-                    <div className="text-sm font-semibold text-primary leading-tight line-clamp-2 min-h-[2.5rem]">
-                        {node.label || <span className="text-secondary italic">Unnamed</span>}
+                {/* Tool icon + name */}
+                <div className="flex items-center gap-2 mb-2">
+                    <div
+                        className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
+                        style={{ backgroundColor: tool.color + '22', color: tool.color }}
+                    >
+                        <FontAwesomeIcon icon={tool.icon} className="text-sm" />
                     </div>
+                    <span className="text-xs font-semibold text-secondary">{tool.name}</span>
+                </div>
+
+                {/* Label */}
+                <div className="text-sm font-semibold text-primary leading-tight line-clamp-2 min-h-[2.5rem]">
+                    {node.label || <span className="text-secondary italic">Unnamed</span>}
                 </div>
             </div>
+        </div>
+    )
+}
 
-            {/* Arrow connector */}
-            <div className="flex-shrink-0 w-8 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
-                <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+// ── Node Connector ─────────────────────────────────────────────────────────────
+// Arrow between two nodes that reveals an insert "+" button on hover
+function NodeConnector({ onInsert }: { onInsert: () => void }) {
+    return (
+        <div
+            className="group flex-shrink-0 w-10 flex items-center justify-center relative cursor-pointer"
+            onClick={onInsert}
+            title="Insert node here"
+        >
+            <FontAwesomeIcon
+                icon={faArrowRight}
+                className="text-neutral-400 dark:text-neutral-600 text-sm transition-opacity duration-150 group-hover:opacity-0"
+            />
+            <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-150">
+                <div className="w-10 h-10 rounded-full border-2 border-dashed border-accent-primary flex items-center justify-center text-accent-primary bg-neutral-50 dark:bg-neutral-950">
+                    <FontAwesomeIcon icon={faPlus} className="text-sm" />
+                </div>
             </div>
         </div>
     )
@@ -213,10 +188,11 @@ function ConfigPanel({
     onChangeTool: () => void;
 }) {
     const tool = getToolDef(node.tool_id)
+    const [expanded, setExpanded] = useState(false)
 
     return (
         <div className="border-t border-divider bg-neutral-50 dark:bg-neutral-900/50 p-5">
-            <div className="max-w-2xl space-y-4">
+            <div className="w-full space-y-4">
                 <div className="flex items-center gap-3 mb-1">
                     <div
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
@@ -245,7 +221,20 @@ function ConfigPanel({
                     currentText={node.prompt}
                     onChange={e => onChange('prompt', e.target.value)}
                     placeholder={`What should this ${tool.name} step do? Describe the action, parameters, and what output to pass along.`}
-                    rows={4}
+                    rows={expanded ? 12 : 4}
+                    textAreaClassName="transition-all duration-300"
+                    action={
+                        <button
+                            onClick={() => setExpanded(e => !e)}
+                            title={expanded ? 'Collapse' : 'Expand'}
+                            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-300 transition-colors p-1"
+                        >
+                            <FontAwesomeIcon
+                                icon={expanded ? faDownLeftAndUpRightToCenter : faUpRightAndDownLeftFromCenter}
+                                className="text-xs"
+                            />
+                        </button>
+                    }
                 />
             </div>
         </div>
@@ -261,6 +250,8 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
     const [showToolPicker, setShowToolPicker] = useState(false)
     const [addingAfterIndex, setAddingAfterIndex] = useState<number | null>(null)
     const canvasRef = useRef<HTMLDivElement>(null)
+    // Track IDs that exist in the DB so we can delete removed nodes on save
+    const savedNodeIds = useRef<Set<string>>(new Set())
 
     useEffect(() => {
         const fetchStates = async () => {
@@ -272,7 +263,9 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
                 if (res.ok) {
                     const data: WorkflowState[] = await res.json()
                     const sorted = data.sort((a, b) => a.order_index - b.order_index)
-                    setNodes(sorted.map(stateToNode))
+                    const mapped = sorted.map(stateToNode)
+                    setNodes(mapped)
+                    savedNodeIds.current = new Set(mapped.map(n => n.id))
                 } else {
                     toast.error('Failed to load workflow')
                 }
@@ -345,33 +338,51 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
         }
         setIsSaving(true)
         try {
+            const base = gatewayAddr.replace(/\/$/, '')
+            const headers = { 'Authorization': `Bearer ${gatewayToken}`, 'Content-Type': 'application/json' }
+
+            // Delete nodes that were removed from the canvas since last load
+            const currentRealIds = new Set(nodes.filter(n => !n.id.startsWith('temp-')).map(n => n.id))
+            for (const savedId of savedNodeIds.current) {
+                if (!currentRealIds.has(savedId)) {
+                    const delRes = await fetch(`${base}/api/collaboration/states/${savedId}`, { method: 'DELETE', headers })
+                    if (!delRes.ok && delRes.status !== 404) {
+                        const body = await delRes.json().catch(() => ({ error: delRes.statusText }))
+                        console.error(`[WorkflowBuilder] Failed to delete state ${savedId}:`, body)
+                        // Non-fatal: continue saving
+                    }
+                }
+            }
+
+            // Save (create or update) all current nodes
             for (const node of nodes) {
                 const isNew = node.id.startsWith('temp-')
                 const method = isNew ? 'POST' : 'PUT'
                 const url = isNew
-                    ? `${gatewayAddr.replace(/\/$/, '')}/api/collaboration/workflows/${workflow.id}/states`
-                    : `${gatewayAddr.replace(/\/$/, '')}/api/collaboration/states/${node.id}`
+                    ? `${base}/api/collaboration/workflows/${workflow.id}/states`
+                    : `${base}/api/collaboration/states/${node.id}`
 
-                const res = await fetch(url, {
-                    method,
-                    headers: { 'Authorization': `Bearer ${gatewayToken}`, 'Content-Type': 'application/json' },
-                    body: JSON.stringify(nodeToStatePayload(node))
-                })
-                if (!res.ok) throw new Error(`Failed to save node: ${node.label}`)
+                const res = await fetch(url, { method, headers, body: JSON.stringify(nodeToStatePayload(node)) })
+                if (!res.ok) {
+                    const body = await res.json().catch(() => ({ error: res.statusText }))
+                    const detail = body?.error ?? res.statusText
+                    console.error(`[WorkflowBuilder] Failed to save node "${node.label}" (${method} ${url}): HTTP ${res.status} — ${detail}`)
+                    throw new Error(`Failed to save "${node.label}": ${detail}`)
+                }
             }
 
             // Refetch to get real IDs
-            const res = await fetch(`${gatewayAddr.replace(/\/$/, '')}/api/collaboration/workflows/${workflow.id}/states`, {
-                headers: { 'Authorization': `Bearer ${gatewayToken}` }
-            })
+            const res = await fetch(`${base}/api/collaboration/workflows/${workflow.id}/states`, { headers })
             if (res.ok) {
                 const data: WorkflowState[] = await res.json()
-                setNodes(data.sort((a, b) => a.order_index - b.order_index).map(stateToNode))
+                const mapped = data.sort((a, b) => a.order_index - b.order_index).map(stateToNode)
+                setNodes(mapped)
+                savedNodeIds.current = new Set(mapped.map(n => n.id))
             }
             toast.success('Workflow saved')
         } catch (e) {
-            console.error(e)
-            toast.error('Error saving workflow')
+            console.error('[WorkflowBuilder] Save failed:', e)
+            toast.error(e instanceof Error ? e.message : 'Error saving workflow')
         } finally {
             setIsSaving(false)
         }
@@ -427,10 +438,21 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
                     </div>
                 ) : (
                     <div className="flex items-center h-full px-8 py-8 min-w-max gap-0">
-                        <>
-                            {nodes.map((node, idx) => (
+                        {/* Prepend button — insert before the first node */}
+                        <button
+                            onClick={() => handleAddNode(-1)}
+                            className="w-10 h-10 rounded-full border-2 border-dashed border-neutral-400 dark:border-neutral-600 flex items-center justify-center text-neutral-400 dark:text-neutral-500 hover:border-accent-primary hover:text-accent-primary hover:bg-accent-primary/5 transition-all flex-shrink-0"
+                            title="Insert node at start"
+                        >
+                            <FontAwesomeIcon icon={faPlus} className="text-sm" />
+                        </button>
+                        <div className="flex-shrink-0 w-8 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
+                            <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+                        </div>
+
+                        {nodes.map((node, idx) => (
+                            <div key={node.id} className="flex items-center">
                                 <NodeCard
-                                    key={node.id}
                                     node={node}
                                     index={idx}
                                     isSelected={selectedId === node.id}
@@ -438,17 +460,26 @@ export default function WorkflowBuilder({ workflow, gatewayAddr, gatewayToken }:
                                     onSelect={() => setSelectedId(selectedId === node.id ? null : node.id)}
                                     onDelete={() => handleDelete(node.id)}
                                 />
-                            ))}
-
-                            {/* Add node button at the end */}
-                            <button
-                                onClick={() => handleAddNode(nodes.length - 1)}
-                                className="w-10 h-10 rounded-full border-2 border-dashed border-neutral-400 dark:border-neutral-600 flex items-center justify-center text-neutral-400 dark:text-neutral-500 hover:border-accent-primary hover:text-accent-primary hover:bg-accent-primary/5 transition-all flex-shrink-0"
-                                title="Add node"
-                            >
-                                <FontAwesomeIcon icon={faPlus} className="text-sm" />
-                            </button>
-                        </>
+                                {idx < nodes.length - 1 ? (
+                                    // Between nodes: interactive connector
+                                    <NodeConnector onInsert={() => handleAddNode(idx)} />
+                                ) : (
+                                    // After last node: plain arrow + append button
+                                    <>
+                                        <div className="flex-shrink-0 w-8 flex items-center justify-center text-neutral-400 dark:text-neutral-600">
+                                            <FontAwesomeIcon icon={faArrowRight} className="text-sm" />
+                                        </div>
+                                        <button
+                                            onClick={() => handleAddNode(nodes.length - 1)}
+                                            className="w-10 h-10 rounded-full border-2 border-dashed border-neutral-400 dark:border-neutral-600 flex items-center justify-center text-neutral-400 dark:text-neutral-500 hover:border-accent-primary hover:text-accent-primary hover:bg-accent-primary/5 transition-all flex-shrink-0"
+                                            title="Add node"
+                                        >
+                                            <FontAwesomeIcon icon={faPlus} className="text-sm" />
+                                        </button>
+                                    </>
+                                )}
+                            </div>
+                        ))}
                     </div>
                 )}
             </div>

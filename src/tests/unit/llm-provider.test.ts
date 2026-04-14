@@ -180,11 +180,11 @@ describe('llm-provider', () => {
             expect(lastRequestBody().max_tokens).toBe(1024);
         });
 
-        it('OpenAI: defaults to 8192 when maxTokens is undefined', async () => {
+        it('OpenAI: omits max_tokens when maxTokens is undefined', async () => {
             globalThis.fetch = mockFetchOk();
             await drain(streamChatCompletion(openaiConfig, simpleMessages));
 
-            expect(lastRequestBody().max_tokens).toBe(8192);
+            expect(lastRequestBody().max_tokens).toBeUndefined();
         });
 
         it('sends max_tokens in the request body', async () => {
@@ -220,11 +220,11 @@ describe('llm-provider', () => {
             expect(lastRequestBody().max_tokens).toBe(1024);
         });
 
-        it('OpenAI: defaults to 8192 when maxTokens is undefined', async () => {
+        it('OpenAI: omits max_tokens when maxTokens is undefined', async () => {
             globalThis.fetch = mockFetchOk({ choices: [{ message: { content: 'hi' } }], usage: {} });
             await getChatCompletion(openaiConfig, [{ role: 'user', content: 'hi' }]);
 
-            expect(lastRequestBody().max_tokens).toBe(8192);
+            expect(lastRequestBody().max_tokens).toBeUndefined();
         });
     });
 

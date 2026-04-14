@@ -19,6 +19,7 @@ interface Provider {
         reasoning?: boolean;
         trained_for_tool_use?: boolean;
     };
+    max_context_length?: number;
 }
 
 interface ModelsTableProps {
@@ -63,11 +64,18 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
                 { name: "Model", alignment: "left" },
                 { name: "Description", alignment: "left" },
                 { name: "Capabilities", alignment: "center" },
+                { name: "Max Context", alignment: "center" },
                 { name: "AGENTS", alignment: "center" },
                 { name: "" }
             ]}>
                 {providers.map((provider, idx) => {
                     const usingAgents = agents.filter(a => a.provider === provider.description);
+
+                    const formatContextLength = (n: number) => {
+                        if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M`;
+                        if (n >= 1_000) return `${Math.round(n / 1_000)}K`;
+                        return `${n}`;
+                    };
 
                     return (
                         <TR key={idx} highlight={highlight} onClick={() => onRowClick(idx)}>
@@ -87,6 +95,11 @@ export default function ModelsTable({ providers, onRowClick, highlight = false, 
                                     {provider.capabilities?.trained_for_tool_use && <ToolIcon />}
                                     {provider.capabilities?.reasoning && <BrainIcon />}
                                 </div>
+                            </TD>
+                            <TD className="w-24 text-center">
+                                <Text size="sm" secondary={!provider.max_context_length}>
+                                    {provider.max_context_length ? formatContextLength(provider.max_context_length) : '—'}
+                                </Text>
                             </TD>
                             <TD className="w-1/3">
                                 <div className="justify-center flex flex-wrap gap-2">

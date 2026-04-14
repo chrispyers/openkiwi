@@ -60,7 +60,7 @@ describe('github tool', () => {
             expect(tool.definition.parameters.required).toContain('repo');
             expect(tool.definition.parameters.required).toContain('path');
             expect(tool.definition.parameters.properties.action.enum).toEqual([
-                'list', 'read', 'create', 'update'
+                'list', 'read', 'create', 'update', 'gist_read', 'gist_update'
             ]);
         });
 

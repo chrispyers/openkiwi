@@ -27,7 +27,7 @@ const Header = ({ isGatewayConnected, onMenuClick }) => {
                 )}
                 <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-lg bg-accent-primary flex items-center justify-center">
-                        <FontAwesomeIcon icon={faBrain} className="text-white dark:text-neutral-600" />
+                        <FontAwesomeIcon icon={faBrain} className="text-[var(--button-on-accent)]" />
                     </div>
                     <h1 className="text-lg font-bold tracking-tight text-primary">
                         <Text bold={true} size="lg">OpenKIWI</Text>

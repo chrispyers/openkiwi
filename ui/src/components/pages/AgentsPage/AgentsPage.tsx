@@ -25,8 +25,8 @@ interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; collaboration?: { enabled: boolean; schedule: string; } }>>
+    agentForm: { name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; maxLoops?: number };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; maxLoops?: number }>>
     saveAgentConfig: (formOverride?: any, successMessage?: string, successDescription?: string) => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -41,7 +41,6 @@ interface AgentsPageProps {
             trained_for_tool_use?: boolean;
         }
     }[];
-    isAgentCollaborationEnabled: boolean;
     agents: Agent[];
     allowManualHeartbeat: boolean;
     agentStates: Record<string, AgentState>;
@@ -59,7 +58,6 @@ export default function AgentsPage({
     setSelectedAgentId: setSelectedAgentIdFromParent,
     providers,
     agents,
-    isAgentCollaborationEnabled,
     allowManualHeartbeat,
     agentStates
 }: AgentsPageProps) {
@@ -93,7 +91,7 @@ export default function AgentsPage({
                 avatar: selectedAgent.avatar,
                 provider: selectedAgent.provider || '',
                 heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false },
-                collaboration: selectedAgent.collaboration || { enabled: false, schedule: '* * * * *' }
+                maxLoops: selectedAgent.maxLoops
             })
         }
     }, [selectedAgent, setAgentForm])
@@ -306,6 +304,34 @@ export default function AgentsPage({
                                     />
                                 </Row>
 
+                                <Row align="end" gap="gap-4">
+                                    <Column grow={true}>
+                                        <Input
+                                            label="Max Tool Loops"
+                                            icon={faClock}
+                                            currentText={String(agentForm.maxLoops ?? 100)}
+                                            onChange={e => {
+                                                const val = parseInt(e.target.value) || undefined;
+                                                setAgentForm({ ...agentForm, maxLoops: val });
+                                            }}
+                                            clearText={() => setAgentForm({ ...agentForm, maxLoops: undefined })}
+                                            placeholder="100"
+                                            className="!mt-0"
+                                        />
+                                    </Column>
+                                    <Column>
+                                        <Button
+                                            themed={true}
+                                            disabled={agentForm.maxLoops === selectedAgent?.maxLoops}
+                                            onClick={() => saveAgentConfig(agentForm)}
+                                            icon={faSave}
+                                        >
+                                            Save
+                                        </Button>
+                                    </Column>
+                                </Row>
+                                <Text size="xs" secondary={true}>Maximum number of tool call iterations per conversation turn. Higher values allow the agent to complete complex multi-step tasks without stopping. Default: 100</Text>
+
                             </Card>
 
                             {/* SCHEDULED TASKS */}
@@ -442,85 +468,6 @@ export default function AgentsPage({
                                     </>
                                 )}
 
-                                {isAgentCollaborationEnabled && (
-                                    <div className="bg-white dark:bg-surface rounded-xl p-4">
-                                        <div className="flex justify-between items-center">
-                                            <div>
-                                                <Text bold={true}>
-                                                    <FontAwesomeIcon className="mr-2" icon={faUsers} />Agent Collaboration</Text>
-                                                <div className="mb-2">
-                                                    <Text size="sm" secondary={true}>Allows the agent to participate in multi-step workflows with other agents</Text>
-                                                </div>
-                                            </div>
-                                            <Toggle
-                                                checked={agentForm.collaboration?.enabled || false}
-                                                onChange={() => {
-                                                    const newEnabled = !(agentForm.collaboration?.enabled);
-                                                    const updated = {
-                                                        ...agentForm,
-                                                        collaboration: {
-                                                            schedule: agentForm.collaboration?.schedule || '* * * * *',
-                                                            enabled: newEnabled
-                                                        }
-                                                    };
-                                                    setAgentForm(updated);
-                                                    saveAgentConfig(
-                                                        updated,
-                                                        newEnabled ? 'Collaboration enabled' : 'Collaboration disabled',
-                                                        newEnabled ? 'The agent will now participate in multi-agent workflows.' : 'Collaboration features have been disabled for this agent.'
-                                                    );
-                                                }}
-                                            />
-                                        </div>
-
-                                        {(agentForm.collaboration?.enabled) && (
-                                            <div className="space-y-3 mt-2 animate-in fade-in slide-in-from-top-2 duration-300">
-                                                <Input
-                                                    label="Collaboration Check Interval (Cron)"
-                                                    icon={faClock}
-                                                    currentText={agentForm.collaboration?.schedule || ''}
-                                                    onChange={e => setAgentForm({
-                                                        ...agentForm,
-                                                        collaboration: {
-                                                            ...agentForm.collaboration!,
-                                                            schedule: e.target.value
-                                                        }
-                                                    })}
-                                                    clearText={() => setAgentForm({
-                                                        ...agentForm,
-                                                        collaboration: {
-                                                            ...agentForm.collaboration!,
-                                                            schedule: ''
-                                                        }
-                                                    })}
-                                                    placeholder="e.g. */10 * * * *"
-                                                    className="!mt-0"
-                                                />
-                                                <div className="flex flex-wrap gap-2">
-                                                    {[
-                                                        { label: 'Every 5m', val: '*/5 * * * *' },
-                                                        { label: 'Every 15m', val: '*/15 * * * *' },
-                                                        { label: 'Hourly', val: '0 * * * *' }
-                                                    ].map(opt => (
-                                                        <Button
-                                                            size="sm"
-                                                            key={opt.label}
-                                                            onClick={() => setAgentForm({
-                                                                ...agentForm,
-                                                                collaboration: {
-                                                                    ...agentForm.collaboration!,
-                                                                    schedule: opt.val
-                                                                }
-                                                            })}
-                                                        >
-                                                            {opt.label}
-                                                        </Button>
-                                                    ))}
-                                                </div>
-                                            </div>
-                                        )}
-                                    </div>
-                                )}
                             </Card>
 
                             {/* FILES */}

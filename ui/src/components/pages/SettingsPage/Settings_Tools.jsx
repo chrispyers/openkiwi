@@ -21,7 +21,7 @@ export default function Settings_Tools({
     const [activeTab, setActiveTab] = useState('optional');
 
     const CORE_TOOL_NAMES = new Set([
-        'agent', 'ask_user', 'bash', 'edit', 'file_manager', 'glob', 'grep', 'ls',
+        'agent', 'ask_user', 'bash', 'edit', 'file_manager', 'finish_task', 'glob', 'grep', 'ls',
         'multi_edit', 'read', 'todo_read', 'todo_write',
         'web_fetch', 'web_search', 'write',
     ]);

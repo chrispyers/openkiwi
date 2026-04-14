@@ -24,6 +24,11 @@ export default {
             'Make a plain HTTP request to any public URL and return the response body. ' +
             'Ideal for JSON APIs, RSS feeds, and any endpoint that does not require a real browser. ' +
             'Unlike the Chromium tool, this sends no cookies, runs no JavaScript, and leaves no bot-detection footprint.',
+        /** Deduplicate retries by HTTP method + URL. */
+        resultKey(args: { url: string; method?: string }): string | null {
+            const method = (args?.method || 'GET').toUpperCase();
+            return `${method}:${args?.url || ''}`;
+        },
         parameters: {
             type: 'object',
             properties: {

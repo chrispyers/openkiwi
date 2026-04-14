@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome';
-import { faBrain, faArrowUp, faArrowDown, faUser, faEye, faEyeSlash, faWrench, faBoltLightning, faFolder, faPen, faTrash, faGlobe, faMagnifyingGlass, faTerminal, faFolderPlus, faArrowRight, faCopy, faCheck } from '@fortawesome/free-solid-svg-icons';
+import { faBrain, faArrowUp, faArrowDown, faUser, faEye, faEyeSlash, faWrench, faBoltLightning, faFolder, faPen, faTrash, faGlobe, faMagnifyingGlass, faTerminal, faFolderPlus, faArrowRight, faCopy, faCheck, faScroll } from '@fortawesome/free-solid-svg-icons';
 import MarkdownRenderer from './MarkdownRenderer';
 import Text from './Text';
 import { AlertCircle } from 'lucide-react';
@@ -32,7 +32,7 @@ const getToolAction = (name, argsStr, displayName) => {
             case 'read':           return { icon: faEye,             label: `Reading ${getBasename(args.path)}` };
             case 'edit':           return { icon: faPen,             label: `Editing ${getBasename(args.path)}` };
             case 'ls':             return { icon: faFolder,          label: `Listing ${getBasename(args.path) || 'workspace'}` };
-            case 'bash':           return { icon: faTerminal,        label: `Running: ${(args.command || '').slice(0, 60)}` };
+            case 'bash':           return { icon: faTerminal,        label: `Running: ${args.command || ''}` };
             case 'grep':           return { icon: faMagnifyingGlass, label: `Searching for "${args.pattern || ''}"` };
             case 'glob':           return { icon: faMagnifyingGlass, label: `Globbing "${args.pattern || ''}"` };
             case 'web_fetch':      return { icon: faGlobe,           label: `Fetching ${args.url || ''}` };
@@ -40,7 +40,9 @@ const getToolAction = (name, argsStr, displayName) => {
             // Legacy / other tools
             case 'chromium':       return { icon: faGlobe,           label: `Browsing ${args.url || ''}` };
             case 'google_search':  return { icon: faMagnifyingGlass, label: `Searching "${args.query || ''}"` };
-            case 'terminal':       return { icon: faTerminal,        label: `Running: ${(args.command || '').slice(0, 60)}` };
+            case 'terminal':       return { icon: faTerminal,        label: `Running: ${args.command || ''}` };
+            case 'execute_workflow': return { icon: faScroll,         label: displayName || 'Workflows: Execute' };
+            case 'list_workflows':   return { icon: faScroll,         label: displayName || 'Workflows: List' };
             case 'memory_search':  return { icon: faBrain,           label: `Searching memory for "${args.query || ''}"` };
             case 'memory_store':   return { icon: faBrain,           label: `Storing memory` };
             case 'read_file':      return { icon: faEye,             label: `Reading ${getBasename(args.path)}` };
@@ -65,7 +67,7 @@ const ElapsedTimer = ({ startedAt }) => {
 const ToolCallTimeline = ({ tool_calls }) => {
     if (!tool_calls || tool_calls.length === 0) return null;
     return (
-        <div className="flex flex-col mb-3 pb-3 border-b border-neutral-500/10">
+        <div className="flex flex-col mt-3 pt-3 border-t border-neutral-500/10">
             {tool_calls.map((tc, idx) => {
                 const name = tc.function?.name || tc.name || '';
                 const { icon, label } = getToolAction(name, tc.function?.arguments, tc.displayName);
@@ -96,11 +98,20 @@ export const ToolActivityRows = ({ tool_calls }) => {
                     ? (tc.durationMs < 1000 ? `${tc.durationMs}ms` : `${(tc.durationMs / 1000).toFixed(1)}s`)
                     : null;
                 return (
-                    <div key={idx} className="flex items-center gap-2 py-1 px-1 text-xs text-neutral-500 dark:text-neutral-400">
-                        <FontAwesomeIcon icon={faCheck} className="w-3 h-3 flex-shrink-0 text-green-500" />
-                        <FontAwesomeIcon icon={icon} className="w-3 h-3 flex-shrink-0 opacity-60" />
-                        <span className="font-mono">{label}</span>
-                        {duration && <span className="opacity-50 ml-auto shrink-0">{duration}</span>}
+                    <div key={idx}>
+                        <div className="flex items-center gap-2 py-1 px-1 text-xs text-neutral-500 dark:text-neutral-400">
+                            <FontAwesomeIcon icon={faCheck} className="w-3 h-3 flex-shrink-0 text-green-500" />
+                            <FontAwesomeIcon icon={icon} className="w-3 h-3 flex-shrink-0 opacity-60" />
+                            <span className="font-mono">{label}</span>
+                            {duration && <span className="opacity-50 ml-auto shrink-0">{duration}</span>}
+                        </div>
+                        {tc.workflowSteps && tc.workflowSteps.map((s, si) => (
+                            <div key={si} className="flex items-center gap-2 py-0.5 pl-8 text-xs text-neutral-400 dark:text-neutral-500">
+                                <FontAwesomeIcon icon={faScroll} className="w-2.5 h-2.5 flex-shrink-0 opacity-50" />
+                                <span className="font-mono opacity-70">Step {s.step}/{s.total}:</span>
+                                <span className="font-mono">{s.stepName}</span>
+                            </div>
+                        ))}
                     </div>
                 );
             })}
@@ -111,11 +122,15 @@ export const ToolActivityRows = ({ tool_calls }) => {
 export const ActiveToolBubble = ({ activeTool }) => {
     const name = activeTool.function?.name || activeTool.name || '';
     const { icon, label } = getToolAction(name, activeTool.function?.arguments, activeTool.displayName);
+    const wp = activeTool.workflowProgress;
     return (
         <div className="flex items-center gap-2 py-1 px-1 text-xs text-neutral-500 dark:text-neutral-400 animate-in fade-in slide-in-from-bottom-2 duration-300">
             <div className="w-1.5 h-1.5 rounded-full bg-accent-primary animate-pulse flex-shrink-0" />
             <FontAwesomeIcon icon={icon} className="w-3 h-3 flex-shrink-0 opacity-60" />
-            <span className="font-mono">{label}</span>
+            {wp
+                ? <span className="font-mono">{label} <span className="opacity-60">— step {wp.step}/{wp.total}:</span> {wp.stepName}</span>
+                : <span className="font-mono">{label}</span>
+            }
             <span className="opacity-50">· <ElapsedTimer startedAt={activeTool.startedAt} /></span>
         </div>
     );
@@ -133,7 +148,8 @@ export const ChatBubble = ({
     stats,
     showTokenMetrics = true,
     tool_calls,
-    isError = false
+    isError = false,
+    isWarning = false
 }) => {
     const [isVisible, setIsVisible] = React.useState(!isReasoning);
 
@@ -146,11 +162,17 @@ export const ChatBubble = ({
                             {avatar}
                         </Text>
                     </div>
-                    <div className={`bubble ${className} ${isError ? '!border-red-500/30 !bg-red-500/5' : ''}`}>
+                    <div className={`bubble ${className} ${isError ? '!border-red-500/30 !bg-red-500/5' : ''} ${isWarning ? '!border-amber-500/30 !bg-amber-500/5' : ''}`}>
                         {isError && (
                             <div className="flex items-center gap-2 text-red-500 text-xs font-bold uppercase tracking-widest mb-2 border-b border-red-500/10 pb-2">
                                 <AlertCircle size={14} />
                                 System Error
+                            </div>
+                        )}
+                        {isWarning && (
+                            <div className="flex items-center gap-2 text-amber-500 text-xs font-bold uppercase tracking-widest mb-2 border-b border-amber-500/10 pb-2">
+                                <AlertCircle size={14} />
+                                Warning
                             </div>
                         )}
                         {isReasoning && (
@@ -170,17 +192,13 @@ export const ChatBubble = ({
                         )}
                         {(!isReasoning || isVisible) && (
                             <>
-                                <ToolCallTimeline tool_calls={tool_calls} />
                                 <div className="w-full">
-                                    {isUser ? (
-                                        <div className="whitespace-pre-wrap text-[15px] leading-relaxed select-text">{content}</div>
-                                    ) : (
-                                        <MarkdownRenderer
-                                            content={content}
-                                            breaks={true}
-                                        />
-                                    )}
+                                    <MarkdownRenderer
+                                        content={content}
+                                        breaks={true}
+                                    />
                                 </div>
+                                <ToolCallTimeline tool_calls={tool_calls} />
                                 {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (
                                     <div className="text-secondary flex items-center gap-3 mt-3 pt-2 border-t border-neutral-500/10 text-[10px] font-bold uppercase tracking-widest text-neutral-400">
                                         <span className="flex items-center gap-1">
@@ -252,6 +270,7 @@ export const AgentChatBubble = ({
             showTokenMetrics={showTokenMetrics}
             tool_calls={message.tool_calls}
             isError={message.isError}
+            isWarning={message.isWarning}
         />
     );
 };

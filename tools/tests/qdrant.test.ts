@@ -75,8 +75,8 @@ describe('qdrant tool', () => {
         it('should export a valid tool definition', () => {
             expect(tool.definition.name).toBe('qdrant');
             expect(tool.definition.parameters.type).toBe('object');
-            expect(tool.definition.parameters.required).toEqual(['action', 'store', 'query']);
-            expect(tool.definition.parameters.properties.action.enum).toEqual(['search']);
+            expect(tool.definition.parameters.required).toEqual(['action', 'store']);
+            expect(tool.definition.parameters.properties.action.enum).toEqual(['search', 'ingest']);
         });
 
         it('should have a handler function', () => {
