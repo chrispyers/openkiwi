@@ -4,6 +4,9 @@ import { SessionManager } from './session-manager.js';
 import { logger } from './logger.js';
 import { loadConfig } from './config-manager.js';
 import { runAgentLoop } from './agent-loop.js';
+import { ToolManager } from './tool-manager.js';
+import { streamChatCompletion } from './llm-provider.js';
+
 
 interface TelegramMessage {
     chatId: string;
@@ -131,7 +134,8 @@ export function initTelegramHandler() {
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
                 apiKey: providerConfig.apiKey,
-                maxTokens: providerConfig.maxTokens
+                maxTokens: providerConfig.maxTokens,
+                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
             };
 
             logger.log({
