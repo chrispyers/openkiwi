@@ -4,7 +4,7 @@
   "description": "",
   "main": "dist/electron.js",
   "scripts": {
-    "postinstall": "npm install --prefix ui",
+    "postinstall": "node -e \"if(require('fs').existsSync('ui/package.json'))require('child_process').execSync('npm install --prefix ui',{stdio:'inherit'})\"",
     "dev:backend": "tsx watch src/index.ts",
     "dev:ui": "cd ui && npm run dev",
     "dev": "concurrently \"npm run dev:backend\" \"npm run dev:ui\"",
