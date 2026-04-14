@@ -252,6 +252,46 @@ function getToolDetails(name: string, args: any): string {
     }
 }
 
+/**
+ * Filter the tool definitions exposed to an agent based on its `tools` block.
+ *
+ * - If the agent has no `tools` block (or an empty one), returns all definitions
+ *   unchanged — this is the pre-existing default and preserves backward
+ *   compatibility for agents that haven't opted in to scoped tool surfaces.
+ * - If the agent has a non-empty `tools` block, only tools whose name (or
+ *   underscore prefix, for subdirectory tools like `github_create` → `github`)
+ *   appear as a key in that block are included. Core tools from `tools/core/`
+ *   and built-in registered tools (memory, workflows, skills) are always
+ *   available regardless — they're infrastructure, not opt-in capabilities.
+ *
+ * This lets agent authors declare exactly which external tools a given agent
+ * should see, preventing a drafting agent from accidentally calling a
+ * publishing tool that should belong to a downstream delegate.
+ */
+function filterToolsForAgent(
+    defs: ReturnType<typeof ToolManager.getToolDefinitions>,
+    agentToolsConfig: Record<string, any> | undefined
+): typeof defs {
+    if (!agentToolsConfig || Object.keys(agentToolsConfig).length === 0) {
+        return defs;
+    }
+    return defs.filter(def => {
+        // Core tools (tools/core/*) and built-in registered tools (no filename)
+        // are always available — they are infrastructure, not optional capabilities.
+        const filename = def.filename;
+        if (!filename) return true;
+        if (filename.startsWith('core/') || filename.startsWith('core\\')) return true;
+
+        // External tool: must be declared in the agent's tools block, either
+        // by exact name or by the underscore prefix for subdirectory tools
+        // (e.g. a tool named `github_create` matches the key `github`).
+        const name = def.name;
+        if (agentToolsConfig[name]) return true;
+        const prefix = name.includes('_') ? name.split('_')[0] : name;
+        return !!agentToolsConfig[prefix];
+    });
+}
+
 export interface AgentLoopOptions {
     agentId: string;
     sessionId: string;
@@ -331,10 +371,13 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         const requestStartTime = Date.now();
 
         try {
+            const toolDefsForAgent = options.llmConfig.supportsTools
+                ? filterToolsForAgent(ToolManager.getToolDefinitions(), options.agentToolsConfig)
+                : undefined;
             for await (const delta of streamChatCompletion(
                 options.llmConfig,
                 processedHistory,
-                options.llmConfig.supportsTools ? ToolManager.getToolDefinitions() : undefined,
+                toolDefsForAgent,
                 options.abortSignal
             )) {
                 if (delta.content) {
