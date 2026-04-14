@@ -34,6 +34,13 @@ export function getMessageText(msg: WAMessage): string | null {
 export function initWhatsAppHandler() {
     WhatsAppManager.getInstance().on('message', async (msg: WAMessage) => {
         try {
+            // Agent replies on WhatsApp are opt-in. Ingest happens via a separate
+            // listener regardless; this gate only controls whether agents reply.
+            const cfg = loadConfig() as any;
+            if (cfg.tools?.whatsapp_ingest?.agentRepliesEnabled !== true) {
+                return;
+            }
+
             let remoteJid = msg.key.remoteJid;
             const text = getMessageText(msg);
 

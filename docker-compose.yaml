@@ -19,6 +19,7 @@ services:
       - ./skills:/app/skills
       - ./workspace:/app/workspace
       - ./logs:/app/logs
+      - ./whatsapp_auth:/app/whatsapp_auth
       - ./LATEST_RELEASE.txt:/app/LATEST_RELEASE.txt
     restart: unless-stopped
 

@@ -12,6 +12,7 @@ import { WhatsAppManager } from './whatsapp-manager.js';
 import { TelegramManager } from './telegram-manager.js';
 import { SCREENSHOTS_DIR, WORKSPACE_DIR } from './security.js';
 import { initWhatsAppHandler } from './WhatsApp.js';
+import { initWhatsAppIngest } from './whatsapp-ingest.js';
 import { initTelegramHandler } from './Telegram.js';
 import apiRouter from './routes.js';
 import { handleChatConnection } from './chat-handler.js';
@@ -84,9 +85,18 @@ async function startServer() {
         checkForUpdates().catch(e => console.error('Scheduled update check failed:', e));
     }, updateInterval);
 
-    // Initialize WhatsApp and its message handler
+    // Initialize WhatsApp: agent reply handler + passive ingest pipeline.
+    // Reply behaviour is gated by config.tools.whatsapp_ingest.agentRepliesEnabled (default false).
     WhatsAppManager.getInstance();
     initWhatsAppHandler();
+    initWhatsAppIngest();
+    // Auto-reconnect if persisted credentials exist (mirrors the Telegram-token pattern).
+    const WA_AUTH_DIR = path.resolve(process.cwd(), 'whatsapp_auth');
+    if (fs.existsSync(path.join(WA_AUTH_DIR, 'creds.json'))) {
+        WhatsAppManager.getInstance().connect().catch(e =>
+            console.error('WhatsApp auto-reconnect failed:', e)
+        );
+    }
 
     // Initialize Telegram and its message handler
     initTelegramHandler();

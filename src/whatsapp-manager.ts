@@ -196,6 +196,20 @@ export class WhatsAppManager extends EventEmitter {
                 }
             });
 
+            // Chat registry + history sync events for passive ingest/backfill
+            this.sock.ev.on('chats.upsert', (chats: any[]) => {
+                for (const c of chats) this.emit('chat-update', c);
+            });
+            this.sock.ev.on('chats.update', (chats: any[]) => {
+                for (const c of chats) this.emit('chat-update', c);
+            });
+            this.sock.ev.on('contacts.upsert', (contacts: any[]) => {
+                for (const c of contacts) this.emit('contact-update', c);
+            });
+            this.sock.ev.on('messaging-history.set', (payload: any) => {
+                this.emit('history', payload);
+            });
+
             this.sock.ev.on('messages.upsert', async (m: { messages: WAMessage[], type: MessageUpsertType }) => {
                 // Determine the bot's own JID, falling back to auth state if sock.user is not yet populated
                 const currentUser = this.sock.user || state.creds.me;
@@ -229,7 +243,10 @@ export class WhatsAppManager extends EventEmitter {
                         const shouldProcess = !isFromMe || isSelfMessage;
 
                         if (shouldProcess) {
-                            // Allowlist check: skip messages from numbers not on the list
+                            // Always emit raw event for passive consumers (e.g. ingest)
+                            this.emit('message-raw', msg);
+
+                            // Allowlist check: only allowlisted messages reach agent routing
                             if (remoteJid && !(await isJidAllowed(remoteJid, this.sock))) {
                                 logger.log({
                                     type: 'system',
@@ -265,6 +282,10 @@ export class WhatsAppManager extends EventEmitter {
             qrCode: this.qrCode,
             isInitializing: this.isInitializing
         };
+    }
+
+    public getSocket() {
+        return this.sock;
     }
 
     public getUserJids() {
