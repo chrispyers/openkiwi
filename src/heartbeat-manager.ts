@@ -171,24 +171,23 @@ Please execute these instructions now.
                 agentToolsConfig: agent.tools
             });
 
-            // Parse thinking content
-            let contentToLog = fullContent;
+            // Strip all thinking/reasoning tags from output
+            const thinkRegex = /<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi;
+            // Also handle unclosed think blocks (model forgot to close or was truncated)
+            const unclosedThinkRegex = /<(think|thought|reasoning)>[\s\S]*$/i;
+
             let thinkingContent = '';
+            const thinkMatches = fullContent.match(thinkRegex);
+            if (thinkMatches) {
+                thinkingContent = thinkMatches.map(m => m.replace(/<\/?(?:think|thought|reasoning)>/gi, '').trim()).join('\n');
+            }
 
-            const thinkStart = fullContent.indexOf('<think>');
-            const thinkEnd = fullContent.indexOf('</think>');
-
-            if (thinkStart !== -1) {
-                if (thinkEnd !== -1) {
-                    // Complete think block
-                    thinkingContent = fullContent.substring(thinkStart + 7, thinkEnd).trim();
-                    contentToLog = fullContent.substring(0, thinkStart) + fullContent.substring(thinkEnd + 8);
-                } else {
-                    // Incomplete think block (model forgot to close or was truncated)
-                    // We treat everything after <think> as thinking content
-                    thinkingContent = fullContent.substring(thinkStart + 7).trim();
-                    contentToLog = fullContent.substring(0, thinkStart);
-                }
+            let contentToLog = fullContent.replace(thinkRegex, '');
+            // Handle unclosed block if no closed blocks were found at the tail
+            const unclosedMatch = contentToLog.match(unclosedThinkRegex);
+            if (unclosedMatch) {
+                thinkingContent += (thinkingContent ? '\n' : '') + unclosedMatch[0].replace(/<(?:think|thought|reasoning)>/gi, '').trim();
+                contentToLog = contentToLog.replace(unclosedThinkRegex, '');
             }
             contentToLog = contentToLog.trim();
 
@@ -280,6 +279,7 @@ Please execute these instructions now.
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
                 apiKey: providerConfig.apiKey,
+                maxTokens: providerConfig.maxTokens,
                 supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
             };
 
@@ -320,21 +320,21 @@ You have been woken up to work on the Agent Collaboration System.
                 signToolUrls: false
             });
 
-            // Parse thinking content
-            let contentToLog = fullContent;
+            // Strip all thinking/reasoning tags from output
+            const thinkRegex = /<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi;
+            const unclosedThinkRegex = /<(think|thought|reasoning)>[\s\S]*$/i;
+
             let thinkingContent = '';
+            const thinkMatches = fullContent.match(thinkRegex);
+            if (thinkMatches) {
+                thinkingContent = thinkMatches.map(m => m.replace(/<\/?(?:think|thought|reasoning)>/gi, '').trim()).join('\n');
+            }
 
-            const thinkStart = fullContent.indexOf('<think>');
-            const thinkEnd = fullContent.indexOf('</think>');
-
-            if (thinkStart !== -1) {
-                if (thinkEnd !== -1) {
-                    thinkingContent = fullContent.substring(thinkStart + 7, thinkEnd).trim();
-                    contentToLog = fullContent.substring(0, thinkStart) + fullContent.substring(thinkEnd + 8);
-                } else {
-                    thinkingContent = fullContent.substring(thinkStart + 7).trim();
-                    contentToLog = fullContent.substring(0, thinkStart);
-                }
+            let contentToLog = fullContent.replace(thinkRegex, '');
+            const unclosedMatch = contentToLog.match(unclosedThinkRegex);
+            if (unclosedMatch) {
+                thinkingContent += (thinkingContent ? '\n' : '') + unclosedMatch[0].replace(/<(?:think|thought|reasoning)>/gi, '').trim();
+                contentToLog = contentToLog.replace(unclosedThinkRegex, '');
             }
             contentToLog = contentToLog.trim();
 

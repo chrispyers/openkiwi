@@ -511,6 +511,37 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
         }
 
         if (actualToolCalls.length > 0) {
+            // Pre-parse and sanitize each tool call's arguments BEFORE pushing the assistant message.
+            // If arguments are malformed JSON (a common failure mode on local models that over-escape
+            // quotes inside long string fields), attempt a best-effort repair. If repair fails, replace
+            // with "{}" so downstream LLM calls don't choke when re-serializing the chat history —
+            // some provider chat templates (e.g. LM Studio Jinja for qwen2.5) call fromjson on the
+            // arguments string and return 500 when it fails to parse.
+            const parsedArgsByCall: Record<string, { args: Record<string, unknown>; parseError?: string }> = {};
+            for (const toolCall of actualToolCalls) {
+                const rawArgs = toolCall.function.arguments || '{}';
+                try {
+                    parsedArgsByCall[toolCall.id] = { args: JSON.parse(rawArgs) };
+                } catch (parseErr: any) {
+                    // Attempt repair: common issue is the model emitting `\\"` instead of `\"`
+                    // when embedding quotes inside a JSON string value. Other variants: `\\\\"` (quad-backslash).
+                    const repaired = rawArgs
+                        .replace(/\\\\"/g, '\\"')
+                        .replace(/\\\\n/g, '\\n')
+                        .replace(/\\\\t/g, '\\t');
+                    try {
+                        parsedArgsByCall[toolCall.id] = { args: JSON.parse(repaired) };
+                        toolCall.function.arguments = repaired;
+                        logger.log({ type: 'system', level: 'warn', agentId: options.agentId, sessionId: options.sessionId, message: `Repaired malformed tool arguments for '${toolCall.function.name}'` });
+                    } catch (repairErr: any) {
+                        const errMsg = `Invalid tool arguments (JSON parse failed): ${parseErr.message}. Please retry with valid JSON arguments — in particular, do not double-escape quotes or newlines inside string values.`;
+                        parsedArgsByCall[toolCall.id] = { args: {}, parseError: errMsg };
+                        toolCall.function.arguments = '{}';
+                        logger.log({ type: 'error', level: 'warn', agentId: options.agentId, sessionId: options.sessionId, message: `Skipping tool call '${toolCall.function.name}': malformed JSON arguments`, data: { raw: rawArgs.substring(0, 200) } });
+                    }
+                }
+            }
+
             const assistantMsg = {
                 role: 'assistant',
                 content: fullContent || '',
@@ -527,21 +558,20 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                 }
 
                 const name = toolCall.function.name;
-                let args: Record<string, unknown>;
-                try {
-                    args = JSON.parse(toolCall.function.arguments || '{}');
-                } catch (parseErr: any) {
-                    // Malformed JSON from the LLM — report it back as a tool error so the agent can self-correct
-                    logger.log({ type: 'error', level: 'warn', agentId: options.agentId, sessionId: options.sessionId, message: `Skipping tool call '${name}': malformed JSON arguments`, data: { raw: toolCall.function.arguments?.substring(0, 200) } });
+                const parsed = parsedArgsByCall[toolCall.id];
+
+                if (parsed.parseError) {
                     chatHistory.push({
                         role: 'tool',
                         tool_call_id: toolCall.id,
                         name,
-                        content: JSON.stringify({ error: `Invalid tool arguments (JSON parse failed): ${parseErr.message}. Please retry with valid JSON arguments.` }),
+                        content: JSON.stringify({ error: parsed.parseError }),
                         timestamp: Math.floor(Date.now() / 1000)
                     });
                     continue;
                 }
+
+                const args = parsed.args;
 
                 console.log(`[Tool Execution] Calling tool '${name}' with arguments:`, JSON.stringify(args, null, 2));
 
@@ -583,9 +613,12 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                     const details = getToolDetails(name, args);
                     AgentManager.setAgentState(options.agentId, 'working', details);
 
-                    // Resolve per-tool config: agent config overrides global entirely
+                    // Resolve per-tool config: agent config overrides global entirely.
+                    // Tools in subdirectories (e.g. github_create) share config under the prefix (e.g. github).
                     const globalToolsConfig = loadConfig().tools;
-                    const toolConfig = options.agentToolsConfig?.[name] ?? globalToolsConfig?.[name];
+                    const configKey = name.includes('_') ? name.split('_')[0] : name;
+                    const toolConfig = options.agentToolsConfig?.[name] ?? options.agentToolsConfig?.[configKey]
+                        ?? globalToolsConfig?.[name] ?? globalToolsConfig?.[configKey];
 
                     let result;
                     const toolStartTime = Date.now();

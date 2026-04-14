@@ -131,7 +131,8 @@ export function initTelegramHandler() {
                 baseUrl: providerConfig.endpoint,
                 modelId: providerConfig.model,
                 apiKey: providerConfig.apiKey,
-                maxTokens: providerConfig.maxTokens
+                maxTokens: providerConfig.maxTokens,
+                supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
             };
 
             logger.log({
