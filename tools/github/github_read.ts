@@ -1,17 +1,16 @@
-import { debug, ghApi, checkToken, validateRepoAccess, ToolContext } from './shared.js';
+import { debug, ghApi, checkToken, validateRepoAccess, type ToolContext } from './shared.js';
 
 export default {
     definition: {
         name: 'github_read',
         displayName: 'GitHub Read',
-        configKey: 'github',
         description: 'Read the full content of a single file from a GitHub repository.',
         parameters: {
             type: 'object' as const,
             properties: {
                 repo: {
                     type: 'string',
-                    description: 'GitHub repository in "owner/repo" format.'
+                    description: 'GitHub repository in "owner/repo" format (e.g. "john-mcfadyen/growingscrummasters.com").'
                 },
                 path: {
                     type: 'string',
@@ -37,11 +36,9 @@ export default {
 
         try {
             const data = await ghApi(endpoint);
-
             if (data.type !== 'file') {
-                return { error: `"${normalizedPath}" is not a file (type: ${data.type}). Use github_list for directories.` };
+                return { error: `"${normalizedPath}" is not a file (type: ${data.type}). Use "github_list" for directories.` };
             }
-
             const decoded = Buffer.from(data.content, 'base64').toString('utf-8');
             return {
                 repo,
