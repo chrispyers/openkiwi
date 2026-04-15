@@ -1,16 +1,31 @@
 import express from 'express';
+import { AgentManager } from '../agent-manager.js';
 
 const router = express.Router();
 
-// Mock data for agents
-const agents = [
-    { id: '1', name: 'Agent One', description: 'Description for agent one.' },
-    { id: '2', name: 'Agent Two', description: 'Description for agent two.' }
-];
-
 // Endpoint to list all agents as models
 router.get('/models', (req, res) => {
-    res.json(agents);
+    try {
+        const agentIds = AgentManager.listAgents();
+        
+        // Transform agents into OpenAI-compatible model objects
+        const agents = agentIds.map(id => {
+            const agent = AgentManager.getAgent(id);
+            return {
+                id: agent?.id || id,
+                object: 'model',
+                created: Math.floor(Date.now() / 1000),
+                owned_by: 'openkiwi-agent',
+                name: agent?.name || id.charAt(0).toUpperCase() + id.slice(1),
+                description: `Agent: ${agent?.name || id}`
+            };
+        });
+        
+        res.json({ data: agents });
+    } catch (error) {
+        console.error('[Models] Error listing agents:', error);
+        res.status(500).json({ error: 'Failed to retrieve agents' });
+    }
 });
 
 // Endpoint for chat completions with streaming support
