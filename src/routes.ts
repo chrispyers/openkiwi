@@ -14,6 +14,7 @@ import projectsRouter from './routes/projects.js';
 import workspaceRouter from './routes/workspace.js'; // serves /files
 import { TelegramManager } from './telegram-manager.js';
 import mcpRouter from './routes/mcp.js';
+import oaiRouter from './routes/openai-compat.js';
 
 const router = Router();
 
@@ -41,6 +42,7 @@ router.use('/collaboration', collaborationRouter);
 router.use('/projects', projectsRouter);
 router.use('/files', workspaceRouter);
 router.use('/mcp', mcpRouter);
+router.use('/oai', oaiRouter);
 
 // Telegram routes
 router.get('/telegram/status', (req, res) => {
