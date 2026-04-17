@@ -29,7 +29,12 @@ router.get('/models', (req, res) => {
     }
 });
 
-// Endpoint for chat completions (non-streaming only)
+// Helper to format SSE data for OpenAI streaming
+function formatSSE(data: string): string {
+    return `data: ${data}\n\n`;
+}
+
+// Endpoint for chat completions (supports both streaming and non-streaming)
 router.post('/chat/completions', async (req, res) => {
     try {
         const { model, messages, stream, session_id } = req.body;
@@ -150,50 +155,162 @@ router.post('/chat/completions', async (req, res) => {
         const validMessages = conversationMessages.filter((msg: any) => msg.role !== 'reasoning');
         payload.push(...validMessages);
 
-        // Run agent loop
-        const { runAgentLoop } = await import('../agent-loop.js');
-        const result = await runAgentLoop({
-            agentId: agent.id,
-            sessionId,
-            llmConfig,
-            messages: payload,
-            visionEnabled: !!providerConfig?.capabilities?.vision,
-            maxLoops: agent.maxLoops || 100,
-            signToolUrls: true,
-            agentToolsConfig: agent.tools,
-        });
+        // Handle streaming vs non-streaming
+        if (stream) {
+            // Set headers for SSE streaming
+            res.setHeader('Content-Type', 'text/event-stream');
+            res.setHeader('Cache-Control', 'no-cache');
+            res.setHeader('Connection', 'keep-alive');
+            res.setHeader('X-Accel-Buffering', 'no');
 
-        // Save session with updated messages
-        const newGeneratedMessages = result.chatHistory.slice(payload.length);
-        session.messages = [...conversationMessages, ...newGeneratedMessages];
-        SessionManager.saveSession(session);
+            const completionId = `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`;
+            const created = Math.floor(Date.now() / 1000);
+            
+            let fullContent = '';
+            let toolCallsAccumulated: any[] = [];
+            let usageStats: any = null;
 
-        // Calculate token counts from actual usage
-        const promptTokens = result.usage.prompt_tokens;
-        const completionTokens = result.usage.completion_tokens;
+            // Create abort controller for request cancellation
+            const abortController = new AbortController();
+            req.on('close', () => {
+                abortController.abort();
+            });
 
-        // Return OpenAI-compatible response
-        res.json({
-            id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-            object: 'chat.completion',
-            created: Math.floor(Date.now() / 1000),
-            model: model,
-            choices: [
-                {
-                    index: 0,
-                    message: {
-                        role: 'assistant',
-                        content: result.finalResponse
-                    },
-                    finish_reason: 'stop'
+            try {
+                // Run agent loop with streaming
+                const { runAgentLoop } = await import('../agent-loop.js');
+                const generator = runAgentLoop({
+                    agentId: agent.id,
+                    sessionId,
+                    llmConfig,
+                    messages: payload,
+                    visionEnabled: !!providerConfig?.capabilities?.vision,
+                    maxLoops: agent.maxLoops || 100,
+                    signToolUrls: true,
+                    agentToolsConfig: agent.tools,
+                    abortSignal: abortController.signal,
+                });
+                
+                for await (const chunk of generator) {
+                    // Accumulate content
+                    fullContent += chunk;
+                    
+                    // Stream the chunk as OpenAI-compatible SSE
+                    const streamChunk = {
+                        id: completionId,
+                        object: 'chat.completion.chunk',
+                        created: created,
+                        model: model,
+                        choices: [{
+                            index: 0,
+                            delta: {
+                                role: 'assistant',
+                                content: chunk
+                            },
+                            finish_reason: null
+                        }]
+                    };
+                    res.write(formatSSE(JSON.stringify(streamChunk)));
                 }
-            ],
-            usage: {
-                prompt_tokens: promptTokens,
-                completion_tokens: completionTokens,
-                total_tokens: promptTokens + completionTokens
+
+                // Send final chunk with finish_reason
+                const finalChunk = {
+                    id: completionId,
+                    object: 'chat.completion.chunk',
+                    created: created,
+                    model: model,
+                    choices: [{
+                        index: 0,
+                        delta: {},
+                        finish_reason: 'stop'
+                    }]
+                };
+                res.write(formatSSE(JSON.stringify(finalChunk)));
+
+                // Send [DONE] marker
+                res.write(formatSSE('[DONE]'));
+                res.end();
+
+                // Save session with updated messages using the accumulated content
+                // We need to reconstruct the messages from the full content
+                const generatedMessage = {
+                    role: 'assistant',
+                    content: fullContent,
+                    timestamp: Math.floor(Date.now() / 1000)
+                };
+                session.messages = [...conversationMessages, generatedMessage];
+                SessionManager.saveSession(session);
+
+            } catch (error) {
+                if (!abortController.signal.aborted) {
+                    console.error('[Chat Completions Streaming] Error:', error);
+                    // Send error as SSE
+                    const errorChunk = {
+                        id: completionId,
+                        object: 'chat.completion.chunk',
+                        created: created,
+                        model: model,
+                        choices: [{
+                            index: 0,
+                            delta: {},
+                            finish_reason: 'stop'
+                        }],
+                        error: {
+                            message: error instanceof Error ? error.message : 'Streaming error',
+                            type: 'internal_error'
+                        }
+                    };
+                    res.write(formatSSE(JSON.stringify(errorChunk)));
+                    res.write(formatSSE('[DONE]'));
+                    res.end();
+                }
             }
-        });
+        } else {
+            // Non-streaming mode (existing behavior)
+            const { runAgentLoop } = await import('../agent-loop.js');
+            const result = await runAgentLoop({
+                agentId: agent.id,
+                sessionId,
+                llmConfig,
+                messages: payload,
+                visionEnabled: !!providerConfig?.capabilities?.vision,
+                maxLoops: agent.maxLoops || 100,
+                signToolUrls: true,
+                agentToolsConfig: agent.tools,
+            });
+
+            // Save session with updated messages
+            const newGeneratedMessages = result.chatHistory.slice(payload.length);
+            session.messages = [...conversationMessages, ...newGeneratedMessages];
+            SessionManager.saveSession(session);
+
+            // Calculate token counts from actual usage
+            const promptTokens = result.usage.prompt_tokens;
+            const completionTokens = result.usage.completion_tokens;
+
+            // Return OpenAI-compatible response
+            res.json({
+                id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                object: 'chat.completion',
+                created: Math.floor(Date.now() / 1000),
+                model: model,
+                choices: [
+                    {
+                        index: 0,
+                        message: {
+                            role: 'assistant',
+                            content: result.finalResponse
+                        },
+                        finish_reason: 'stop'
+                    }
+                ],
+                usage: {
+                    prompt_tokens: promptTokens,
+                    completion_tokens: completionTokens,
+                    total_tokens: promptTokens + completionTokens
+                }
+            });
+        }
     } catch (error) {
         console.error('[Chat Completions] Error:', error);
         res.status(500).json({
