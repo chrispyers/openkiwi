@@ -177,9 +177,14 @@ router.post('/chat/completions', async (req, res) => {
             });
 
             try {
-                // Run agent loop with streaming
+                // Run agent loop with streaming - pass callbacks for real-time streaming
                 const { runAgentLoop } = await import('../agent-loop.js');
-                const generator = runAgentLoop({
+                
+                let fullContent = '';
+                let usageStats: any = null;
+                
+                // Create a callback-based streaming approach instead of iterating the generator
+                const result = await runAgentLoop({
                     agentId: agent.id,
                     sessionId,
                     llmConfig,
@@ -189,29 +194,29 @@ router.post('/chat/completions', async (req, res) => {
                     signToolUrls: true,
                     agentToolsConfig: agent.tools,
                     abortSignal: abortController.signal,
+                    onDelta: (content: string) => {
+                        // Stream each chunk as OpenAI-compatible SSE
+                        fullContent += content;
+                        const streamChunk = {
+                            id: completionId,
+                            object: 'chat.completion.chunk',
+                            created: created,
+                            model: model,
+                            choices: [{
+                                index: 0,
+                                delta: {
+                                    role: 'assistant',
+                                    content: content
+                                },
+                                finish_reason: null
+                            }]
+                        };
+                        res.write(formatSSE(JSON.stringify(streamChunk)));
+                    },
+                    onUsage: (usage: any) => {
+                        usageStats = usage;
+                    }
                 });
-                
-                for await (const chunk of generator) {
-                    // Accumulate content
-                    fullContent += chunk;
-                    
-                    // Stream the chunk as OpenAI-compatible SSE
-                    const streamChunk = {
-                        id: completionId,
-                        object: 'chat.completion.chunk',
-                        created: created,
-                        model: model,
-                        choices: [{
-                            index: 0,
-                            delta: {
-                                role: 'assistant',
-                                content: chunk
-                            },
-                            finish_reason: null
-                        }]
-                    };
-                    res.write(formatSSE(JSON.stringify(streamChunk)));
-                }
 
                 // Send final chunk with finish_reason
                 const finalChunk = {
