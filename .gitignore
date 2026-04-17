@@ -1,21 +1,48 @@
-```ts
-// Example of optimized .gitignore for TypeScript/Node.js project
+# Compiled and build artifacts
+*.pyc
+__pycache__/
+*.o
+*.obj
+*.exe
+*.dll
+*.so
+*.a
+*.out
+*.class
+
+# Dependencies
 node_modules/
-dist/
-build/
-.nyc_output/
-coverage/
-.nyc_output/
-.tmp/
-temp/
-.vscode/
-.idea/
-*.log
-*.tmp
-*.swp
+venv/
+.venv/
 .env
 .env.local
 .env.*
+
+# Logs and temp files
+*.log
+*.tmp
+*.swp
+*.swo
+
+# Editors
+.vscode/
+.idea/
+
+# System files
 .DS_Store
 Thumbs.db
-```
+
+# Coverage
+coverage/
+htmlcov/
+.coverage
+
+# Distribution / Build
+dist/
+build/
+target/
+.gradle/
+
+# Python specific
+.mypy_cache/
+.pytest_cache/

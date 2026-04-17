@@ -32,7 +32,7 @@ router.get('/models', (req, res) => {
 // Endpoint for chat completions (non-streaming only)
 router.post('/chat/completions', async (req, res) => {
     try {
-        const { model, messages } = req.body;
+        const { model, messages, stream, session_id } = req.body;
 
         // Validate required fields
         if (!model || !messages || !Array.isArray(messages)) {
@@ -59,19 +59,6 @@ router.post('/chat/completions', async (req, res) => {
             });
         }
 
-        // Extract user message (last message should be from user)
-        const userMessage = messages[messages.length - 1];
-        if (!userMessage || userMessage.role !== 'user') {
-            return res.status(400).json({
-                error: {
-                    message: 'Last message must be from user',
-                    type: 'invalid_request_error',
-                    param: 'messages',
-                    code: 'invalid_request_error'
-                }
-            });
-        }
-
         // Build LLM config from agent's provider
         const providerConfig = agent.providerConfig || {};
         const llmConfig = {
@@ -82,26 +69,98 @@ router.post('/chat/completions', async (req, res) => {
             supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
         };
 
-        // Run agent loop and collect full response
-        let fullResponse = '';
-        const responseGenerator = runAgentLoop({
-            agentId: agent.id,
-            sessionId: `openai-${Date.now()}`,
-            llmConfig,
-            messages: messages.slice(0, -1),
-            visionEnabled: !!providerConfig?.capabilities?.vision,
-            maxLoops: agent.maxLoops || 100,
-        });
+        // Load config for system prompt
+        const { loadConfig } = await import('../config-manager.js');
+        const currentConfig = loadConfig();
 
-        // Collect all chunks from the generator
-        for await (const chunk of responseGenerator) {
-            fullResponse += chunk;
+        // Build payload with system prompt
+        const payload: any[] = [];
+        let systemPrompt = agent.systemPrompt || currentConfig.global?.systemPrompt || "You are a helpful AI assistant.";
+
+        // Inject memory if available
+        if (agent.path) {
+            const { AgentManager: AM } = await import('../agent-manager.js');
+            const freshMemory = AM.readFile(require('node:path').join(agent.path, 'MEMORY.md'));
+            const sharedMemoryPath = require('node:path').resolve(process.cwd(), 'config', 'SHARED_MEMORY.md');
+            const fs = await import('node:fs');
+            const freshSharedMemory = fs.default.existsSync(sharedMemoryPath) ? fs.default.readFileSync(sharedMemoryPath, 'utf-8') : undefined;
+
+            systemPrompt = systemPrompt.replace(
+                /## Your Memory\n[\s\S]*?(?=\n## (?!Your Memory)|Whenever the user shares)/,
+                freshMemory
+                    ? `## Your Memory\nThe following is your long-term memory. Use this to recall facts about the user and past interactions without needing to search.\n\n${freshMemory}\n\n`
+                    : ''
+            );
+            systemPrompt = systemPrompt.replace(
+                /## Shared Memory \(all agents\)\n[\s\S]*?(?=\n## (?!Shared Memory)|Whenever the user shares)/,
+                freshSharedMemory
+                    ? `## Shared Memory (all agents)\nThe following memory is shared across all agents.\n\n${freshSharedMemory}\n\n`
+                    : ''
+            );
         }
 
-        // Calculate token counts (approximate)
-        const promptText = messages.map((m: any) => m.content || '').join(' ');
-        const promptTokens = Math.ceil(promptText.length / 4);
-        const completionTokens = Math.ceil(fullResponse.length / 4);
+        // Add time to system prompt
+        const now = new Date();
+        const timeString = now.toLocaleString(undefined, {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            second: '2-digit',
+            timeZoneName: 'short'
+        });
+        systemPrompt += `\n\n[Current Time: ${timeString}]`;
+
+        payload.push({ role: 'system', content: systemPrompt });
+
+        // Handle session persistence
+        const sessionId = session_id || `openai-${Date.now()}`;
+        const { SessionManager } = await import('../session-manager.js');
+        
+        // Load existing session or create new one
+        let session = SessionManager.getSession(sessionId);
+        if (!session) {
+            session = {
+                id: sessionId,
+                agentId: agent.id,
+                title: messages.find((m: any) => m.role === 'user')?.content?.slice(0, 30) + '...' || 'New Chat',
+                messages: [],
+                updatedAt: Date.now()
+            };
+        }
+
+        // If session exists, use its history; otherwise use provided messages
+        const conversationMessages = session && session.messages.length > 0
+            ? [...session.messages, ...messages]
+            : messages;
+
+        // Filter out reasoning messages
+        const validMessages = conversationMessages.filter((msg: any) => msg.role !== 'reasoning');
+        payload.push(...validMessages);
+
+        // Run agent loop
+        const { runAgentLoop } = await import('../agent-loop.js');
+        const result = await runAgentLoop({
+            agentId: agent.id,
+            sessionId,
+            llmConfig,
+            messages: payload,
+            visionEnabled: !!providerConfig?.capabilities?.vision,
+            maxLoops: agent.maxLoops || 100,
+            signToolUrls: true,
+            agentToolsConfig: agent.tools,
+        });
+
+        // Save session with updated messages
+        const newGeneratedMessages = result.chatHistory.slice(payload.length);
+        session.messages = [...conversationMessages, ...newGeneratedMessages];
+        SessionManager.saveSession(session);
+
+        // Calculate token counts from actual usage
+        const promptTokens = result.usage.prompt_tokens;
+        const completionTokens = result.usage.completion_tokens;
 
         // Return OpenAI-compatible response
         res.json({
@@ -114,7 +173,7 @@ router.post('/chat/completions', async (req, res) => {
                     index: 0,
                     message: {
                         role: 'assistant',
-                        content: fullResponse
+                        content: result.finalResponse
                     },
                     finish_reason: 'stop'
                 }
