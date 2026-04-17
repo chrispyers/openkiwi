@@ -1,178 +1,21 @@
-# Dependencies
+```ts
+// Example of optimized .gitignore for TypeScript/Node.js project
 node_modules/
-
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
-.Python
-env/
-venv/
-.venv/
-.ENV
-.python-version
-.pytest_cache/
-.mypy_cache/
-.coverage
-coverage/
-htmlcov/
-
-# Build artifacts
 dist/
 build/
-*.egg-info/
 .nyc_output/
-coverage/lcov-report/
-
-# Logs
+coverage/
+.nyc_output/
+.tmp/
+temp/
+.vscode/
+.idea/
 *.log
-
-# Environment specific
+*.tmp
+*.swp
 .env
 .env.local
 .env.*
-!.env.example
-
-# IDE
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# OS
 .DS_Store
 Thumbs.db
-
-# Temporary files
-*.tmp
-*.temp
-*.bak
-
-# Compression
-*.zip
-*.gz
-*.tar
-*.tgz
-*.bz2
-*.xz
-*.7z
-*.rar
-*.zst
-*.lz4
-*.lzh
-*.cab
-*.arj
-*.rpm
-*.deb
-*.Z
-*.lz
-*.lzo
-*.tar.gz
-*.tar.bz2
-*.tar.xz
-*.tar.zst
-
-# Compiled files
-*.exe
-*.dll
-*.so
-*.a
-*.o
-*.out
-*.class
-
-# Go
-*.exe~
-*.o~
-*.so~
-*.a~
-*.dylib~
-*.dll~
-*.dll~
-*.lib~
-*.obj~
-*.ilk~
-*.pdb~
-*.tlog~
-*.exp~
-*.iobj~
-*.ipdb~
-*.aps~
-*.ncb~
-*.opt~
-*.plg~
-*.vcp~
-*.met~
-*.pch~
-*.ilk~
-*.tmp~
-*.obj~
-*.tlb~
-*.tlh~
-*.tmp~
-*.rsp~
-*.pgc~
-*.pgd~
-*.meta~
-*.pid~
-*.log~
-*.ts~
-*.tsx~
-*.js~
-*.jsx~
-*.css~
-*.scss~
-*.sass~
-*.less~
-*.styl~
-*.vue~
-*.coffee~
-*.litcoffee~
-*.elm~
-*.erl~
-*.hrl~
-*.beam~
-*.pl~
-*.pm~
-*.t~
-*.pod~
-*.rb~
-*.rake~
-*.gemspec~
-*.bundle~
-*.so~
-*.bundle~
-*.jar~
-*.war~
-*.ear~
-*.sar~
-*.har~
-*.dar~
-*.kmp~
-*.kmz~
-*.xpi~
-*.crx~
-*.jar~
-*.zip~
-*.tar~
-*.gz~
-*.bz2~
-*.xz~
-*.7z~
-*.rar~
-*.zst~
-*.lz4~
-*.lzh~
-*.cab~
-*.arj~
-*.rpm~
-*.deb~
-*.Z~
-*.lz~
-*.lzo~
-*.tar.gz~
-*.tar.bz2~
-*.tar.xz~
-*.tar.zst~
+```
