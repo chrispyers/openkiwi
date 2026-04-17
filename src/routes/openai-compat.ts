@@ -60,7 +60,21 @@ router.post('/chat/completions', async (req, res) => {
         }
 
         // Build LLM config from agent's provider
-        const providerConfig = agent.providerConfig || {};
+        const { loadConfig } = await import('../config-manager.js');
+        const currentConfig = loadConfig();
+        
+        // Resolve provider config from global config using agent's provider reference
+        let providerConfig: any = {};
+        if (agent.provider) {
+            providerConfig = currentConfig.providers.find(
+                (p: any) => p.model === agent.provider || p.description === agent.provider
+            ) || {};
+        }
+        // Fallback to first provider if agent has no specific provider or lookup failed
+        if (!providerConfig.endpoint && currentConfig.providers.length > 0) {
+            providerConfig = currentConfig.providers[0];
+        }
+        
         const llmConfig = {
             baseUrl: providerConfig.endpoint,
             modelId: providerConfig.model,
@@ -68,10 +82,6 @@ router.post('/chat/completions', async (req, res) => {
             maxTokens: providerConfig.maxTokens,
             supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
         };
-
-        // Load config for system prompt
-        const { loadConfig } = await import('../config-manager.js');
-        const currentConfig = loadConfig();
 
         // Build payload with system prompt
         const payload: any[] = [];
