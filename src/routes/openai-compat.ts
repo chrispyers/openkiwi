@@ -29,15 +29,20 @@ router.get('/models', (req, res) => {
     }
 });
 
-// Endpoint for chat completions with streaming support
+// Endpoint for chat completions (non-streaming only)
 router.post('/chat/completions', async (req, res) => {
     try {
-        const { model, messages, stream = false } = req.body;
+        const { model, messages } = req.body;
 
         // Validate required fields
         if (!model || !messages || !Array.isArray(messages)) {
             return res.status(400).json({
-                error: 'Invalid request: model and messages array are required'
+                error: {
+                    message: 'Invalid request: model and messages array are required',
+                    type: 'invalid_request_error',
+                    param: null,
+                    code: 'invalid_request_error'
+                }
             });
         }
 
@@ -45,7 +50,12 @@ router.post('/chat/completions', async (req, res) => {
         const agent = AgentManager.getAgent(model);
         if (!agent) {
             return res.status(404).json({
-                error: `Agent not found: ${model}`
+                error: {
+                    message: `Agent not found: ${model}`,
+                    type: 'invalid_request_error',
+                    param: 'model',
+                    code: 'model_not_found'
+                }
             });
         }
 
@@ -53,140 +63,77 @@ router.post('/chat/completions', async (req, res) => {
         const userMessage = messages[messages.length - 1];
         if (!userMessage || userMessage.role !== 'user') {
             return res.status(400).json({
-                error: 'Last message must be from user'
+                error: {
+                    message: 'Last message must be from user',
+                    type: 'invalid_request_error',
+                    param: 'messages',
+                    code: 'invalid_request_error'
+                }
             });
         }
 
-        // If streaming is requested
-        if (stream) {
-            res.setHeader('Content-Type', 'text/event-stream');
-            res.setHeader('Cache-Control', 'no-cache');
-            res.setHeader('Connection', 'keep-alive');
+        // Build LLM config from agent's provider
+        const providerConfig = agent.providerConfig || {};
+        const llmConfig = {
+            baseUrl: providerConfig.endpoint,
+            modelId: providerConfig.model,
+            apiKey: providerConfig.apiKey,
+            maxTokens: providerConfig.maxTokens,
+            supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
+        };
 
-            try {
-                // Build LLM config from agent's provider
-                const providerConfig = agent.providerConfig || {};
-                const llmConfig = {
-                    baseUrl: providerConfig.endpoint,
-                    modelId: providerConfig.model,
-                    apiKey: providerConfig.apiKey,
-                    maxTokens: providerConfig.maxTokens,
-                    supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
-                };
+        // Run agent loop and collect full response
+        let fullResponse = '';
+        const responseGenerator = runAgentLoop({
+            agentId: agent.id,
+            sessionId: `openai-${Date.now()}`,
+            llmConfig,
+            messages: messages.slice(0, -1),
+            visionEnabled: !!providerConfig?.capabilities?.vision,
+            maxLoops: agent.maxLoops || 100,
+        });
 
-                // Run the agent loop and stream responses
-                const responseGenerator = runAgentLoop({
-                    agentId: agent.id,
-                    sessionId: `openai-${Date.now()}`,
-                    llmConfig,
-                    messages: messages.slice(0, -1), // Pass conversation history (excluding the last user message)
-                    visionEnabled: !!providerConfig?.capabilities?.vision,
-                    maxLoops: agent.maxLoops || 100,
-                });
-
-                // Stream each chunk as it's generated
-                for await (const chunk of responseGenerator) {
-                    const event = {
-                        id: `chatcmpl-${Date.now()}`,
-                        object: 'text_completion.chunk',
-                        created: Math.floor(Date.now() / 1000),
-                        model: model,
-                        choices: [
-                            {
-                                index: 0,
-                                delta: {
-                                    content: chunk
-                                },
-                                finish_reason: null
-                            }
-                        ]
-                    };
-                    res.write(`data: ${JSON.stringify(event)}\n\n`);
-                }
-
-                // Send final event with finish_reason
-                const finalEvent = {
-                    id: `chatcmpl-${Date.now()}`,
-                    object: 'text_completion.chunk',
-                    created: Math.floor(Date.now() / 1000),
-                    model: model,
-                    choices: [
-                        {
-                            index: 0,
-                            delta: {},
-                            finish_reason: 'stop'
-                        }
-                    ]
-                };
-                res.write(`data: ${JSON.stringify(finalEvent)}\n\n`);
-                res.write('data: [DONE]\n\n');
-                res.end();
-            } catch (error) {
-                console.error('[Chat Completions] Streaming error:', error);
-                res.write(`data: ${JSON.stringify({ error: error.message })}\n\n`);
-                res.end();
-            }
-        } else {
-            // Non-streaming response
-            try {
-                let fullResponse = '';
-                // Build LLM config from agent's provider
-                const providerConfig = agent.providerConfig || {};
-                const llmConfig = {
-                    baseUrl: providerConfig.endpoint,
-                    modelId: providerConfig.model,
-                    apiKey: providerConfig.apiKey,
-                    maxTokens: providerConfig.maxTokens,
-                    supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
-                };
-
-                const responseGenerator = runAgentLoop({
-                    agentId: agent.id,
-                    sessionId: `openai-${Date.now()}`,
-                    llmConfig,
-                    messages: messages.slice(0, -1),
-                    visionEnabled: !!providerConfig?.capabilities?.vision,
-                    maxLoops: agent.maxLoops || 100,
-                });
-
-                // Collect all chunks
-                for await (const chunk of responseGenerator) {
-                    fullResponse += chunk;
-                }
-
-                // Return complete response
-                res.json({
-                    id: `chatcmpl-${Date.now()}`,
-                    object: 'text_completion',
-                    created: Math.floor(Date.now() / 1000),
-                    model: model,
-                    choices: [
-                        {
-                            index: 0,
-                            message: {
-                                role: 'assistant',
-                                content: fullResponse
-                            },
-                            finish_reason: 'stop'
-                        }
-                    ],
-                    usage: {
-                        prompt_tokens: userMessage.content.split(' ').length,
-                        completion_tokens: fullResponse.split(' ').length,
-                        total_tokens: (userMessage.content + fullResponse).split(' ').length
-                    }
-                });
-            } catch (error) {
-                console.error('[Chat Completions] Error:', error);
-                res.status(500).json({
-                    error: error.message || 'Failed to generate response'
-                });
-            }
+        // Collect all chunks from the generator
+        for await (const chunk of responseGenerator) {
+            fullResponse += chunk;
         }
+
+        // Calculate token counts (approximate)
+        const promptText = messages.map((m: any) => m.content || '').join(' ');
+        const promptTokens = Math.ceil(promptText.length / 4);
+        const completionTokens = Math.ceil(fullResponse.length / 4);
+
+        // Return OpenAI-compatible response
+        res.json({
+            id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+            object: 'chat.completion',
+            created: Math.floor(Date.now() / 1000),
+            model: model,
+            choices: [
+                {
+                    index: 0,
+                    message: {
+                        role: 'assistant',
+                        content: fullResponse
+                    },
+                    finish_reason: 'stop'
+                }
+            ],
+            usage: {
+                prompt_tokens: promptTokens,
+                completion_tokens: completionTokens,
+                total_tokens: promptTokens + completionTokens
+            }
+        });
     } catch (error) {
-        console.error('[Chat Completions] Unexpected error:', error);
+        console.error('[Chat Completions] Error:', error);
         res.status(500).json({
-            error: 'Internal server error'
+            error: {
+                message: error instanceof Error ? error.message : 'Internal server error',
+                type: 'internal_error',
+                param: null,
+                code: 'internal_error'
+            }
         });
     }
 });
