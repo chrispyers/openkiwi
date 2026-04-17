@@ -284,7 +284,7 @@ export interface AgentLoopResult {
     yieldState?: any;
 }
 
-export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoopResult> {
+export async function* runAgentLoop(options: AgentLoopOptions): AsyncGenerator<string, AgentLoopResult, unknown> {
     let toolLoop = true;
     let loopCount = 0;
     const maxLoops = options.maxLoops ?? 150;
@@ -340,6 +340,8 @@ export async function runAgentLoop(options: AgentLoopOptions): Promise<AgentLoop
                 if (delta.content) {
                     if (!firstTokenTime) firstTokenTime = Date.now();
                     fullContent += delta.content;
+                    // Yield content chunks for streaming
+                    yield delta.content;
                     if (options.onDelta) {
                         options.onDelta(delta.content);
                     }
