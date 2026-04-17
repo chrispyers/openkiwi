@@ -62,15 +62,29 @@ router.post('/chat/completions', async (req, res) => {
             res.setHeader('Content-Type', 'text/event-stream');
             res.setHeader('Cache-Control', 'no-cache');
             res.setHeader('Connection', 'keep-alive');
+            
+            try {
+                // Build LLM config from agent's provider
+                const providerConfig = agent.providerConfig || {};
+                const llmConfig = {
+                    baseUrl: providerConfig.endpoint,
+                    modelId: providerConfig.model,
+                    apiKey: providerConfig.apiKey,
+                    maxTokens: providerConfig.maxTokens,
+                    supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
+                };
 
             try {
                 // Run the agent loop and stream responses
-                const responseGenerator = runAgentLoop(
-                    agent,
-                    userMessage.content,
-                    messages.slice(0, -1) // Pass conversation history (excluding the last user message)
-                );
-
+                const responseGenerator = runAgentLoop({
+                    agentId: agent.id,
+                    sessionId: `openai-${Date.now()}`,
+                    llmConfig,
+                    messages: messages.slice(0, -1), // Pass conversation history (excluding the last user message)
+                    visionEnabled: !!providerConfig?.capabilities?.vision,
+                    maxLoops: agent.maxLoops || 100,
+                });
+                
                 // Stream each chunk as it's generated
                 for await (const chunk of responseGenerator) {
                     const event = {
@@ -117,11 +131,24 @@ router.post('/chat/completions', async (req, res) => {
             // Non-streaming response
             try {
                 let fullResponse = '';
-                const responseGenerator = runAgentLoop(
-                    agent,
-                    userMessage.content,
-                    messages.slice(0, -1)
-                );
+               // Build LLM config from agent's provider
+                const providerConfig = agent.providerConfig || {};
+                const llmConfig = {
+                    baseUrl: providerConfig.endpoint,
+                    modelId: providerConfig.model,
+                    apiKey: providerConfig.apiKey,
+                    maxTokens: providerConfig.maxTokens,
+                    supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
+                };
+
+                const responseGenerator = runAgentLoop({
+                    agentId: agent.id,
+                    sessionId: `openai-${Date.now()}`,
+                    llmConfig,
+                    messages: messages.slice(0, -1),
+                    visionEnabled: !!providerConfig?.capabilities?.vision,
+                    maxLoops: agent.maxLoops || 100,
+                });
 
                 // Collect all chunks
                 for await (const chunk of responseGenerator) {
