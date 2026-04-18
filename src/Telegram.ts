@@ -187,7 +187,7 @@ export function initTelegramHandler() {
             });
 
             if (finalAiResponse) {
-                const cleanResponse = finalAiResponse.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').replace(/<think>[\s\S]*?<\/</think>>/gi, '.').trim();
+                const cleanResponse = finalAiResponse.replace(/<(think|thought|reasoning)>[\s\S]*?<\/\1>/gi, '').replace(/<think>[\s\S]*?<\/\x66\x6f\x75\x72\x74\x65\x65\x6e>/gi, '.').trim();
 
                 if (cleanResponse) {
                     await TelegramManager.getInstance().sendMessage(chatId, cleanResponse);
