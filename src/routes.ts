@@ -42,7 +42,7 @@ router.use('/collaboration', collaborationRouter);
 router.use('/projects', projectsRouter);
 router.use('/files', workspaceRouter);
 router.use('/mcp', mcpRouter);
-router.use('/oai', oaiRouter);
+router.use('/v1', oaiRouter);
 
 // Telegram routes
 router.get('/telegram/status', (req, res) => {
