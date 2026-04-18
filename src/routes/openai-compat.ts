@@ -37,7 +37,7 @@ function formatSSE(data: string): string {
 // Endpoint for chat completions (supports both streaming and non-streaming)
 router.post('/chat/completions', async (req, res) => {
     try {
-        const { model, messages, stream, session_id } = req.body;
+        const { model, messages, stream, session_id, tools, tool_choice, temperature, max_tokens, top_p, frequency_penalty, presence_penalty } = req.body;
 
         // Validate required fields
         if (!model || !messages || !Array.isArray(messages)) {
