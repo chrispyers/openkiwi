@@ -182,7 +182,6 @@ router.post('/chat/completions', async (req, res) => {
                 
                 let fullContent = '';
                 let usageStats: any = null;
-                let roleSent = false;
                 
                 // Create a callback-based streaming approach instead of iterating the generator
                 const result = await runAgentLoop({
@@ -198,23 +197,6 @@ router.post('/chat/completions', async (req, res) => {
                     onDelta: (content: string) => {
                         // Stream each chunk as OpenAI-compatible SSE
                         fullContent += content;
-                        
-                        // OpenAI streaming format:
-                        // 1. First chunk: only role (no content)
-                        // 2. Subsequent chunks: only content (no role)
-                        // 3. Final chunk: finish_reason with empty delta
-                        let delta: any = {};
-                        
-                        if (!roleSent) {
-                            // First chunk: send role only
-                            delta.role = 'assistant';
-                            roleSent = true;
-                            // Don't include content in the role-only chunk
-                        } else {
-                            // Subsequent chunks: send content only
-                            delta.content = content;
-                        }
-                        
                         const streamChunk = {
                             id: completionId,
                             object: 'chat.completion.chunk',
@@ -222,7 +204,10 @@ router.post('/chat/completions', async (req, res) => {
                             model: model,
                             choices: [{
                                 index: 0,
-                                delta: delta,
+                                delta: {
+                                    role: 'assistant',
+                                    content: content
+                                },
                                 finish_reason: null
                             }]
                         };
@@ -288,69 +273,60 @@ router.post('/chat/completions', async (req, res) => {
         } else {
             // Non-streaming mode (existing behavior)
             const { runAgentLoop } = await import('../agent-loop.js');
-            
-            // Collect all chunks from the async generator
-            let finalResponse = '';
-            let usageStats: any = null;
-            
-            for await (const chunk of runAgentLoop({
+            const result = await runAgentLoop({
                 agentId: agent.id,
-                messages: conversationMessages,
-                llmConfig: agent.llmConfig,
+                sessionId,
+                llmConfig,
+                messages: payload,
+                visionEnabled: !!providerConfig?.capabilities?.vision,
                 maxLoops: agent.maxLoops || 100,
                 signToolUrls: true,
                 agentToolsConfig: agent.tools,
-                abortSignal: abortController.signal,
-                onDelta: (content: string) => {
-                    finalResponse += content;
-                },
-                onUsage: (usage: any) => {
-                    usageStats = usage;
-                }
-            })) {
-                // Generator yields final result
-            }
-
-            // Build OpenAI-compatible response
-            const response = {
-                id: completionId,
-                object: 'chat.completion',
-                created: created,
-                model: model,
-                choices: [{
-                    index: 0,
-                    message: {
-                        role: 'assistant',
-                        content: finalResponse
-                    },
-                    finish_reason: 'stop'
-                }],
-                usage: usageStats || {
-                    prompt_tokens: 0,
-                    completion_tokens: 0,
-                    total_tokens: 0
-                }
-            };
-
-            res.json(response);
+            });
 
             // Save session with updated messages
-            const generatedMessage = {
-                role: 'assistant',
-                content: finalResponse,
-                timestamp: Math.floor(Date.now() / 1000)
-            };
-            session.messages = [...conversationMessages, generatedMessage];
+            const newGeneratedMessages = result.chatHistory.slice(payload.length);
+            session.messages = [...conversationMessages, ...newGeneratedMessages];
             SessionManager.saveSession(session);
+
+            // Calculate token counts from actual usage
+            const promptTokens = result.usage.prompt_tokens;
+            const completionTokens = result.usage.completion_tokens;
+
+            // Return OpenAI-compatible response
+            res.json({
+                id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
+                object: 'chat.completion',
+                created: Math.floor(Date.now() / 1000),
+                model: model,
+                choices: [
+                    {
+                        index: 0,
+                        message: {
+                            role: 'assistant',
+                            content: result.finalResponse
+                        },
+                        finish_reason: 'stop'
+                    }
+                ],
+                usage: {
+                    prompt_tokens: promptTokens,
+                    completion_tokens: completionTokens,
+                    total_tokens: promptTokens + completionTokens
+                }
+            });
         }
     } catch (error) {
         console.error('[Chat Completions] Error:', error);
         res.status(500).json({
             error: {
                 message: error instanceof Error ? error.message : 'Internal server error',
-                type: 'internal_error'
+                type: 'internal_error',
+                param: null,
+                code: 'internal_error'
             }
         });
     }
-}
-         
+});
+
+export default router;
