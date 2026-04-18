@@ -288,6 +288,69 @@ router.post('/chat/completions', async (req, res) => {
         } else {
             // Non-streaming mode (existing behavior)
             const { runAgentLoop } = await import('../agent-loop.js');
-            const result = await runAgentLoop({
+            
+            // Collect all chunks from the async generator
+            let finalResponse = '';
+            let usageStats: any = null;
+            
+            for await (const chunk of runAgentLoop({
                 agentId: agent.id,
+                messages: conversationMessages,
+                llmConfig: agent.llmConfig,
+                maxLoops: agent.maxLoops || 100,
+                signToolUrls: true,
+                agentToolsConfig: agent.tools,
+                abortSignal: abortController.signal,
+                onDelta: (content: string) => {
+                    finalResponse += content;
+                },
+                onUsage: (usage: any) => {
+                    usageStats = usage;
+                }
+            })) {
+                // Generator yields final result
+            }
+
+            // Build OpenAI-compatible response
+            const response = {
+                id: completionId,
+                object: 'chat.completion',
+                created: created,
+                model: model,
+                choices: [{
+                    index: 0,
+                    message: {
+                        role: 'assistant',
+                        content: finalResponse
+                    },
+                    finish_reason: 'stop'
+                }],
+                usage: usageStats || {
+                    prompt_tokens: 0,
+                    completion_tokens: 0,
+                    total_tokens: 0
+                }
+            };
+
+            res.json(response);
+
+            // Save session with updated messages
+            const generatedMessage = {
+                role: 'assistant',
+                content: finalResponse,
+                timestamp: Math.floor(Date.now() / 1000)
+            };
+            session.messages = [...conversationMessages, generatedMessage];
+            SessionManager.saveSession(session);
+        }
+    } catch (error) {
+        console.error('[Chat Completions] Error:', error);
+        res.status(500).json({
+            error: {
+                message: error instanceof Error ? error.message : 'Internal server error',
+                type: 'internal_error'
+            }
+        });
+    }
+}
          
