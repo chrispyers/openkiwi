@@ -182,6 +182,7 @@ router.post('/chat/completions', async (req, res) => {
                 
                 let fullContent = '';
                 let usageStats: any = null;
+                let toolCallIndex = 0;
                 
                 // Create a callback-based streaming approach instead of iterating the generator
                 const result = await runAgentLoop({
@@ -207,6 +208,33 @@ router.post('/chat/completions', async (req, res) => {
                                 delta: {
                                     role: 'assistant',
                                     content: content
+                                },
+                                finish_reason: null
+                            }]
+                        };
+                        res.write(formatSSE(JSON.stringify(streamChunk)));
+                    },
+                    onToolCall: (toolCall: any) => {
+                        // Stream tool call as OpenAI-compatible SSE
+                        toolCallsAccumulated.push(toolCall);
+                        const streamChunk = {
+                            id: completionId,
+                            object: 'chat.completion.chunk',
+                            created: created,
+                            model: model,
+                            choices: [{
+                                index: 0,
+                                delta: {
+                                    role: 'assistant',
+                                    tool_calls: [{
+                                        index: toolCallIndex++,
+                                        id: toolCall.id,
+                                        type: 'function',
+                                        function: {
+                                            name: toolCall.function?.name,
+                                            arguments: toolCall.function?.arguments
+                                        }
+                                    }]
                                 },
                                 finish_reason: null
                             }]
