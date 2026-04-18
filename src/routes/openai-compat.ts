@@ -182,6 +182,7 @@ router.post('/chat/completions', async (req, res) => {
                 
                 let fullContent = '';
                 let usageStats: any = null;
+                let roleSent = false;
                 
                 // Create a callback-based streaming approach instead of iterating the generator
                 const result = await runAgentLoop({
@@ -197,6 +198,23 @@ router.post('/chat/completions', async (req, res) => {
                     onDelta: (content: string) => {
                         // Stream each chunk as OpenAI-compatible SSE
                         fullContent += content;
+                        
+                        // OpenAI streaming format:
+                        // 1. First chunk: only role (no content)
+                        // 2. Subsequent chunks: only content (no role)
+                        // 3. Final chunk: finish_reason with empty delta
+                        let delta: any = {};
+                        
+                        if (!roleSent) {
+                            // First chunk: send role only
+                            delta.role = 'assistant';
+                            roleSent = true;
+                            // Don't include content in the role-only chunk
+                        } else {
+                            // Subsequent chunks: send content only
+                            delta.content = content;
+                        }
+                        
                         const streamChunk = {
                             id: completionId,
                             object: 'chat.completion.chunk',
@@ -204,10 +222,7 @@ router.post('/chat/completions', async (req, res) => {
                             model: model,
                             choices: [{
                                 index: 0,
-                                delta: {
-                                    role: 'assistant',
-                                    content: content
-                                },
+                                delta: delta,
                                 finish_reason: null
                             }]
                         };
@@ -275,58 +290,4 @@ router.post('/chat/completions', async (req, res) => {
             const { runAgentLoop } = await import('../agent-loop.js');
             const result = await runAgentLoop({
                 agentId: agent.id,
-                sessionId,
-                llmConfig,
-                messages: payload,
-                visionEnabled: !!providerConfig?.capabilities?.vision,
-                maxLoops: agent.maxLoops || 100,
-                signToolUrls: true,
-                agentToolsConfig: agent.tools,
-            });
-
-            // Save session with updated messages
-            const newGeneratedMessages = result.chatHistory.slice(payload.length);
-            session.messages = [...conversationMessages, ...newGeneratedMessages];
-            SessionManager.saveSession(session);
-
-            // Calculate token counts from actual usage
-            const promptTokens = result.usage.prompt_tokens;
-            const completionTokens = result.usage.completion_tokens;
-
-            // Return OpenAI-compatible response
-            res.json({
-                id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
-                object: 'chat.completion',
-                created: Math.floor(Date.now() / 1000),
-                model: model,
-                choices: [
-                    {
-                        index: 0,
-                        message: {
-                            role: 'assistant',
-                            content: result.finalResponse
-                        },
-                        finish_reason: 'stop'
-                    }
-                ],
-                usage: {
-                    prompt_tokens: promptTokens,
-                    completion_tokens: completionTokens,
-                    total_tokens: promptTokens + completionTokens
-                }
-            });
-        }
-    } catch (error) {
-        console.error('[Chat Completions] Error:', error);
-        res.status(500).json({
-            error: {
-                message: error instanceof Error ? error.message : 'Internal server error',
-                type: 'internal_error',
-                param: null,
-                code: 'internal_error'
-            }
-        });
-    }
-});
-
-export default router;
+         
