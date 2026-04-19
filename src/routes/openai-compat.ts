@@ -37,7 +37,7 @@ function formatSSE(data: string): string {
 // Endpoint for chat completions (supports both streaming and non-streaming)
 router.post('/chat/completions', async (req, res) => {
     try {
-        const { model, messages, stream, session_id, tools, tool_choice, temperature, max_tokens, top_p, frequency_penalty, presence_penalty } = req.body;
+        const { model, messages, stream, session_id, tools, tool_choice, temperature, max_tokens, top_p, frequency_penalty, presence_penalty, stop, n, user } = req.body;
 
         // Validate required fields
         if (!model || !messages || !Array.isArray(messages)) {
@@ -51,6 +51,18 @@ router.post('/chat/completions', async (req, res) => {
             });
         }
 
+        // Validate 'n' parameter (number of choices) - OpenAI supports 1-128, we only support 1
+        if (n !== undefined && (typeof n !== 'number' || n < 1 || n > 1)) {
+            return res.status(400).json({
+                error: {
+                    message: 'Invalid value for n: only n=1 is supported',
+                    type: 'invalid_request_error',
+                    param: 'n',
+                    code: 'invalid_request_error'
+                }
+            });
+        }
+        
         // Get the agent by model ID
         const agent = AgentManager.getAgent(model);
         if (!agent) {
@@ -217,6 +229,26 @@ router.post('/chat/completions', async (req, res) => {
                     onToolCall: (toolCall: any) => {
                         // Stream tool call as OpenAI-compatible SSE
                         toolCallsAccumulated.push(toolCall);
+
+                        // OpenAI streams tool calls in chunks: first the id/type, then name, then arguments
+                        const toolCallChunk: any = {
+                            index: toolCallIndex,
+                            id: toolCall.id,
+                            type: 'function'
+                        };
+
+                        if (toolCall.function?.name) {
+                            toolCallChunk.function = {
+                                name: toolCall.function.name,
+                                arguments: toolCall.function.arguments || ''
+                            };
+                        } else {
+                            toolCallChunk.function = {
+                                name: '',
+                                arguments: toolCall.function?.arguments || ''
+                            };
+                        }
+                        
                         const streamChunk = {
                             id: completionId,
                             object: 'chat.completion.chunk',
@@ -226,20 +258,13 @@ router.post('/chat/completions', async (req, res) => {
                                 index: 0,
                                 delta: {
                                     role: 'assistant',
-                                    tool_calls: [{
-                                        index: toolCallIndex++,
-                                        id: toolCall.id,
-                                        type: 'function',
-                                        function: {
-                                            name: toolCall.function?.name,
-                                            arguments: toolCall.function?.arguments
-                                        }
-                                    }]
+                                     tool_calls: [toolCallChunk]
                                 },
                                 finish_reason: null
                             }]
                         };
                         res.write(formatSSE(JSON.stringify(streamChunk)));
+                        toolCallIndex++;
                     },
                     onUsage: (usage: any) => {
                         usageStats = usage;
@@ -321,6 +346,39 @@ router.post('/chat/completions', async (req, res) => {
             const promptTokens = result.usage.prompt_tokens;
             const completionTokens = result.usage.completion_tokens;
 
+                        // Build the assistant message with tool calls if present
+            const lastAssistantMsg = result.chatHistory.findLast(
+                (msg: any) => msg.role === 'assistant' && !msg.content?.includes('TOOL_CALLS_START')
+            );
+
+            const messageBody: any = {
+                role: 'assistant',
+                content: result.finalResponse || ''
+            };
+
+            // Include tool_calls if the assistant made any tool calls
+            if (lastAssistantMsg?.tool_calls && lastAssistantMsg.tool_calls.length > 0) {
+                messageBody.tool_calls = lastAssistantMsg.tool_calls.map((tc: any) => ({
+                    id: tc.id,
+                    type: 'function',
+                    function: {
+                        name: tc.function?.name,
+                        arguments: tc.function?.arguments || '{}'
+                    }
+                }));
+            }
+
+            // Determine appropriate finish_reason
+            let finishReason = 'stop';
+            if (messageBody.tool_calls && messageBody.tool_calls.length > 0) {
+                finishReason = 'tool_calls';
+            } else if (result.finishReason) {
+                // Map internal finish reasons to OpenAI format
+                if (result.finishReason === 'length') finishReason = 'length';
+                else if (result.finishReason === 'content_filter') finishReason = 'content_filter';
+                else if (result.finishReason === 'function_call') finishReason = 'tool_calls';
+            }
+
             // Return OpenAI-compatible response
             res.json({
                 id: `chatcmpl-${Date.now()}-${Math.random().toString(36).substring(2, 7)}`,
@@ -330,18 +388,17 @@ router.post('/chat/completions', async (req, res) => {
                 choices: [
                     {
                         index: 0,
-                        message: {
-                            role: 'assistant',
-                            content: result.finalResponse
-                        },
-                        finish_reason: 'stop'
+                        message: messageBody,
+                        finish_reason: finishReason,
+                        logprobs: null
                     }
                 ],
                 usage: {
                     prompt_tokens: promptTokens,
                     completion_tokens: completionTokens,
                     total_tokens: promptTokens + completionTokens
-                }
+                },
+                system_fingerprint: 'openkiwi'
             });
         }
     } catch (error) {
