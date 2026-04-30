@@ -158,6 +158,14 @@ async function executeStep(
     ];
 
     const callResults: any[] = [];
+    // When the tool defines resultKey(), we deduplicate results by key so that
+    // retries of the same operation replace earlier failures instead of inflating
+    // the result count, and verification/housekeeping calls (key === null) are
+    // excluded entirely.
+    const resultKeyFn = typeof (toolDef as any).resultKey === 'function'
+        ? (toolDef as any).resultKey as (args: any) => string | null
+        : null;
+    const resultKeyIndex = new Map<string, number>();
 
     for (let iter = 0; iter < MAX_ITERATIONS; iter++) {
         let collected: { toolCalls: any[]; textContent: string };
@@ -200,8 +208,28 @@ async function executeStep(
                 result = { error: e.message };
             }
 
-            // Only track results from the primary tool — glob calls are housekeeping
-            if (calledTool === toolId) callResults.push(result);
+            // Only track results from the primary tool — glob/ls calls are housekeeping.
+            // When resultKey is available, deduplicate by key (retries replace earlier
+            // failures) and skip verification calls (key === null).
+            if (calledTool === toolId) {
+                if (resultKeyFn) {
+                    let key: string | null;
+                    try { key = resultKeyFn(args); } catch { key = undefined as any; }
+                    if (key === null || key === undefined) {
+                        // Verification / informational call — don't track
+                    } else {
+                        const existing = resultKeyIndex.get(key);
+                        if (existing !== undefined) {
+                            callResults[existing] = result;
+                        } else {
+                            resultKeyIndex.set(key, callResults.length);
+                            callResults.push(result);
+                        }
+                    }
+                } else {
+                    callResults.push(result);
+                }
+            }
 
             // Trim result before adding to history to prevent context bloat
             messages.push({
@@ -281,6 +309,63 @@ export interface WorkflowStepProgress {
     toolId: string;
 }
 
+/**
+ * Resolve LLM config for a specific agent, falling back to the given default provider.
+ */
+function resolveLlmConfig(stepAgentId: string | null, defaultAgent: any, defaultProviderConfig: any) {
+    if (!stepAgentId) {
+        return {
+            baseUrl: defaultProviderConfig.endpoint,
+            modelId: defaultProviderConfig.model,
+            apiKey: defaultProviderConfig.apiKey,
+            supportsTools: !!defaultProviderConfig?.capabilities?.trained_for_tool_use,
+        };
+    }
+
+    const stepAgent = AgentManager.getAgent(stepAgentId);
+    if (!stepAgent) {
+        // Fall back to default if assigned agent doesn't exist
+        return {
+            baseUrl: defaultProviderConfig.endpoint,
+            modelId: defaultProviderConfig.model,
+            apiKey: defaultProviderConfig.apiKey,
+            supportsTools: !!defaultProviderConfig?.capabilities?.trained_for_tool_use,
+        };
+    }
+
+    const config = loadConfig();
+    const pc = config.providers.find((p: any) => p.model === stepAgent.provider || p.description === stepAgent.provider) || defaultProviderConfig;
+
+    return {
+        baseUrl: pc.endpoint,
+        modelId: pc.model,
+        apiKey: pc.apiKey,
+        supportsTools: !!pc?.capabilities?.trained_for_tool_use,
+    };
+}
+
+/**
+ * Parse a WorkflowState's depends_on column. Returns an array of step IDs,
+ * or null if unset (meaning "use sequential ordering").
+ */
+function parseDependsOn(state: any): string[] | null {
+    if (!state.depends_on) return null;
+    try {
+        const parsed = JSON.parse(state.depends_on);
+        return Array.isArray(parsed) ? parsed : null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Check whether ANY step in the workflow has an explicit depends_on value.
+ * If none do, the workflow runs in legacy sequential mode for backward compat.
+ */
+function isParallelWorkflow(states: any[]): boolean {
+    return states.some(s => s.depends_on !== null && s.depends_on !== undefined);
+}
+
 export async function executeWorkflow(
     workflowId: string,
     agentId: string,
@@ -296,71 +381,35 @@ export async function executeWorkflow(
     if (!agent) return { success: false, finalResponse: '', error: `Agent "${agentId}" not found` };
 
     const currentConfig = loadConfig();
-    let providerConfig = currentConfig.providers.find(p => p.model === agent.provider || p.description === agent.provider);
+    let providerConfig = currentConfig.providers.find((p: any) => p.model === agent.provider || p.description === agent.provider);
     if (!providerConfig && currentConfig.providers.length > 0) providerConfig = currentConfig.providers[0];
     if (!providerConfig) return { success: false, finalResponse: '', error: 'No LLM provider available' };
+
+    const totalSteps = states.length;
+    let stepResults: StepResult[];
+
+    if (isParallelWorkflow(states)) {
+        // ── DAG-based parallel execution ──────────────────────────────
+        stepResults = await executeParallelSteps(states, agentId, agent, providerConfig, totalSteps, onStepProgress);
+    } else {
+        // ── Legacy sequential execution (backward compatible) ─────────
+        stepResults = await executeSequentialSteps(states, agentId, providerConfig, totalSteps, onStepProgress);
+    }
+
+    // ── Summarize ─────────────────────────────────────────────────────
 
     const llmConfig = {
         baseUrl: providerConfig.endpoint,
         modelId: providerConfig.model,
         apiKey: providerConfig.apiKey,
-        supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use
+        supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
     };
 
-    const stepResults: StepResult[] = [];
-    const totalSteps = states.length;
-
-    for (let stateIndex = 0; stateIndex < states.length; stateIndex++) {
-        const state = states[stateIndex];
-        let toolId = 'unknown';
-        let stepPrompt = state.instructions ?? '';
-        try {
-            const parsed = JSON.parse(state.instructions ?? '');
-            if (parsed.tool_id) toolId = parsed.tool_id;
-            if (parsed.prompt !== undefined) stepPrompt = parsed.prompt;
-        } catch { /* plain text instructions */ }
-
-        // Find the tool definition so we can restrict the LLM to only this tool
-        const allDefs = ToolManager.getToolDefinitions();
-        const toolDef = allDefs.find(d => d.name === toolId);
-
-        if (!toolDef) {
-            stepResults.push({ stepName: state.name, toolId, result: { error: `Tool "${toolId}" is not available.` } });
-            continue;
-        }
-
-        const priorContext = buildPriorContext(stepResults);
-
-        onStepProgress?.({ step: stateIndex + 1, total: totalSteps, stepName: state.name, toolId });
-
-        let callResults: any[];
-        try {
-            callResults = await executeStep(llmConfig, toolId, toolDef, stepPrompt, priorContext, agentId);
-        } catch (e: any) {
-            stepResults.push({ stepName: state.name, toolId, result: { error: `Step execution failed: ${e.message}` } });
-            continue;
-        }
-
-        if (callResults.length === 0) {
-            stepResults.push({ stepName: state.name, toolId, result: { error: 'No tool calls were made for this step.' } });
-            continue;
-        }
-
-        // Store as a single result when there was only one call, array otherwise
-        stepResults.push({
-            stepName: state.name,
-            toolId,
-            result: callResults.length === 1 ? callResults[0] : callResults
-        });
-    }
-
-    // Determine overall success: no step result (or sub-result) should have an error field
     const allSucceeded = stepResults.every(r => {
         const results = Array.isArray(r.result) ? r.result : [r.result];
         return results.every((res: any) => !res?.error);
     });
 
-    // Build a fact header with pre-computed counts so the LLM never has to count array elements
     const factLines = stepResults.map((r, i) => {
         const calls = Array.isArray(r.result) ? r.result : [r.result];
         const succeeded = calls.filter((c: any) => !c?.error).length;
@@ -369,7 +418,6 @@ export async function executeWorkflow(
         return `Step ${i + 1} — ${r.stepName} (${r.toolId}): ${status} ${calls.length} call(s) — ${succeeded} succeeded, ${failed} failed`;
     });
 
-    // Final summary: single LLM text call, no tools
     const summaryLines = stepResults.map((r, i) =>
         `Step ${i + 1} — ${r.stepName} (${r.toolId}):\n${JSON.stringify(r.result, null, 2)}`
     ).join('\n\n---\n\n');
@@ -396,4 +444,192 @@ export async function executeWorkflow(
         persistRunReport(workflow.name, allSucceeded, fallbackSummary, stepResults);
         return { success: allSucceeded, finalResponse: fallbackSummary, stepResults };
     }
+}
+
+// ── Sequential execution (original behavior) ─────────────────────────
+
+async function executeSequentialSteps(
+    states: any[],
+    agentId: string,
+    providerConfig: any,
+    totalSteps: number,
+    onStepProgress?: (progress: WorkflowStepProgress) => void
+): Promise<StepResult[]> {
+    const llmConfig = {
+        baseUrl: providerConfig.endpoint,
+        modelId: providerConfig.model,
+        apiKey: providerConfig.apiKey,
+        supportsTools: !!providerConfig?.capabilities?.trained_for_tool_use,
+    };
+
+    const stepResults: StepResult[] = [];
+
+    for (let stateIndex = 0; stateIndex < states.length; stateIndex++) {
+        const state = states[stateIndex];
+        let toolId = 'unknown';
+        let stepPrompt = state.instructions ?? '';
+        try {
+            const parsed = JSON.parse(state.instructions ?? '');
+            if (parsed.tool_id) toolId = parsed.tool_id;
+            if (parsed.prompt !== undefined) stepPrompt = parsed.prompt;
+        } catch { /* plain text instructions */ }
+
+        const allDefs = ToolManager.getToolDefinitions();
+        const toolDef = allDefs.find(d => d.name === toolId);
+
+        if (!toolDef) {
+            stepResults.push({ stepName: state.name, toolId, result: { error: `Tool "${toolId}" is not available.` } });
+            continue;
+        }
+
+        const priorContext = buildPriorContext(stepResults);
+
+        onStepProgress?.({ step: stateIndex + 1, total: totalSteps, stepName: state.name, toolId });
+
+        let callResults: any[];
+        try {
+            callResults = await executeStep(llmConfig, toolId, toolDef, stepPrompt, priorContext, agentId);
+        } catch (e: any) {
+            stepResults.push({ stepName: state.name, toolId, result: { error: `Step execution failed: ${e.message}` } });
+            continue;
+        }
+
+        if (callResults.length === 0) {
+            stepResults.push({ stepName: state.name, toolId, result: { error: 'No tool calls were made for this step.' } });
+            continue;
+        }
+
+        stepResults.push({
+            stepName: state.name,
+            toolId,
+            result: callResults.length === 1 ? callResults[0] : callResults,
+        });
+    }
+
+    return stepResults;
+}
+
+// ── DAG-based parallel execution ──────────────────────────────────────
+
+async function executeParallelSteps(
+    states: any[],
+    agentId: string,
+    defaultAgent: any,
+    defaultProviderConfig: any,
+    totalSteps: number,
+    onStepProgress?: (progress: WorkflowStepProgress) => void
+): Promise<StepResult[]> {
+    // Build a map of step ID → state and track completion
+    const stateById = new Map<string, any>();
+    for (const s of states) stateById.set(s.id, s);
+
+    const completed = new Map<string, StepResult>();   // step ID → result
+    const pending = new Set<string>(states.map(s => s.id));
+    const resultOrder: StepResult[] = [];              // preserves original order for reporting
+    let stepsCompleted = 0;
+    const MAX_ROUNDS = states.length + 1; // safety valve against infinite loops
+
+    for (let round = 0; round < MAX_ROUNDS && pending.size > 0; round++) {
+        // Find all steps whose dependencies are satisfied
+        const ready: any[] = [];
+        for (const stepId of pending) {
+            const state = stateById.get(stepId)!;
+            const deps = parseDependsOn(state);
+
+            if (deps === null) {
+                // No explicit depends_on — depends on ALL prior steps by order_index
+                const priorIds = states
+                    .filter(s => s.order_index < state.order_index)
+                    .map(s => s.id);
+                if (priorIds.every(id => completed.has(id))) {
+                    ready.push(state);
+                }
+            } else if (deps.length === 0) {
+                // Explicitly no dependencies — can run immediately
+                ready.push(state);
+            } else {
+                // Explicit dependencies
+                if (deps.every(depId => completed.has(depId))) {
+                    ready.push(state);
+                }
+            }
+        }
+
+        if (ready.length === 0 && pending.size > 0) {
+            // Deadlock: remaining steps have unsatisfiable dependencies
+            for (const stepId of pending) {
+                const state = stateById.get(stepId)!;
+                resultOrder.push({
+                    stepName: state.name,
+                    toolId: 'unknown',
+                    result: { error: `Deadlock: dependencies cannot be satisfied. Check depends_on configuration.` },
+                });
+            }
+            break;
+        }
+
+        // Execute all ready steps in parallel
+        const batchResults = await Promise.all(
+            ready.map(async (state) => {
+                // Parse step instructions
+                let toolId = 'unknown';
+                let stepPrompt = state.instructions ?? '';
+                try {
+                    const parsed = JSON.parse(state.instructions ?? '');
+                    if (parsed.tool_id) toolId = parsed.tool_id;
+                    if (parsed.prompt !== undefined) stepPrompt = parsed.prompt;
+                } catch { /* plain text */ }
+
+                const allDefs = ToolManager.getToolDefinitions();
+                const toolDef = allDefs.find(d => d.name === toolId);
+
+                if (!toolDef) {
+                    return { state, stepResult: { stepName: state.name, toolId, result: { error: `Tool "${toolId}" is not available.` } } as StepResult };
+                }
+
+                // Build prior context from dependencies only
+                const deps = parseDependsOn(state) || [];
+                const depResults = deps
+                    .map(id => completed.get(id))
+                    .filter((r): r is StepResult => !!r);
+                const priorContext = buildPriorContext(depResults);
+
+                // Resolve LLM config for this step's assigned agent
+                const stepLlmConfig = resolveLlmConfig(state.assigned_agent_id, defaultAgent, defaultProviderConfig);
+                const effectiveAgentId = state.assigned_agent_id || agentId;
+
+                stepsCompleted++;
+                onStepProgress?.({ step: stepsCompleted, total: totalSteps, stepName: state.name, toolId });
+
+                let callResults: any[];
+                try {
+                    callResults = await executeStep(stepLlmConfig, toolId, toolDef, stepPrompt, priorContext, effectiveAgentId);
+                } catch (e: any) {
+                    return { state, stepResult: { stepName: state.name, toolId, result: { error: `Step execution failed: ${e.message}` } } as StepResult };
+                }
+
+                if (callResults.length === 0) {
+                    return { state, stepResult: { stepName: state.name, toolId, result: { error: 'No tool calls were made for this step.' } } as StepResult };
+                }
+
+                return {
+                    state,
+                    stepResult: {
+                        stepName: state.name,
+                        toolId,
+                        result: callResults.length === 1 ? callResults[0] : callResults,
+                    } as StepResult,
+                };
+            })
+        );
+
+        // Record completions
+        for (const { state, stepResult } of batchResults) {
+            completed.set(state.id, stepResult);
+            pending.delete(state.id);
+            resultOrder.push(stepResult);
+        }
+    }
+
+    return resultOrder;
 }

@@ -13,7 +13,9 @@ import {
     faFolder,
     faFolderOpen,
     faScroll,
-    faBolt
+    faBolt,
+    faPlug,
+    faTerminal
 } from '@fortawesome/free-solid-svg-icons';
 
 export default function Sidebar({
@@ -28,27 +30,30 @@ export default function Sidebar({
     onSettingsClick,
     isProjectManagementEnabled,
     isProjectsEnabled,
-    isAgentActivityEnabled
+    isAgentActivityEnabled,
+    isCodeEnabled
 }) {
     const navigate = useNavigate();
     const { theme } = useTheme();
 
     const navItems = [
         { id: 'chat', icon: faComments, label: 'Chat' },
+        { id: 'code', icon: faTerminal, label: 'Code', experimentalCode: true },
         { id: 'activity', icon: faArrowsSpin, label: 'Activity', showActive: hasActiveAgents, experimentalActivity: true },
-        { experimentalProjectManagement: true },
+        {},
         { id: 'projects', icon: faFolder, label: 'Projects', experimentalProjects: true },
         { id: 'files', icon: faFolderOpen, label: 'Files' },
         { id: 'workflows', icon: faScroll, label: 'Workflows' },
         {},
         { id: 'agents', icon: faRobot, label: 'Agents', showAlert: !hasAgents },
         { id: 'gateway', icon: faServer, label: 'Gateway', showAlert: !isGatewayConnected },
+        { id: 'mcp', icon: faPlug, label: 'MCP Servers' },
         { id: 'models', icon: faCube, label: 'Models', showAlert: !hasModels },
         { id: 'skills', icon: faBolt, label: 'Skills' },
     ].filter((item) => {
-        if (item.experimentalProjectManagement && !isProjectManagementEnabled) return false;
         if (item.experimentalProjects && !isProjectsEnabled) return false;
         if (item.experimentalActivity && !isAgentActivityEnabled) return false;
+        if (item.experimentalCode && !isCodeEnabled) return false;
         return true;
     });
 

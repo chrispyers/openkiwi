@@ -1,7 +1,9 @@
-import fs from 'node:fs';
-import path from 'node:path';
 import { loadConfig, saveConfig } from '../config-manager.js';
 import { logger } from '../logger.js';
+
+export function getAppVersion(): string {
+    return process.env.APP_VERSION || 'dev';
+}
 
 export async function checkForUpdates() {
     logger.log({
@@ -11,23 +13,7 @@ export async function checkForUpdates() {
     });
 
     try {
-        const currentConfig = loadConfig();
-        const localReleasePath = path.resolve(process.cwd(), 'LATEST_RELEASE.txt');
-
-        // 1. Sync local version from LATEST_RELEASE.txt
-        let localVersion = currentConfig.system?.version || "Unknown";
-        if (fs.existsSync(localReleasePath)) {
-            localVersion = fs.readFileSync(localReleasePath, 'utf-8').trim();
-            if (!currentConfig.system) {
-                currentConfig.system = { version: localVersion, latestVersion: "", updateCheckInterval: 3600000 };
-            }
-
-            if (currentConfig.system.version !== localVersion) {
-                console.log(`[System] Updating local version in config: ${currentConfig.system.version} -> ${localVersion}`);
-                currentConfig.system.version = localVersion;
-                saveConfig(currentConfig);
-            }
-        }
+        const localVersion = getAppVersion();
 
         logger.log({
             type: 'system',
@@ -35,7 +21,7 @@ export async function checkForUpdates() {
             message: `[Update] Local version is: ${localVersion}`
         });
 
-        // 2. Fetch remote version from GitHub
+        // Fetch remote version from GitHub
         const url = 'https://raw.githubusercontent.com/chrispyers/openkiwi/refs/heads/main/LATEST_RELEASE.txt';
         logger.log({
             type: 'system',
@@ -52,15 +38,11 @@ export async function checkForUpdates() {
                 message: `[Update] Remote version is: ${latestVersion}`
             });
 
-            // Re-load config in case it was updated above
-            const updatedConfig = loadConfig();
-            if (!updatedConfig.system) {
-                updatedConfig.system = { version: "2026-02-18", latestVersion: "", updateCheckInterval: 3600000 };
-            }
-
-            if (updatedConfig.system.latestVersion !== latestVersion) {
-                updatedConfig.system.latestVersion = latestVersion;
-                saveConfig(updatedConfig);
+            // Persist latestVersion so the UI can display it
+            const currentConfig = loadConfig();
+            if (currentConfig.system.latestVersion !== latestVersion) {
+                currentConfig.system.latestVersion = latestVersion;
+                saveConfig(currentConfig);
             }
 
             if (localVersion === latestVersion) {

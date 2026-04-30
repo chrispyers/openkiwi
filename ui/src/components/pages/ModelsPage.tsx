@@ -1,7 +1,7 @@
 
 import { useState, useEffect } from 'react'
 import { toast } from 'sonner'
-import { faPlus, faKey, faCube, faSave, faRefresh, faAlignLeft, faPencil, faTag } from '@fortawesome/free-solid-svg-icons'
+import { faPlus, faKey, faCube, faSave, faRefresh, faAlignLeft, faPencil, faTag, faLink } from '@fortawesome/free-solid-svg-icons'
 import { FontAwesomeIcon } from '@fortawesome/react-fontawesome'
 import Provider from '../Provider'
 import Button from '../Button'
@@ -23,6 +23,8 @@ import SectionHeader from '../SectionHeader'
 import Row from '../Row'
 import Column from '../Column'
 import Code from '../Code'
+import Select from '../Select'
+import SegmentedControl from '../SegmentedControl'
 
 interface ModelsPageProps {
     config: Config | null;
@@ -51,11 +53,25 @@ export default function ModelsPage({
     agents
 }: ModelsPageProps) {
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [newProvider, setNewProvider] = useState<{ description: string; endpoint: string; model: string; capabilities?: { vision?: boolean; reasoning?: boolean; trained_for_tool_use?: boolean } }>({ description: '', endpoint: '', model: '' });
+    const [newProvider, setNewProvider] = useState<{ description: string; endpoint: string; model: string; capabilities?: { vision?: boolean; reasoning?: boolean; trained_for_tool_use?: boolean }; max_context_length?: number }>({ description: '', endpoint: '', model: '' });
     const [selectedProviderType, setSelectedProviderType] = useState<string | null>(null);
     const [newGeminiProvider, setNewGeminiProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [newOpenAIProvider, setNewOpenAIProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
     const [newAnthropicProvider, setNewAnthropicProvider] = useState({ apiKey: '', model: '', description: '', capabilities: {} as any });
+    const [anthropicAuthMode, setAnthropicAuthMode] = useState<'api_key' | 'connection'>('connection');
+    const [selectedAnthropicConnectionId, setSelectedAnthropicConnectionId] = useState('');
+    const [googleAuthMode, setGoogleAuthMode] = useState<'connection' | 'api_key'>('connection');
+    const [selectedGoogleConnectionId, setSelectedGoogleConnectionId] = useState('');
+    const [openAIAuthMode, setOpenAIAuthMode] = useState<'connection' | 'api_key'>('connection');
+    const [selectedOpenAIConnectionId, setSelectedOpenAIConnectionId] = useState('');
+    const [ollamaAuthMode, setOllamaAuthMode] = useState<'connection' | 'endpoint'>('connection');
+    const [selectedOllamaConnectionId, setSelectedOllamaConnectionId] = useState('');
+    const [openRouterAuthMode, setOpenRouterAuthMode] = useState<'connection' | 'api_key'>('connection');
+    const [selectedOpenRouterConnectionId, setSelectedOpenRouterConnectionId] = useState('');
+    const [lmStudioAuthMode, setLmStudioAuthMode] = useState<'connection' | 'endpoint'>('connection');
+    const [selectedLMStudioConnectionId, setSelectedLMStudioConnectionId] = useState('');
+    const [lemonadeAuthMode, setLemonadeAuthMode] = useState<'connection' | 'endpoint'>('connection');
+    const [selectedLemonadeConnectionId, setSelectedLemonadeConnectionId] = useState('');
     const [newOpenRouterProvider, setNewOpenRouterProvider] = useState({ apiKey: '', description: '' });
     const [newLemonadeProvider, setNewLemonadeProvider] = useState({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} as any });
     const [newOllamaProvider, setNewOllamaProvider] = useState({ endpoint: 'http://localhost:11434', model: '', description: '', capabilities: {} as any });
@@ -86,12 +102,42 @@ export default function ModelsPage({
             setNewOpenRouterProvider({ apiKey: '', description: '' });
             setNewLemonadeProvider({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} });
             setNewOllamaProvider({ endpoint: 'http://localhost:11434', model: '', description: '', capabilities: {} });
+            setLmStudioAuthMode('connection');
+            setSelectedLMStudioConnectionId('');
+            setLemonadeAuthMode('connection');
+            setSelectedLemonadeConnectionId('');
+            setGoogleAuthMode('connection');
+            setSelectedGoogleConnectionId('');
+            setOpenAIAuthMode('connection');
+            setSelectedOpenAIConnectionId('');
+            setOllamaAuthMode('connection');
+            setSelectedOllamaConnectionId('');
+            setOpenRouterAuthMode('connection');
+            setSelectedOpenRouterConnectionId('');
             setScannedModels([]);
         }
     }, [isModalOpen]);
 
     useEffect(() => {
         setScannedModels([]);
+        if (selectedProviderType === 'lm-studio') {
+            setLmStudioAuthMode((config?.connections?.lmstudio?.length ?? 0) > 0 ? 'connection' : 'endpoint');
+        }
+        if (selectedProviderType === 'lemonade') {
+            setLemonadeAuthMode((config?.connections?.lemonade?.length ?? 0) > 0 ? 'connection' : 'endpoint');
+        }
+        if (selectedProviderType === 'google-gemini') {
+            setGoogleAuthMode((config?.connections?.google?.length ?? 0) > 0 ? 'connection' : 'api_key');
+        }
+        if (selectedProviderType === 'openai') {
+            setOpenAIAuthMode((config?.connections?.openai?.length ?? 0) > 0 ? 'connection' : 'api_key');
+        }
+        if (selectedProviderType === 'ollama') {
+            setOllamaAuthMode((config?.connections?.ollama?.length ?? 0) > 0 ? 'connection' : 'endpoint');
+        }
+        if (selectedProviderType === 'openrouter') {
+            setOpenRouterAuthMode((config?.connections?.openrouter?.length ?? 0) > 0 ? 'connection' : 'api_key');
+        }
     }, [selectedProviderType]);
 
     const handleRowClick = (idx: number) => {
@@ -138,43 +184,29 @@ export default function ModelsPage({
     };
 
     const detectCapabilities = (model: Model) => {
+        // If the backend already detected capabilities (e.g. via Ollama /api/show),
+        // trust those results and only use heuristics to fill in gaps.
+        const backendCaps = model.capabilities || {};
+
         const modelId = (model.id || "").toLowerCase();
         const displayName = (model.displayName || model.display_name || "").toLowerCase();
         const description = (model.description || "").toLowerCase();
+        const fields = [modelId, displayName, description];
+        const any = (patterns: string[]) => fields.some(f => patterns.some(p => f.includes(p)));
 
-        const isReasoning = model.capabilities?.reasoning ||
+        const isReasoning = backendCaps.reasoning ||
             model.thinking === true ||
-            modelId.includes("deepseek-r1") ||
-            modelId.includes("o1") ||
-            modelId.includes("reasoning") ||
-            modelId.includes("thinking") ||
-            modelId.includes("claude-3-7") ||
-            displayName.includes("deepseek-r1") ||
-            displayName.includes("o1") ||
-            displayName.includes("reasoning") ||
-            displayName.includes("thinking") ||
-            displayName.includes("claude-3.7");
+            any(["deepseek-r1", "o1-", "o1", "o3-", "o3", "reasoning", "thinking", "claude-3-7", "claude-3.7", "qwq", "r1-"]);
 
-        const isVision = model.capabilities?.vision ||
-            modelId.includes("vision") ||
-            modelId.includes("flash") ||
-            modelId.includes("pro") ||
-            modelId.includes("claude-3") ||
-            displayName.includes("vision") ||
-            displayName.includes("flash") ||
-            displayName.includes("pro") ||
-            displayName.includes("claude-3");
+        const isVision = backendCaps.vision ||
+            any(["vision", "flash", "pro", "claude-3", "claude-4", "gpt-4o", "gpt-4-turbo",
+                 "llava", "moondream", "bakllava", "minicpm-v", "cogvlm"]);
 
-        const isTool = model.capabilities?.trained_for_tool_use ||
-            modelId.includes("tool") ||
-            modelId.includes("flash") ||
-            modelId.includes("pro") ||
-            modelId.includes("claude-3") ||
-            displayName.includes("tool") ||
-            displayName.includes("flash") ||
-            displayName.includes("pro") ||
-            description.includes("tool") ||
-            description.includes("claude-3");
+        const isTool = backendCaps.trained_for_tool_use ||
+            any(["flash", "pro", "claude-3", "claude-4", "gpt-4", "gpt-3.5-turbo",
+                 "mistral", "mixtral", "command-r", "gemma", "llama-3", "llama3",
+                 "qwen", "phi-3", "phi-4", "hermes", "functionary", "firefunction",
+                 "nexusraven", "gorilla"]);
 
         return {
             reasoning: isReasoning || false,
@@ -186,13 +218,14 @@ export default function ModelsPage({
 
 
     const handleGeminiScan = async () => {
-        if (!newGeminiProvider.apiKey) {
-            toast.error("Please enter an API Key first");
+        const apiKey = resolvedGoogleAPIKey();
+        if (!apiKey) {
+            toast.error(googleAuthMode === 'connection' ? "Please select a connection first" : "Please enter an API Key first");
             return;
         }
         const result = await fetchModels(false, {
             endpoint: 'https://generativelanguage.googleapis.com/v1beta',
-            apiKey: newGeminiProvider.apiKey
+            apiKey
         }, true);
         if (Array.isArray(result)) {
             const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
@@ -201,8 +234,9 @@ export default function ModelsPage({
     };
 
     const handleGeminiSave = async () => {
-        if (!config || !newGeminiProvider.apiKey || !newGeminiProvider.model) {
-            toast.error("Please provide at least an API Key and select a Model");
+        const apiKey = resolvedGoogleAPIKey();
+        if (!config || !apiKey || !newGeminiProvider.model) {
+            toast.error(googleAuthMode === 'connection' ? "Please select a connection and a model" : "Please provide at least an API Key and select a Model");
             return;
         }
 
@@ -210,7 +244,7 @@ export default function ModelsPage({
             description: newGeminiProvider.description.trim() || `Google Gemini - ${newGeminiProvider.model}`,
             endpoint: 'https://generativelanguage.googleapis.com/v1beta',
             model: newGeminiProvider.model,
-            apiKey: newGeminiProvider.apiKey,
+            apiKey,
             capabilities: newGeminiProvider.capabilities
         };
 
@@ -221,16 +255,18 @@ export default function ModelsPage({
         toast.success("Successfully saved Google Gemini provider");
         setIsModalOpen(false);
         setNewGeminiProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+        setSelectedGoogleConnectionId('');
     };
 
     const handleOpenAIScan = async () => {
-        if (!newOpenAIProvider.apiKey) {
-            toast.error("Please enter an API Key first");
+        const apiKey = resolvedOpenAIAPIKey();
+        if (!apiKey) {
+            toast.error(openAIAuthMode === 'connection' ? "Please select a connection first" : "Please enter an API Key first");
             return;
         }
         const result = await fetchModels(false, {
             endpoint: 'https://api.openai.com/v1',
-            apiKey: newOpenAIProvider.apiKey
+            apiKey
         }, true);
         if (Array.isArray(result)) {
             const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
@@ -239,8 +275,9 @@ export default function ModelsPage({
     };
 
     const handleOpenAISave = async () => {
-        if (!config || !newOpenAIProvider.apiKey || !newOpenAIProvider.model) {
-            toast.error("Please provide at least an API Key and select a Model");
+        const apiKey = resolvedOpenAIAPIKey();
+        if (!config || !apiKey || !newOpenAIProvider.model) {
+            toast.error(openAIAuthMode === 'connection' ? "Please select a connection and a model" : "Please provide at least an API Key and select a Model");
             return;
         }
 
@@ -250,7 +287,7 @@ export default function ModelsPage({
             description: description,
             endpoint: 'https://api.openai.com/v1',
             model: newOpenAIProvider.model,
-            apiKey: newOpenAIProvider.apiKey,
+            apiKey,
             capabilities: newOpenAIProvider.capabilities
         };
 
@@ -261,16 +298,81 @@ export default function ModelsPage({
         toast.success("Successfully saved OpenAI provider");
         setIsModalOpen(false);
         setNewOpenAIProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+        setSelectedOpenAIConnectionId('');
+    };
+
+    const anthropicConnections = config?.connections?.anthropic ?? [];
+    const hasAnthropicConnections = anthropicConnections.length > 0;
+    const resolvedAnthropicKey = () => {
+        if (anthropicAuthMode === 'connection') {
+            return anthropicConnections.find(c => c.id === selectedAnthropicConnectionId)?.apiKey ?? '';
+        }
+        return newAnthropicProvider.apiKey;
+    };
+
+    const lmStudioConnections = config?.connections?.lmstudio ?? [];
+    const hasLMStudioConnections = lmStudioConnections.length > 0;
+    const resolvedLMStudioEndpoint = () => {
+        if (lmStudioAuthMode === 'connection') {
+            return lmStudioConnections.find(c => c.id === selectedLMStudioConnectionId)?.endpoint ?? '';
+        }
+        return newProvider.endpoint;
+    };
+
+    const lemonadeConnections = config?.connections?.lemonade ?? [];
+    const hasLemonadeConnections = lemonadeConnections.length > 0;
+    const resolvedLemonadeEndpoint = () => {
+        if (lemonadeAuthMode === 'connection') {
+            return lemonadeConnections.find(c => c.id === selectedLemonadeConnectionId)?.endpoint ?? '';
+        }
+        return newLemonadeProvider.endpoint;
+    };
+
+    const googleConnections = config?.connections?.google ?? [];
+    const hasGoogleConnections = googleConnections.length > 0;
+    const resolvedGoogleAPIKey = () => {
+        if (googleAuthMode === 'connection') {
+            return googleConnections.find(c => c.id === selectedGoogleConnectionId)?.apiKey ?? '';
+        }
+        return newGeminiProvider.apiKey;
+    };
+
+    const openAIAPIConnections = config?.connections?.openai ?? [];
+    const hasOpenAIAPIConnections = openAIAPIConnections.length > 0;
+    const resolvedOpenAIAPIKey = () => {
+        if (openAIAuthMode === 'connection') {
+            return openAIAPIConnections.find(c => c.id === selectedOpenAIConnectionId)?.apiKey ?? '';
+        }
+        return newOpenAIProvider.apiKey;
+    };
+
+    const ollamaConnections = config?.connections?.ollama ?? [];
+    const hasOllamaConnections = ollamaConnections.length > 0;
+    const resolvedOllamaEndpoint = () => {
+        if (ollamaAuthMode === 'connection') {
+            return ollamaConnections.find(c => c.id === selectedOllamaConnectionId)?.endpoint ?? '';
+        }
+        return newOllamaProvider.endpoint;
+    };
+
+    const openRouterConnections = config?.connections?.openrouter ?? [];
+    const hasOpenRouterConnections = openRouterConnections.length > 0;
+    const resolvedOpenRouterAPIKey = () => {
+        if (openRouterAuthMode === 'connection') {
+            return openRouterConnections.find(c => c.id === selectedOpenRouterConnectionId)?.apiKey ?? '';
+        }
+        return newOpenRouterProvider.apiKey;
     };
 
     const handleAnthropicScan = async () => {
-        if (!newAnthropicProvider.apiKey) {
-            toast.error("Please enter an API Key first");
+        const apiKey = resolvedAnthropicKey();
+        if (!apiKey) {
+            toast.error(anthropicAuthMode === 'connection' ? "Please select a connection first" : "Please enter an API Key first");
             return;
         }
         const result = await fetchModels(false, {
             endpoint: 'https://api.anthropic.com/v1',
-            apiKey: newAnthropicProvider.apiKey
+            apiKey
         }, true);
         if (Array.isArray(result)) {
             const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
@@ -279,18 +381,17 @@ export default function ModelsPage({
     };
 
     const handleAnthropicSave = async () => {
-        if (!config || !newAnthropicProvider.apiKey || !newAnthropicProvider.model) {
-            toast.error("Please provide at least an API Key and select a Model");
+        const apiKey = resolvedAnthropicKey();
+        if (!config || !apiKey || !newAnthropicProvider.model) {
+            toast.error(anthropicAuthMode === 'connection' ? "Please select a connection and a model" : "Please provide at least an API Key and select a Model");
             return;
         }
 
-        const description = newAnthropicProvider.description.trim() || `Anthropic - ${newAnthropicProvider.model}`;
-
         const providerToAdd = {
-            description: description,
+            description: newAnthropicProvider.description.trim() || `Anthropic - ${newAnthropicProvider.model}`,
             endpoint: 'https://api.anthropic.com/v1',
             model: newAnthropicProvider.model,
-            apiKey: newAnthropicProvider.apiKey,
+            apiKey,
             capabilities: newAnthropicProvider.capabilities
         };
 
@@ -301,11 +402,13 @@ export default function ModelsPage({
         toast.success("Successfully saved Anthropic provider");
         setIsModalOpen(false);
         setNewAnthropicProvider({ apiKey: '', model: '', description: '', capabilities: {} });
+        setSelectedAnthropicConnectionId('');
     };
 
     const handleOpenRouterSave = async () => {
-        if (!config || !newOpenRouterProvider.apiKey) {
-            toast.error("Please provide an API Key");
+        const apiKey = resolvedOpenRouterAPIKey();
+        if (!config || !apiKey) {
+            toast.error(openRouterAuthMode === 'connection' ? "Please select a connection first" : "Please provide an API Key");
             return;
         }
 
@@ -313,7 +416,7 @@ export default function ModelsPage({
             description: newOpenRouterProvider.description.trim() || `OpenRouter`,
             endpoint: 'https://openrouter.ai/api/v1',
             model: 'openrouter/auto', // Default placeholder
-            apiKey: newOpenRouterProvider.apiKey,
+            apiKey,
             capabilities: { vision: true, reasoning: true, trained_for_tool_use: true } // Assume full capabilities for OpenRouter gateway
         };
 
@@ -324,15 +427,17 @@ export default function ModelsPage({
         toast.success("Successfully saved OpenRouter provider");
         setIsModalOpen(false);
         setNewOpenRouterProvider({ apiKey: '', description: '' });
+        setSelectedOpenRouterConnectionId('');
     };
 
     const handleLemonadeScan = async () => {
-        if (!newLemonadeProvider.endpoint) {
-            toast.error("Please enter an endpoint first");
+        const endpoint = resolvedLemonadeEndpoint();
+        if (!endpoint) {
+            toast.error(lemonadeAuthMode === 'connection' ? 'Please select a connection first' : 'Please enter an endpoint first');
             return;
         }
         const result = await fetchModels(false, {
-            endpoint: newLemonadeProvider.endpoint,
+            endpoint,
             apiKey: ''
         }, true);
         if (Array.isArray(result)) {
@@ -342,16 +447,22 @@ export default function ModelsPage({
     };
 
     const handleLemonadeSave = async () => {
-        if (!config || !newLemonadeProvider.model) {
+        const endpoint = resolvedLemonadeEndpoint();
+        if (!config || !endpoint) {
+            toast.error(lemonadeAuthMode === 'connection' ? 'Please select a connection first' : 'Please enter an endpoint first');
+            return;
+        }
+        if (!newLemonadeProvider.model) {
             toast.error("Please select a Model first");
             return;
         }
 
         const providerToAdd = {
             description: newLemonadeProvider.description.trim() || `Lemonade - ${newLemonadeProvider.model}`,
-            endpoint: newLemonadeProvider.endpoint,
+            endpoint,
             model: newLemonadeProvider.model,
-            capabilities: newLemonadeProvider.capabilities
+            capabilities: newLemonadeProvider.capabilities,
+            max_context_length: newLemonadeProvider.max_context_length
         };
 
         const updatedProviders = [...(config.providers || []), providerToAdd];
@@ -361,15 +472,17 @@ export default function ModelsPage({
         toast.success("Successfully saved Lemonade provider");
         setIsModalOpen(false);
         setNewLemonadeProvider({ endpoint: 'http://localhost:8000', model: '', description: '', capabilities: {} });
+        setSelectedLemonadeConnectionId('');
     };
 
     const handleOllamaScan = async () => {
-        if (!newOllamaProvider.endpoint) {
-            toast.error("Please enter an endpoint first");
+        const endpoint = resolvedOllamaEndpoint();
+        if (!endpoint) {
+            toast.error(ollamaAuthMode === 'connection' ? 'Please select a connection first' : 'Please enter an endpoint first');
             return;
         }
         const result = await fetchModels(false, {
-            endpoint: newOllamaProvider.endpoint,
+            endpoint,
             apiKey: ''
         }, true);
         if (Array.isArray(result)) {
@@ -379,16 +492,22 @@ export default function ModelsPage({
     };
 
     const handleOllamaSave = async () => {
-        if (!config || !newOllamaProvider.model) {
+        const endpoint = resolvedOllamaEndpoint();
+        if (!config || !endpoint) {
+            toast.error(ollamaAuthMode === 'connection' ? 'Please select a connection first' : 'Please enter an endpoint first');
+            return;
+        }
+        if (!newOllamaProvider.model) {
             toast.error("Please select a Model first");
             return;
         }
 
         const providerToAdd = {
             description: newOllamaProvider.description.trim() || `Ollama - ${newOllamaProvider.model}`,
-            endpoint: newOllamaProvider.endpoint,
+            endpoint,
             model: newOllamaProvider.model,
-            capabilities: newOllamaProvider.capabilities
+            capabilities: newOllamaProvider.capabilities,
+            max_context_length: newOllamaProvider.max_context_length
         };
 
         const updatedProviders = [...(config.providers || []), providerToAdd];
@@ -398,14 +517,18 @@ export default function ModelsPage({
         toast.success("Successfully saved Ollama provider");
         setIsModalOpen(false);
         setNewOllamaProvider({ endpoint: 'http://localhost:11434', model: '', description: '', capabilities: {} });
+        setSelectedOllamaConnectionId('');
     };
 
     const augmentedProviders = config?.providers.map((p, i) => ({ ...p, originalIndex: i })) || [];
+    const lemonadeConnEndpoints = new Set((config?.connections?.lemonade ?? []).map(c => c.endpoint));
+    const lmStudioConnEndpoints = new Set((config?.connections?.lmstudio ?? []).map(c => c.endpoint));
+    const ollamaConnEndpoints = new Set((config?.connections?.ollama ?? []).map(c => c.endpoint));
     const anthropicModels = augmentedProviders.filter(p => p.endpoint.includes('anthropic.com'));
     const googleModels = augmentedProviders.filter(p => p.endpoint.includes('googleapis.com'));
-    const lemonadeModels = augmentedProviders.filter(p => p.endpoint.includes(':8000') || p.description.toLowerCase().includes('lemonade'));
-    const ollamaModels = augmentedProviders.filter(p => p.endpoint.includes(':11434') || p.description.toLowerCase().includes('ollama'));
-    const lmStudioModels = augmentedProviders.filter(p => p.endpoint.includes(':1234'));
+    const lemonadeModels = augmentedProviders.filter(p => p.endpoint.includes(':8000') || p.description.toLowerCase().includes('lemonade') || lemonadeConnEndpoints.has(p.endpoint));
+    const ollamaModels = augmentedProviders.filter(p => p.endpoint.includes(':11434') || p.description.toLowerCase().includes('ollama') || ollamaConnEndpoints.has(p.endpoint));
+    const lmStudioModels = augmentedProviders.filter(p => p.endpoint.includes(':1234') || lmStudioConnEndpoints.has(p.endpoint));
     const openAIModels = augmentedProviders.filter(p => p.endpoint.includes('api.openai.com'));
     const openRouterModels = augmentedProviders.filter(p => p.endpoint.includes('openrouter.ai'));
     const otherModels = augmentedProviders.filter(p =>
@@ -413,9 +536,12 @@ export default function ModelsPage({
         !p.endpoint.includes('googleapis.com') &&
         !p.endpoint.includes(':8000') &&
         !p.description.toLowerCase().includes('lemonade') &&
+        !lemonadeConnEndpoints.has(p.endpoint) &&
         !p.endpoint.includes(':11434') &&
         !p.description.toLowerCase().includes('ollama') &&
+        !ollamaConnEndpoints.has(p.endpoint) &&
         !p.endpoint.includes(':1234') &&
+        !lmStudioConnEndpoints.has(p.endpoint) &&
         !p.endpoint.includes('api.openai.com') &&
         !p.endpoint.includes('openrouter.ai')
     );
@@ -644,11 +770,11 @@ export default function ModelsPage({
                     {selectedProviderType === 'anthropic' && (
                         <Provider
                             name="Anthropic"
-                            inputLabel="API KEY"
+                            inputLabel={anthropicAuthMode === 'connection' ? "CONNECTION" : "API KEY"}
                             inputIcon={faKey}
-                            inputPlaceholder="ant-api-..."
+                            inputPlaceholder="sk-ant-..."
                             description={newAnthropicProvider.description}
-                            endpoint={newAnthropicProvider.apiKey}
+                            endpoint={anthropicAuthMode === 'api_key' ? newAnthropicProvider.apiKey : ''}
                             model={newAnthropicProvider.model}
                             models={scannedModels}
                             onDescriptionChange={(val) => setNewAnthropicProvider(prev => ({ ...prev, description: val }))}
@@ -660,6 +786,39 @@ export default function ModelsPage({
                             }}
                             onScan={handleAnthropicScan}
                             onSave={handleAnthropicSave}
+                            credentialSlot={hasAnthropicConnections ? (
+                                <div className="flex flex-col gap-2 w-full">
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'connection', label: 'Saved Connection' },
+                                            { value: 'api_key', label: 'API Key' },
+                                        ]}
+                                        value={anthropicAuthMode}
+                                        onChange={(val: 'api_key' | 'connection') => setAnthropicAuthMode(val)}
+                                    />
+                                    {anthropicAuthMode === 'connection' ? (
+                                        <Select
+                                            label="CONNECTION"
+                                            icon={faLink}
+                                            options={[
+                                                { value: '', label: 'Select a connection…' },
+                                                ...anthropicConnections.map(c => ({ value: c.id, label: c.label }))
+                                            ]}
+                                            value={selectedAnthropicConnectionId}
+                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedAnthropicConnectionId(e.target.value)}
+                                        />
+                                    ) : (
+                                        <Input
+                                            label="API KEY"
+                                            icon={faKey}
+                                            currentText={newAnthropicProvider.apiKey}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewAnthropicProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                                            placeholder="sk-ant-..."
+                                            clearText={() => setNewAnthropicProvider(prev => ({ ...prev, apiKey: '' }))}
+                                        />
+                                    )}
+                                </div>
+                            ) : undefined}
                             footer={
                                 <div className="text-center">
                                     <Text size="sm" secondary={true}>
@@ -674,7 +833,7 @@ export default function ModelsPage({
                         <Provider
                             name="LM Studio"
                             description={newProvider.description}
-                            endpoint={newProvider.endpoint}
+                            endpoint={lmStudioAuthMode === 'endpoint' ? newProvider.endpoint : ''}
                             model={newProvider.model}
                             models={scannedModels}
                             onDescriptionChange={(val) => setNewProvider(prev => ({ ...prev, description: val }))}
@@ -682,26 +841,74 @@ export default function ModelsPage({
                             onModelChange={(val) => {
                                 const selectedModel = scannedModels.find(m => m.id === val);
                                 const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
-                                setNewProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                setNewProvider(prev => ({ ...prev, model: val, description: val, capabilities, max_context_length: selectedModel?.max_context_length }));
                             }}
                             onScan={async () => {
-                                // Scan with the endpoint provided in the inputs
-                                const result = await fetchModels(false, { endpoint: newProvider.endpoint, apiKey: '' }, true);
+                                const endpoint = resolvedLMStudioEndpoint();
+                                if (!endpoint) {
+                                    toast.error(lmStudioAuthMode === 'connection' ? 'Please select a connection first' : 'Please enter an endpoint first');
+                                    return;
+                                }
+                                const result = await fetchModels(false, { endpoint, apiKey: '' }, true);
                                 if (Array.isArray(result)) {
-                                    // result can be string[] or Model[].
-                                    // If it's objects, use them. If strings, map to dummy objects.
                                     const models = result.map(m => typeof m === 'string' ? { id: m, object: 'model' } as Model : m);
                                     setScannedModels(models);
                                 }
                             }}
+                            credentialSlot={(
+                                <div className="flex flex-col gap-2 w-full">
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'connection', label: 'Saved Connection' },
+                                            { value: 'endpoint', label: 'Endpoint' },
+                                        ]}
+                                        value={lmStudioAuthMode}
+                                        onChange={(val: 'connection' | 'endpoint') => setLmStudioAuthMode(val)}
+                                    />
+                                    {lmStudioAuthMode === 'connection' ? (
+                                        hasLMStudioConnections ? (
+                                            <Select
+                                                label="CONNECTION"
+                                                icon={faLink}
+                                                options={[
+                                                    { value: '', label: 'Select a connection…' },
+                                                    ...lmStudioConnections.map(c => ({ value: c.id, label: c.label }))
+                                                ]}
+                                                value={selectedLMStudioConnectionId}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedLMStudioConnectionId(e.target.value)}
+                                            />
+                                        ) : (
+                                            <Text size="sm" secondary={true}>
+                                                No saved connections. Add one in <span className="font-semibold">Settings → Connections</span>.
+                                            </Text>
+                                        )
+                                    ) : (
+                                        <Input
+                                            label="ENDPOINT"
+                                            icon={faLink}
+                                            currentText={newProvider.endpoint}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewProvider(prev => ({ ...prev, endpoint: e.target.value }))}
+                                            placeholder="http://localhost:1234"
+                                            clearText={() => setNewProvider(prev => ({ ...prev, endpoint: '' }))}
+                                        />
+                                    )}
+                                </div>
+                            )}
                             onSave={async () => {
                                 if (!config) return;
 
+                                const endpoint = resolvedLMStudioEndpoint();
+                                if (!endpoint) {
+                                    toast.error(lmStudioAuthMode === 'connection' ? 'Please select a connection first' : 'Please enter an endpoint first');
+                                    return;
+                                }
+
                                 const providerToAdd = {
                                     description: newProvider.description,
-                                    endpoint: newProvider.endpoint,
+                                    endpoint,
                                     model: newProvider.model,
-                                    capabilities: newProvider.capabilities
+                                    capabilities: newProvider.capabilities,
+                                    max_context_length: newProvider.max_context_length
                                 };
 
                                 const updatedProviders = [...(config.providers || []), providerToAdd];
@@ -716,6 +923,7 @@ export default function ModelsPage({
                                 toast.success("Successfully saved provider");
                                 setIsModalOpen(false);
                                 setNewProvider({ description: '', endpoint: '', model: '' });
+                                setSelectedLMStudioConnectionId('');
                             }}
                             footer={
                                 <div className="text-center">
@@ -732,9 +940,9 @@ export default function ModelsPage({
                             name="Google"
                             inputLabel="API KEY"
                             inputIcon={faKey}
-                            inputPlaceholder="Enter your Google Gemini API key"
+                            inputPlaceholder="AIza..."
                             description={newGeminiProvider.description}
-                            endpoint={newGeminiProvider.apiKey}
+                            endpoint={googleAuthMode === 'api_key' ? newGeminiProvider.apiKey : ''}
                             model={newGeminiProvider.model}
                             models={scannedModels}
                             onDescriptionChange={(val) => setNewGeminiProvider(prev => ({ ...prev, description: val }))}
@@ -746,6 +954,39 @@ export default function ModelsPage({
                             }}
                             onScan={handleGeminiScan}
                             onSave={handleGeminiSave}
+                            credentialSlot={hasGoogleConnections ? (
+                                <div className="flex flex-col gap-2 w-full">
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'connection', label: 'Saved Connection' },
+                                            { value: 'api_key', label: 'API Key' },
+                                        ]}
+                                        value={googleAuthMode}
+                                        onChange={(val: 'connection' | 'api_key') => setGoogleAuthMode(val)}
+                                    />
+                                    {googleAuthMode === 'connection' ? (
+                                        <Select
+                                            label="CONNECTION"
+                                            icon={faLink}
+                                            options={[
+                                                { value: '', label: 'Select a connection…' },
+                                                ...googleConnections.map(c => ({ value: c.id, label: c.label }))
+                                            ]}
+                                            value={selectedGoogleConnectionId}
+                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedGoogleConnectionId(e.target.value)}
+                                        />
+                                    ) : (
+                                        <Input
+                                            label="API KEY"
+                                            icon={faKey}
+                                            currentText={newGeminiProvider.apiKey}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewGeminiProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                                            placeholder="AIza..."
+                                            clearText={() => setNewGeminiProvider(prev => ({ ...prev, apiKey: '' }))}
+                                        />
+                                    )}
+                                </div>
+                            ) : undefined}
                             footer={
                                 <div className="text-center">
                                     <Text size="sm" secondary={true}>
@@ -760,7 +1001,7 @@ export default function ModelsPage({
                         <Provider
                             name="Lemonade"
                             description={newLemonadeProvider.description}
-                            endpoint={newLemonadeProvider.endpoint}
+                            endpoint={lemonadeAuthMode === 'endpoint' ? newLemonadeProvider.endpoint : ''}
                             model={newLemonadeProvider.model}
                             models={scannedModels}
                             onDescriptionChange={(val) => setNewLemonadeProvider(prev => ({ ...prev, description: val }))}
@@ -768,11 +1009,50 @@ export default function ModelsPage({
                             onModelChange={(val) => {
                                 const selectedModel = scannedModels.find(m => m.id === val);
                                 const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
-                                setNewLemonadeProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                setNewLemonadeProvider(prev => ({ ...prev, model: val, description: val, capabilities, max_context_length: selectedModel?.max_context_length }));
                             }}
                             onScan={handleLemonadeScan}
                             onSave={handleLemonadeSave}
                             inputPlaceholder="http://localhost:8000"
+                            credentialSlot={(
+                                <div className="flex flex-col gap-2 w-full">
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'connection', label: 'Saved Connection' },
+                                            { value: 'endpoint', label: 'Endpoint' },
+                                        ]}
+                                        value={lemonadeAuthMode}
+                                        onChange={(val: 'connection' | 'endpoint') => setLemonadeAuthMode(val)}
+                                    />
+                                    {lemonadeAuthMode === 'connection' ? (
+                                        hasLemonadeConnections ? (
+                                            <Select
+                                                label="CONNECTION"
+                                                icon={faLink}
+                                                options={[
+                                                    { value: '', label: 'Select a connection…' },
+                                                    ...lemonadeConnections.map(c => ({ value: c.id, label: c.label }))
+                                                ]}
+                                                value={selectedLemonadeConnectionId}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedLemonadeConnectionId(e.target.value)}
+                                            />
+                                        ) : (
+                                            <Text size="sm" secondary={true}>
+                                                No saved connections. Add one in <span className="font-semibold">Settings → Connections</span>.
+                                            </Text>
+                                        )
+                                    ) : (
+                                        <Input
+                                            label="ENDPOINT"
+                                            icon={faLink}
+                                            currentText={newLemonadeProvider.endpoint}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewLemonadeProvider(prev => ({ ...prev, endpoint: e.target.value }))}
+                                            placeholder="http://localhost:8000"
+                                            clearText={() => setNewLemonadeProvider(prev => ({ ...prev, endpoint: '' }))}
+                                        />
+                                    )}
+                                </div>
+                            )}
                             footer={
                                 <div className="text-center">
                                     <Text size="sm" secondary={true}>
@@ -786,7 +1066,7 @@ export default function ModelsPage({
                         <Provider
                             name="Ollama"
                             description={newOllamaProvider.description}
-                            endpoint={newOllamaProvider.endpoint}
+                            endpoint={ollamaAuthMode === 'endpoint' ? newOllamaProvider.endpoint : ''}
                             model={newOllamaProvider.model}
                             models={scannedModels}
                             onDescriptionChange={(val) => setNewOllamaProvider(prev => ({ ...prev, description: val }))}
@@ -794,11 +1074,50 @@ export default function ModelsPage({
                             onModelChange={(val) => {
                                 const selectedModel = scannedModels.find(m => m.id === val);
                                 const capabilities = selectedModel ? detectCapabilities(selectedModel) : {};
-                                setNewOllamaProvider(prev => ({ ...prev, model: val, description: val, capabilities }));
+                                setNewOllamaProvider(prev => ({ ...prev, model: val, description: val, capabilities, max_context_length: selectedModel?.max_context_length }));
                             }}
                             onScan={handleOllamaScan}
                             onSave={handleOllamaSave}
                             inputPlaceholder="http://localhost:11434"
+                            credentialSlot={(
+                                <div className="flex flex-col gap-2 w-full">
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'connection', label: 'Saved Connection' },
+                                            { value: 'endpoint', label: 'Endpoint' },
+                                        ]}
+                                        value={ollamaAuthMode}
+                                        onChange={(val: 'connection' | 'endpoint') => setOllamaAuthMode(val)}
+                                    />
+                                    {ollamaAuthMode === 'connection' ? (
+                                        hasOllamaConnections ? (
+                                            <Select
+                                                label="CONNECTION"
+                                                icon={faLink}
+                                                options={[
+                                                    { value: '', label: 'Select a connection…' },
+                                                    ...ollamaConnections.map(c => ({ value: c.id, label: c.label }))
+                                                ]}
+                                                value={selectedOllamaConnectionId}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedOllamaConnectionId(e.target.value)}
+                                            />
+                                        ) : (
+                                            <Text size="sm" secondary={true}>
+                                                No saved connections. Add one in <span className="font-semibold">Settings → Connections</span>.
+                                            </Text>
+                                        )
+                                    ) : (
+                                        <Input
+                                            label="ENDPOINT"
+                                            icon={faLink}
+                                            currentText={newOllamaProvider.endpoint}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOllamaProvider(prev => ({ ...prev, endpoint: e.target.value }))}
+                                            placeholder="http://localhost:11434"
+                                            clearText={() => setNewOllamaProvider(prev => ({ ...prev, endpoint: '' }))}
+                                        />
+                                    )}
+                                </div>
+                            )}
                             footer={
                                 <div className="text-center">
                                     <Text size="sm" secondary={true}>
@@ -815,7 +1134,7 @@ export default function ModelsPage({
                             inputIcon={faKey}
                             inputPlaceholder="sk-..."
                             description={newOpenAIProvider.description}
-                            endpoint={newOpenAIProvider.apiKey}
+                            endpoint={openAIAuthMode === 'api_key' ? newOpenAIProvider.apiKey : ''}
                             model={newOpenAIProvider.model}
                             models={scannedModels}
                             onDescriptionChange={(val) => setNewOpenAIProvider(prev => ({ ...prev, description: val }))}
@@ -827,6 +1146,39 @@ export default function ModelsPage({
                             }}
                             onScan={handleOpenAIScan}
                             onSave={handleOpenAISave}
+                            credentialSlot={hasOpenAIAPIConnections ? (
+                                <div className="flex flex-col gap-2 w-full">
+                                    <SegmentedControl
+                                        options={[
+                                            { value: 'connection', label: 'Saved Connection' },
+                                            { value: 'api_key', label: 'API Key' },
+                                        ]}
+                                        value={openAIAuthMode}
+                                        onChange={(val: 'connection' | 'api_key') => setOpenAIAuthMode(val)}
+                                    />
+                                    {openAIAuthMode === 'connection' ? (
+                                        <Select
+                                            label="CONNECTION"
+                                            icon={faLink}
+                                            options={[
+                                                { value: '', label: 'Select a connection…' },
+                                                ...openAIAPIConnections.map(c => ({ value: c.id, label: c.label }))
+                                            ]}
+                                            value={selectedOpenAIConnectionId}
+                                            onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedOpenAIConnectionId(e.target.value)}
+                                        />
+                                    ) : (
+                                        <Input
+                                            label="API KEY"
+                                            icon={faKey}
+                                            currentText={newOpenAIProvider.apiKey}
+                                            onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOpenAIProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                                            placeholder="sk-..."
+                                            clearText={() => setNewOpenAIProvider(prev => ({ ...prev, apiKey: '' }))}
+                                        />
+                                    )}
+                                </div>
+                            ) : undefined}
                             footer={
                                 <div className="text-center">
                                     <Text size="sm" secondary={true}>
@@ -839,16 +1191,49 @@ export default function ModelsPage({
                     {selectedProviderType === 'openrouter' && (
                         <Page padding={0}>
                             <Text bold={true} size="xl">OpenRouter</Text>
-                            <div className="space-y-4">
-                                <Input
-                                    label="API KEY"
-                                    icon={faKey}
-                                    currentText={newOpenRouterProvider.apiKey}
-                                    onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOpenRouterProvider(prev => ({ ...prev, apiKey: e.target.value }))}
-                                    placeholder="sk-or-v1-..."
-                                    clearText={() => setNewOpenRouterProvider(prev => ({ ...prev, apiKey: '' }))}
-                                    className="w-full"
-                                />
+                            <div className="flex flex-col gap-2">
+                                {hasOpenRouterConnections ? (
+                                    <>
+                                        <SegmentedControl
+                                            options={[
+                                                { value: 'connection', label: 'Saved Connection' },
+                                                { value: 'api_key', label: 'API Key' },
+                                            ]}
+                                            value={openRouterAuthMode}
+                                            onChange={(val: 'connection' | 'api_key') => setOpenRouterAuthMode(val)}
+                                        />
+                                        {openRouterAuthMode === 'connection' ? (
+                                            <Select
+                                                label="CONNECTION"
+                                                icon={faLink}
+                                                options={[
+                                                    { value: '', label: 'Select a connection…' },
+                                                    ...openRouterConnections.map(c => ({ value: c.id, label: c.label }))
+                                                ]}
+                                                value={selectedOpenRouterConnectionId}
+                                                onChange={(e: React.ChangeEvent<HTMLSelectElement>) => setSelectedOpenRouterConnectionId(e.target.value)}
+                                            />
+                                        ) : (
+                                            <Input
+                                                label="API KEY"
+                                                icon={faKey}
+                                                currentText={newOpenRouterProvider.apiKey}
+                                                onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOpenRouterProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                                                placeholder="sk-or-v1-..."
+                                                clearText={() => setNewOpenRouterProvider(prev => ({ ...prev, apiKey: '' }))}
+                                            />
+                                        )}
+                                    </>
+                                ) : (
+                                    <Input
+                                        label="API KEY"
+                                        icon={faKey}
+                                        currentText={newOpenRouterProvider.apiKey}
+                                        onChange={(e: React.ChangeEvent<HTMLInputElement>) => setNewOpenRouterProvider(prev => ({ ...prev, apiKey: e.target.value }))}
+                                        placeholder="sk-or-v1-..."
+                                        clearText={() => setNewOpenRouterProvider(prev => ({ ...prev, apiKey: '' }))}
+                                    />
+                                )}
                                 <Input
                                     label="(optional) Description"
                                     icon={faTag}

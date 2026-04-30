@@ -32,7 +32,7 @@ const getToolAction = (name, argsStr, displayName) => {
             case 'read':           return { icon: faEye,             label: `Reading ${getBasename(args.path)}` };
             case 'edit':           return { icon: faPen,             label: `Editing ${getBasename(args.path)}` };
             case 'ls':             return { icon: faFolder,          label: `Listing ${getBasename(args.path) || 'workspace'}` };
-            case 'bash':           return { icon: faTerminal,        label: `Running: ${(args.command || '').slice(0, 60)}` };
+            case 'bash':           return { icon: faTerminal,        label: `Running: ${args.command || ''}` };
             case 'grep':           return { icon: faMagnifyingGlass, label: `Searching for "${args.pattern || ''}"` };
             case 'glob':           return { icon: faMagnifyingGlass, label: `Globbing "${args.pattern || ''}"` };
             case 'web_fetch':      return { icon: faGlobe,           label: `Fetching ${args.url || ''}` };
@@ -40,7 +40,7 @@ const getToolAction = (name, argsStr, displayName) => {
             // Legacy / other tools
             case 'chromium':       return { icon: faGlobe,           label: `Browsing ${args.url || ''}` };
             case 'google_search':  return { icon: faMagnifyingGlass, label: `Searching "${args.query || ''}"` };
-            case 'terminal':       return { icon: faTerminal,        label: `Running: ${(args.command || '').slice(0, 60)}` };
+            case 'terminal':       return { icon: faTerminal,        label: `Running: ${args.command || ''}` };
             case 'execute_workflow': return { icon: faScroll,         label: displayName || 'Workflows: Execute' };
             case 'list_workflows':   return { icon: faScroll,         label: displayName || 'Workflows: List' };
             case 'memory_search':  return { icon: faBrain,           label: `Searching memory for "${args.query || ''}"` };
@@ -148,7 +148,8 @@ export const ChatBubble = ({
     stats,
     showTokenMetrics = true,
     tool_calls,
-    isError = false
+    isError = false,
+    isWarning = false
 }) => {
     const [isVisible, setIsVisible] = React.useState(!isReasoning);
 
@@ -161,11 +162,17 @@ export const ChatBubble = ({
                             {avatar}
                         </Text>
                     </div>
-                    <div className={`bubble ${className} ${isError ? '!border-red-500/30 !bg-red-500/5' : ''}`}>
+                    <div className={`bubble ${className} ${isError ? '!border-red-500/30 !bg-red-500/5' : ''} ${isWarning ? '!border-amber-500/30 !bg-amber-500/5' : ''}`}>
                         {isError && (
                             <div className="flex items-center gap-2 text-red-500 text-xs font-bold uppercase tracking-widest mb-2 border-b border-red-500/10 pb-2">
                                 <AlertCircle size={14} />
                                 System Error
+                            </div>
+                        )}
+                        {isWarning && (
+                            <div className="flex items-center gap-2 text-amber-500 text-xs font-bold uppercase tracking-widest mb-2 border-b border-amber-500/10 pb-2">
+                                <AlertCircle size={14} />
+                                Warning
                             </div>
                         )}
                         {isReasoning && (
@@ -186,14 +193,10 @@ export const ChatBubble = ({
                         {(!isReasoning || isVisible) && (
                             <>
                                 <div className="w-full">
-                                    {isUser ? (
-                                        <div className="whitespace-pre-wrap text-[15px] leading-relaxed select-text">{content}</div>
-                                    ) : (
-                                        <MarkdownRenderer
-                                            content={content}
-                                            breaks={true}
-                                        />
-                                    )}
+                                    <MarkdownRenderer
+                                        content={content}
+                                        breaks={true}
+                                    />
                                 </div>
                                 <ToolCallTimeline tool_calls={tool_calls} />
                                 {showTokenMetrics && stats && stats.tps !== undefined && stats.tps > 0 && (
@@ -267,6 +270,7 @@ export const AgentChatBubble = ({
             showTokenMetrics={showTokenMetrics}
             tool_calls={message.tool_calls}
             isError={message.isError}
+            isWarning={message.isWarning}
         />
     );
 };

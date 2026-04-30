@@ -212,6 +212,12 @@ export default {
             'Supports Semgrep (multi-language SAST), Gitleaks (secret detection), ' +
             'Bandit (Python), and Trivy (dependency vulnerabilities). ' +
             'Outputs both a raw JSON file and a human-readable Markdown report.',
+        /** Deduplicate retries by scanner + scan target. */
+        resultKey(args: { path: string; scanner?: string; output_dir?: string }): string | null {
+            const scanner = args?.scanner || 'semgrep';
+            const target = args?.path || '';
+            return `${scanner}:${target}`;
+        },
         parameters: {
             type: 'object',
             properties: {
@@ -325,7 +331,15 @@ export default {
             };
         }
 
-        const command = preset.buildCommand(scanTarget, config);
+        // Docker-out-of-Docker: when the gateway runs inside a container, the host
+        // Docker daemon needs host-side paths for volume mounts, not container paths.
+        // DOCKER_HOST_WORKSPACE maps /app/workspace → the host's workspace directory.
+        const hostWorkspace = process.env.DOCKER_HOST_WORKSPACE;
+        const mountPath = hostWorkspace
+            ? scanTarget.replace(WORKSPACE_DIR, hostWorkspace)
+            : scanTarget;
+
+        const command = preset.buildCommand(mountPath, config);
         console.log(`[security_scanner] ${command}`);
 
         let stdout = '';

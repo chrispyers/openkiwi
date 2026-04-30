@@ -25,8 +25,8 @@ interface AgentsPageProps {
     gatewayAddr: string;
     gatewayToken: string;
     setViewingFile: (file: { title: string, content: string, isEditing: boolean, agentId: string } | null) => void;
-    agentForm: { name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } };
-    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; } }>>
+    agentForm: { name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; maxLoops?: number };
+    setAgentForm: React.Dispatch<React.SetStateAction<{ name: string; avatar?: string; provider?: string; group?: string; heartbeat?: { enabled: boolean; schedule: string; allowManualTrigger?: boolean; }; maxLoops?: number }>>
     saveAgentConfig: (formOverride?: any, successMessage?: string, successDescription?: string) => Promise<void>;
     fetchAgents: () => Promise<void>;
     selectedAgentId: string;
@@ -137,7 +137,8 @@ export default function AgentsPage({
                 avatar: selectedAgent.avatar,
                 provider: selectedAgent.provider || '',
                 group: selectedAgent.group,
-                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false }
+                heartbeat: selectedAgent.heartbeat || { enabled: false, schedule: '* * * * *', allowManualTrigger: false },
+                maxLoops: selectedAgent.maxLoops
             })
         }
     }, [selectedAgent, setAgentForm])
@@ -427,6 +428,34 @@ export default function AgentsPage({
                                         ]}
                                     />
                                 </Row>
+
+                                <Row align="end" gap="gap-4">
+                                    <Column grow={true}>
+                                        <Input
+                                            label="Max Tool Loops"
+                                            icon={faClock}
+                                            currentText={String(agentForm.maxLoops ?? 100)}
+                                            onChange={e => {
+                                                const val = parseInt(e.target.value) || undefined;
+                                                setAgentForm({ ...agentForm, maxLoops: val });
+                                            }}
+                                            clearText={() => setAgentForm({ ...agentForm, maxLoops: undefined })}
+                                            placeholder="100"
+                                            className="!mt-0"
+                                        />
+                                    </Column>
+                                    <Column>
+                                        <Button
+                                            themed={true}
+                                            disabled={agentForm.maxLoops === selectedAgent?.maxLoops}
+                                            onClick={() => saveAgentConfig(agentForm)}
+                                            icon={faSave}
+                                        >
+                                            Save
+                                        </Button>
+                                    </Column>
+                                </Row>
+                                <Text size="xs" secondary={true}>Maximum number of tool call iterations per conversation turn. Higher values allow the agent to complete complex multi-step tasks without stopping. Default: 100</Text>
 
                             </Card>
 

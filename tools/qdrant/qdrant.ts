@@ -275,35 +275,37 @@ export default {
 
             debug('search:', { store: storeName, query: query.slice(0, 80), limit });
 
-            const embeddings = await createEmbedding(embeddingProvider, query);
-            let vector = embeddings[0];
-            if (!vector?.length) return { error: 'Embedding returned empty vector. Check your embedding provider.' };
-            if (storeConfig.dimensions && vector.length > storeConfig.dimensions) {
-                vector = vector.slice(0, storeConfig.dimensions);
+            try {
+                const embeddings = await createEmbedding(embeddingProvider, query);
+                let vector = embeddings[0];
+                if (!vector?.length) return { error: 'Embedding returned empty vector. Check your embedding provider.' };
+                if (storeConfig.dimensions && vector.length > storeConfig.dimensions) {
+                    vector = vector.slice(0, storeConfig.dimensions);
+                }
+
+                const searchParams: any = { vector, limit };
+                if (score_threshold !== undefined) searchParams.score_threshold = score_threshold;
+                if (filter !== undefined) searchParams.filter = filter;
+
+                const searchResult = await client.search(storeConfig.collection, searchParams);
+                return {
+                    store: storeName,
+                    collection: storeConfig.collection,
+                    query,
+                    results: searchResult.map((point: any) => ({
+                        id: point.id,
+                        score: point.score,
+                        payload: {
+                            ...point.payload,
+                            text: typeof point.payload?.text === 'string' && point.payload.text.length > 500
+                                ? point.payload.text.slice(0, 500) + '…'
+                                : point.payload?.text,
+                        },
+                    })),
+                };
+            } catch (e: any) {
+                return { error: `Qdrant search failed: ${e.message}` };
             }
-
-            const searchParams: any = { vector, limit };
-            if (score_threshold !== undefined) searchParams.score_threshold = score_threshold;
-            if (filter !== undefined) searchParams.filter = filter;
-
-            const searchResult = await client.search(storeConfig.collection, searchParams);
-            return {
-                store: storeName,
-                collection: storeConfig.collection,
-                query,
-                results: searchResult.map((point: any) => ({
-                    id: point.id,
-                    score: point.score,
-                    payload: {
-                        ...point.payload,
-                        // Truncate chunk text to prevent context overflow in smaller models.
-                        // The agent gets enough to reason; full text is in the vector store.
-                        text: typeof point.payload?.text === 'string' && point.payload.text.length > 500
-                            ? point.payload.text.slice(0, 500) + '…'
-                            : point.payload?.text,
-                    },
-                })),
-            };
         }
 
         // ── INGEST ──────────────────────────────────────────────────────────────

@@ -81,7 +81,7 @@
 /* Dark Mode Variables */
 .dark {
   /* Theme Color */
-  --accent-primary: #fafafa;
+  --accent-primary: #f0f0f0;
   --button-on-accent: rgb(26, 26, 26);
 
   /* Borders */
@@ -355,4 +355,63 @@
     /* fallback */
     @apply bg-neutral-100 dark:bg-white/5;
   }
+}
+
+/* Code page markdown overrides — terminal aesthetic */
+.code-markdown {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+  font-size: 0.875rem;
+  line-height: 1.5;
+  color: #c9d1d9;
+}
+
+.code-markdown p {
+  margin: 0.5em 0;
+}
+
+.code-markdown code {
+  background: #161b22;
+  border: 1px solid #30363d;
+  border-radius: 4px;
+  padding: 0.15em 0.4em;
+  font-size: 0.85em;
+}
+
+.code-markdown pre {
+  background: #161b22 !important;
+  border: 1px solid #30363d;
+  border-radius: 6px;
+  padding: 0.75em 1em;
+  overflow-x: auto;
+}
+
+.code-markdown pre code {
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+
+.code-markdown ul, .code-markdown ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.code-markdown li {
+  margin: 0.25em 0;
+}
+
+.code-markdown h1, .code-markdown h2, .code-markdown h3 {
+  color: #e6edf3;
+  margin: 0.75em 0 0.25em;
+}
+
+.code-markdown a {
+  color: #58a6ff;
+}
+
+.code-markdown blockquote {
+  border-left: 3px solid #30363d;
+  padding-left: 1em;
+  color: #8b949e;
+  margin: 0.5em 0;
 }

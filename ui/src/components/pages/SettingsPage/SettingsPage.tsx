@@ -107,6 +107,8 @@ interface SettingsPageProps {
     setIsAgentActivityEnabled: (enabled: boolean) => void;
     isProjectsEnabled: boolean;
     setIsProjectsEnabled: (enabled: boolean) => void;
+    isCodeEnabled: boolean;
+    setIsCodeEnabled: (enabled: boolean) => void;
 }
 
 export default function SettingsPage({
@@ -142,7 +144,9 @@ export default function SettingsPage({
     isAgentActivityEnabled,
     setIsAgentActivityEnabled,
     isProjectsEnabled,
-    setIsProjectsEnabled
+    setIsProjectsEnabled,
+    isCodeEnabled,
+    setIsCodeEnabled
 }: SettingsPageProps) {
     const [viewingReadme, setViewingReadme] = useState<{ name: string, content: string } | null>(null);
     const [loadingReadme, setLoadingReadme] = useState(false);
@@ -194,6 +198,8 @@ export default function SettingsPage({
                             setIsAgentActivityEnabled={setIsAgentActivityEnabled}
                             isProjectsEnabled={isProjectsEnabled}
                             setIsProjectsEnabled={setIsProjectsEnabled}
+                            isCodeEnabled={isCodeEnabled}
+                            setIsCodeEnabled={setIsCodeEnabled}
                             theme={theme}
                             setTheme={setTheme}
                         />

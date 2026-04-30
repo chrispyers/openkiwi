@@ -57,6 +57,48 @@ export default {
             '(e.g. "/my_group/my_project") instead of a full URL.',
         requiresApproval: true,
         verificationHint: 'After cloning, verify repos exist by calling ls on the parent directory (e.g. ls path="tmp") and confirming each expected repo name appears in the listing. Do not use glob with paths containing "/".',
+        /**
+         * Used by the workflow executor to deduplicate retry attempts and filter
+         * out verification calls.  Returns a string key for operations that
+         * should be tracked (retries with the same key replace earlier results),
+         * or null for read-only / informational commands that shouldn't appear
+         * in step results.
+         */
+        resultKey(args: { args: string }): string | null {
+            const raw = (args?.args || '').trim();
+            const tokens = raw.split(/\s+/);
+            const cmd = tokens[0];
+
+            if (cmd === 'clone') {
+                // Parse positional args, skipping flags and their values
+                const rest = tokens.slice(1);
+                const flagsWithValue = new Set([
+                    '--depth', '--branch', '-b', '--reference', '--origin',
+                    '-o', '--jobs', '-j', '--config', '-c', '--separate-git-dir',
+                ]);
+                const positional: string[] = [];
+                for (let i = 0; i < rest.length; i++) {
+                    if (rest[i].startsWith('-')) {
+                        if (flagsWithValue.has(rest[i])) i++; // skip value
+                    } else {
+                        positional.push(rest[i]);
+                    }
+                }
+                // clone <repo> [<dir>] — destination is last positional, or repo basename
+                const dest = positional.length >= 2
+                    ? positional[positional.length - 1]
+                    : positional[0]?.split('/').pop()?.replace(/\.git$/, '') || 'repo';
+                return `clone:${dest}`;
+            }
+
+            // Read-only / verification commands — not counted as operations
+            if (/^(log|status|rev-parse|show|ls-remote|remote|branch|describe|cat-file|ls-tree|ls-files|config|version|tag)$/.test(cmd || '')) {
+                return null;
+            }
+
+            // Other mutating commands — track by command name
+            return cmd || null;
+        },
         parameters: {
             type: 'object',
             properties: {

@@ -52,6 +52,8 @@ export default function Settings_General({
     setIsAgentActivityEnabled,
     isProjectsEnabled,
     setIsProjectsEnabled,
+    isCodeEnabled,
+    setIsCodeEnabled,
     theme,
     setTheme
 }) {
@@ -123,6 +125,24 @@ export default function Settings_General({
                             setIsAgentActivityEnabled(newValue);
                             localStorage.setItem('experimental_activity', newValue.toString());
                             toast.success(`${newValue ? 'Enabled' : 'Disabled'} Agent Activity`);
+                        }}
+                    />
+                </Row>
+            </Card>
+
+            <Card>
+                <Row>
+                    <Column grow={true}>
+                        <Text bold={true}>Code</Text>
+                        <Text size="sm" secondary={true}>Enable the "Code" terminal in the side bar for a Claude Code-like coding experience.</Text>
+                    </Column>
+                    <Toggle
+                        checked={isCodeEnabled}
+                        onChange={() => {
+                            const newValue = !isCodeEnabled;
+                            setIsCodeEnabled(newValue);
+                            localStorage.setItem('experimental_code', newValue.toString());
+                            toast.success(`${newValue ? 'Enabled' : 'Disabled'} Code`);
                         }}
                     />
                 </Row>

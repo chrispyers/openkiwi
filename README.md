@@ -3,8 +3,12 @@
 ## Navigation
 * [What is it?](#what-is-it)
 * [How Agents Work](#how-agents-work)
+  * [Agent Skills](#agent-skills)
+  * [Memory System](#memory-system)
+  * [Context Compaction](#context-compaction)
+  * [Multi-Agent Orchestration](#multi-agent-orchestration)
+  * [Heartbeats](#heartbeats)
 * [Visual Workflow Builder](#visual-workflow-builder)
-* [Agent Skills](#agent-skills)
 * [Quickstart](#quickstart)
   * [Launch the Services](#launch-the-services)
   * [Connect to the gateway](#connect-to-the-gateway)
@@ -14,7 +18,6 @@
     * [WhatsApp](#whatsapp)
     * [Telegram](#telegram)
   * [Enable tools](#enable-tools)
-* [Heartbeats](#heartbeats)
 * [Security: Allowlists](#security-allowlists)
 * [Use Cases](#use-cases)
 
@@ -115,6 +118,27 @@ Once installed, agents activate skills automatically during chat when the task m
 ![Skill being used in chat](docs/images/skills-3.png)
 
 For full details on the skill format, authoring your own skills, and advanced options, see [docs/AGENT_SKILLS.md](docs/AGENT_SKILLS.md).
+
+
+<a id="context-compaction"></a>
+
+## Context Compaction
+
+Agents automatically manage their context window during long tasks. When the conversation history approaches the model's token limit, the system summarizes older messages to free up space — allowing the agent to continue working without stopping or losing track of progress. This works with any LLM provider and adapts to the model's context size. [Read more](docs/CONTEXT_COMPACTION.md)
+
+
+<a id="memory-system"></a>
+
+## Memory System
+
+Each agent has persistent long-term memory stored as a human-readable Markdown file (`MEMORY.md`). Agents automatically save important facts — user preferences, project context, past decisions — and recall them in future sessions using hybrid search that combines vector embeddings with full-text keyword search. Memory can also be shared across agents via `SHARED_MEMORY.md`. [Read more](docs/MEMORY_SYSTEM.md)
+
+
+<a id="multi-agent-orchestration"></a>
+
+## Multi-Agent Orchestration
+
+Agents can delegate tasks to other agents for parallel execution. A coordinator agent breaks a complex problem into subtasks, dispatches each to a specialized agent, and synthesizes the results — similar to how Claude Code's Agent Teams work. Agents share data in real time via a shared scratchpad. [Read more](docs/MULTI_AGENT_ORCHESTRATION.md)
 
 
 <a id="local-development"></a>

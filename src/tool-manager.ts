@@ -1,6 +1,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { loadConfig } from './config-manager.js';
+import { MCPClientManager } from './mcp-client.js';
 
 export interface ToolDefinition {
     name: string;
@@ -76,6 +77,13 @@ export class ToolManager {
 
         // Register built-in tools for the demo
         await this.registerBuiltInTools();
+
+        // Connect to MCP servers and register their tools
+        try {
+            await MCPClientManager.connectAll();
+        } catch (err: any) {
+            console.error('[ToolManager] Failed to connect MCP servers:', err.message);
+        }
     }
 
     private static async registerBuiltInTools() {
@@ -102,6 +110,22 @@ export class ToolManager {
             this.registerTool(module.activate_skill);
         } catch (err) {
             console.error('Failed to load skill tools', err);
+        }
+
+        try {
+            const module = await import('./tools/delegation_tools.js');
+            this.registerTool(module.delegate_to_agent);
+            this.registerTool(module.wait_for_agents);
+        } catch (err) {
+            console.error('Failed to load delegation tools', err);
+        }
+
+        try {
+            const module = await import('./tools/scratchpad_tools.js');
+            this.registerTool(module.scratchpad_write);
+            this.registerTool(module.scratchpad_read);
+        } catch (err) {
+            console.error('Failed to load scratchpad tools', err);
         }
     }
 

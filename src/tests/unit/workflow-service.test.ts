@@ -21,6 +21,7 @@ vi.mock('../../db/collab-db.js', async () => {
             assigned_agent_id TEXT,
             requires_approval BOOLEAN DEFAULT 0,
             instructions TEXT,
+            depends_on TEXT,
             FOREIGN KEY (workflow_id) REFERENCES workflows(id) ON DELETE CASCADE
         );
     `);

@@ -177,7 +177,7 @@ export function initTelegramHandler() {
                 llmConfig,
                 messages: payload,
                 visionEnabled: !!providerConfig?.capabilities?.vision,
-                maxLoops: 5,
+                maxLoops: agent?.maxLoops || 100,
                 signToolUrls: true,
                 agentToolsConfig: agent?.tools
             });

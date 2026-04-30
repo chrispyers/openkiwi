@@ -1,6 +1,6 @@
 :root {
   --orange-swatch-light: rgb(249, 115, 22);
-  --orange-swatch-dark: rgb(245, 186, 137);
+  --orange-swatch-dark: rgb(246, 175, 118);
 }
 
 :root.light.theme-orange,

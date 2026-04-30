@@ -16,7 +16,8 @@ const Input = forwardRef(({
   inputClassName,
   children,
   width,
-  readOnly
+  readOnly,
+  type
 }, ref) => {
   const context = useContext(ThemeContext);
   const getThemeInputClasses = context?.getThemeInputClasses || (() => "");
@@ -41,7 +42,7 @@ const Input = forwardRef(({
 
         <input
           id={id}
-          type="text"
+          type={type || "text"}
           ref={ref}
           readOnly={readOnly}
           style={{ backgroundColor: 'var(--input-bg)' }}

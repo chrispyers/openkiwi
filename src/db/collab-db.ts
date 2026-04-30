@@ -53,6 +53,13 @@ class CollabDb {
                 // Column might already exist
             }
 
+            // Migration to add depends_on for parallel workflow execution
+            try {
+                this.db.exec("ALTER TABLE workflow_states ADD COLUMN depends_on TEXT;");
+            } catch (e) {
+                // Column might already exist
+            }
+
             logger.log({ type: 'system', level: 'info', message: '[CollabDb] Initialized collaboration database schema.' });
         } catch (error) {
             logger.log({ type: 'error', level: 'error', message: '[CollabDb] Failed to initialize collaboration database schema.', data: error });

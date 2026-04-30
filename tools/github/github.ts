@@ -39,6 +39,10 @@ export default {
         name: 'github',
         displayName: "GitHub",
         description: toolDescription,
+        /** Deduplicate retries by action + repo + path. */
+        resultKey(args: { action: string; repo: string; path: string }): string | null {
+            return `${args?.action || 'unknown'}:${args?.repo || ''}:${args?.path || ''}`;
+        },
         parameters: {
             type: 'object',
             properties: {

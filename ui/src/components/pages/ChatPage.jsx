@@ -35,7 +35,8 @@ export default function ChatPage({
     textareaRef,
     chatContainerRef,
     handleScroll,
-    formatTimestamp
+    formatTimestamp,
+    contextWarning
 }) {
     useEffect(() => {
         if (textareaRef.current) {
@@ -247,6 +248,12 @@ export default function ChatPage({
                     <div className="max-w-4xl mx-auto mb-4 p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-sm flex items-center justify-center gap-2">
                         <AlertCircle size={16} />
                         <span>You cannot send a message to this agent because it no longer exists.</span>
+                    </div>
+                )}
+                {contextWarning && (
+                    <div className="max-w-4xl mx-auto mb-4 p-3 bg-amber-500/10 border border-amber-500/20 rounded-xl text-amber-600 dark:text-amber-400 text-sm flex items-start gap-2">
+                        <AlertCircle size={16} className="shrink-0 mt-0.5" />
+                        <span>{contextWarning}</span>
                     </div>
                 )}
                 <form onSubmit={handleSend} className="relative group max-w-4xl mx-auto">

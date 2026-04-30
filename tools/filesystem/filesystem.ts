@@ -13,6 +13,15 @@ export default {
         displayName: 'File Operations',
         pluginType: 'tool',
         description: 'Perform structural file system operations: delete files or directories, clear a directory\'s contents (rm -rf dir/*), create directories, move/rename, and copy.',
+        /** Deduplicate retries by action + target path. */
+        resultKey(args: { action: string; path: string; newPath?: string }): string | null {
+            const action = args?.action || 'unknown';
+            const target = args?.path || '';
+            if (action === 'move' || action === 'copy') {
+                return `${action}:${target}:${args?.newPath || ''}`;
+            }
+            return `${action}:${target}`;
+        },
         parameters: {
             type: 'object',
             properties: {
