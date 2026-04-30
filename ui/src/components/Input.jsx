@@ -9,6 +9,7 @@ const Input = forwardRef(({
   currentText,
   placeholder,
   onChange,
+  onFocus,
   icon,
   clearText,
   className,
@@ -55,6 +56,7 @@ const Input = forwardRef(({
           value={currentText}
           placeholder={placeholder}
           onChange={onChange || (() => { })}
+          onFocus={onFocus}
         />
 
         {/* a little"X"button to clear the text */}

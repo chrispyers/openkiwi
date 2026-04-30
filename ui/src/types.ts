@@ -44,6 +44,7 @@ export interface Agent {
     systemPrompt: string;
     provider?: string;
     isDefault?: boolean;
+    group?: string;
     maxLoops?: number;
 }
 

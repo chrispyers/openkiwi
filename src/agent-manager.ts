@@ -36,6 +36,7 @@ export interface Agent {
     };
     tools?: Record<string, any>;
     isDefault?: boolean;
+    group?: string;
     maxLoops?: number;
 }
 
@@ -142,6 +143,7 @@ ${globalSystemPrompt}`.trim();
             heartbeat: agentConfig.heartbeat,
             tools: agentConfig.tools,
             isDefault: agentConfig.isDefault,
+            group: agentConfig.group,
             maxLoops: agentConfig.maxLoops
         };
     }
@@ -233,6 +235,13 @@ ${globalSystemPrompt}`.trim();
         }
 
         const newConfig = { ...existingConfig, ...config };
+
+        // Remove keys explicitly set to null (signals deletion)
+        for (const key of Object.keys(newConfig)) {
+            if (newConfig[key] === null) {
+                delete newConfig[key];
+            }
+        }
 
         fs.writeFileSync(configPath, JSON.stringify(newConfig, null, 2), 'utf-8');
 
