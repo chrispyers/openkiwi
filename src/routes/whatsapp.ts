@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { WhatsAppManager } from '../whatsapp-manager.js';
+import { AgentManager } from '../agent-manager.js';
+import { loadConfig, saveConfig } from '../config-manager.js';
 import {
     getIngestConfig,
     updateIngestConfig,
@@ -51,6 +53,53 @@ router.post('/ingest/backfill', async (req, res) => {
     const result = await backfillChat(jid, typeof count === 'number' ? count : 50);
     if ('error' in result) return res.status(500).json(result);
     res.json(result);
+});
+
+// ── Channel bindings (jid → agentId) ────────────────────────────────────────
+
+router.get('/bindings', (req, res) => {
+    const config = loadConfig();
+    const bindings = config.channelBindings?.whatsapp || {};
+    const knownChats = listChats();
+
+    const enriched = Object.entries(bindings).map(([jid, agentId]) => {
+        const chat = knownChats.find((c: any) => c.jid === jid);
+        return { jid, agentId, title: chat?.name || null };
+    });
+
+    res.json({ bindings: enriched });
+});
+
+router.put('/bindings/:jid', (req, res) => {
+    const { jid } = req.params;
+    const { agentId } = req.body || {};
+
+    if (!agentId || typeof agentId !== 'string') {
+        return res.status(400).json({ error: 'agentId is required' });
+    }
+    if (!AgentManager.getAgent(agentId)) {
+        return res.status(404).json({ error: `Agent "${agentId}" not found` });
+    }
+
+    const config = loadConfig();
+    if (!config.channelBindings) config.channelBindings = { telegram: {}, whatsapp: {} };
+    if (!config.channelBindings.whatsapp) config.channelBindings.whatsapp = {};
+    config.channelBindings.whatsapp[jid] = agentId;
+    saveConfig(config);
+
+    res.json({ success: true, jid, agentId });
+});
+
+router.delete('/bindings/:jid', (req, res) => {
+    const { jid } = req.params;
+    const config = loadConfig();
+
+    if (config.channelBindings?.whatsapp?.[jid]) {
+        delete config.channelBindings.whatsapp[jid];
+        saveConfig(config);
+    }
+
+    res.json({ success: true, jid });
 });
 
 export default router;

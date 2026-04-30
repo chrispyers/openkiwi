@@ -73,56 +73,65 @@ export function initWhatsAppHandler() {
                 message: `WhatsApp message from ${remoteJid}: ${text}`
             });
 
-            // Check for agent targeting (e.g. "@luna Hello")
-            const agentIds = AgentManager.listAgents();
-            const agents = agentIds.map(id => AgentManager.getAgent(id)).filter(a => a !== null);
-
-            let agentId = AgentManager.getDefaultAgentId() || 'assistant';
-            let targetFound = false;
-
-            // Build match candidates: full name, first word of name (e.g. "Themis" from "Themis (Umpire)"), and directory id
-            // Sort by length desc to ensure we match "@Super Bot" before "@Super" if both exist
-            const potentialMatches = agents.flatMap(agent => {
-                const firstName = agent!.name.split(/[\s(]/)[0];
-                const entries = [
-                    { name: agent!.name, id: agent!.id, agent },
-                    { name: agent!.id, id: agent!.id, agent }
-                ];
-                if (firstName.toLowerCase() !== agent!.name.toLowerCase() && firstName.toLowerCase() !== agent!.id.toLowerCase()) {
-                    entries.push({ name: firstName, id: agent!.id, agent });
-                }
-                return entries;
-            }).sort((a, b) => b.name.length - a.name.length);
-
-            for (const match of potentialMatches) {
-                const escaped = match.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                const mentionRegex = new RegExp(`@${escaped}(?:[,.:;!?]?\\s+|[,.:;!?]?$)`, 'i');
-
-                const regexMatch = text.match(mentionRegex);
-                if (regexMatch) {
-                    agentId = match.id;
-                    targetFound = true;
-                    break;
-                }
-            }
-
+            // Check for per-chat agent binding (binding wins over @mention)
+            const config = loadConfig();
+            const boundAgentId = config.channelBindings?.whatsapp?.[remoteJid];
+            let agentId: string;
             let messageContent = text;
-            if (targetFound) {
-                // Strip the @mention (anywhere in the message) and surrounding whitespace
-                const agent = AgentManager.getAgent(agentId);
-                if (agent) {
-                    const names = [agent.name, agent.name.split(/[\s(]/)[0], agent.id];
-                    for (const name of names) {
-                        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-                        const stripRegex = new RegExp(`@${escaped}[,.:;!?]?\\s*`, 'ig');
-                        messageContent = messageContent.replace(stripRegex, '');
-                    }
-                    messageContent = messageContent.trim();
-                }
-            }
 
-            if (!targetFound) {
-                agentId = AgentManager.getDefaultAgentId() || agentId;
+            if (boundAgentId && AgentManager.getAgent(boundAgentId)) {
+                agentId = boundAgentId;
+            } else {
+                // Fall back to @mention targeting (e.g. "@luna Hello")
+                const agentIds = AgentManager.listAgents();
+                const agents = agentIds.map(id => AgentManager.getAgent(id)).filter(a => a !== null);
+
+                agentId = AgentManager.getDefaultAgentId() || 'assistant';
+                let targetFound = false;
+
+                // Build match candidates: full name, first word of name (e.g. "Themis" from "Themis (Umpire)"), and directory id
+                // Sort by length desc to ensure we match "@Super Bot" before "@Super" if both exist
+                const potentialMatches = agents.flatMap(agent => {
+                    const firstName = agent!.name.split(/[\s(]/)[0];
+                    const entries = [
+                        { name: agent!.name, id: agent!.id, agent },
+                        { name: agent!.id, id: agent!.id, agent }
+                    ];
+                    if (firstName.toLowerCase() !== agent!.name.toLowerCase() && firstName.toLowerCase() !== agent!.id.toLowerCase()) {
+                        entries.push({ name: firstName, id: agent!.id, agent });
+                    }
+                    return entries;
+                }).sort((a, b) => b.name.length - a.name.length);
+
+                for (const match of potentialMatches) {
+                    const escaped = match.name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                    const mentionRegex = new RegExp(`@${escaped}(?:[,.:;!?]?\\s+|[,.:;!?]?$)`, 'i');
+
+                    const regexMatch = text.match(mentionRegex);
+                    if (regexMatch) {
+                        agentId = match.id;
+                        targetFound = true;
+                        break;
+                    }
+                }
+
+                if (targetFound) {
+                    // Strip the @mention (anywhere in the message) and surrounding whitespace
+                    const agent = AgentManager.getAgent(agentId);
+                    if (agent) {
+                        const names = [agent.name, agent.name.split(/[\s(]/)[0], agent.id];
+                        for (const name of names) {
+                            const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+                            const stripRegex = new RegExp(`@${escaped}[,.:;!?]?\\s*`, 'ig');
+                            messageContent = messageContent.replace(stripRegex, '');
+                        }
+                        messageContent = messageContent.trim();
+                    }
+                }
+
+                if (!targetFound) {
+                    agentId = AgentManager.getDefaultAgentId() || agentId;
+                }
             }
 
             const safeSessionId = `wa-${remoteJid.replace(/[^a-zA-Z0-9]/g, '_')}-${agentId}`;

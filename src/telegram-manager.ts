@@ -52,6 +52,7 @@ export class TelegramManager extends EventEmitter {
     private isConnected: boolean = false;
     private isInitializing: boolean = false;
     private botUsername: string | null = null;
+    private knownChats: Map<string, { title: string; type: string }> = new Map();
 
     private constructor() {
         super();
@@ -102,6 +103,12 @@ export class TelegramManager extends EventEmitter {
                 const chatId = ctx.chat.id;
                 const text = ctx.message.text;
                 const messageId = ctx.message.message_id;
+
+                // Track known chats for discovery
+                this.knownChats.set(String(chatId), {
+                    title: (ctx.chat as any).title || (ctx.chat as any).first_name || String(chatId),
+                    type: ctx.chat.type,
+                });
 
                 // Allowlist check
                 if (!isUserAllowed(userId, username)) {
@@ -186,6 +193,13 @@ export class TelegramManager extends EventEmitter {
             isInitializing: this.isInitializing,
             botUsername: this.botUsername
         };
+    }
+
+    public getKnownChats(): Array<{ chatId: string; title: string; type: string }> {
+        return Array.from(this.knownChats.entries()).map(([chatId, info]) => ({
+            chatId,
+            ...info,
+        }));
     }
 
     /**

@@ -90,6 +90,10 @@ const ConfigSchema = z.object({
     heartbeat: z.object({
         allowManualTrigger: z.boolean().default(false),
     }).passthrough().default({ allowManualTrigger: false }),
+    channelBindings: z.object({
+        telegram: z.record(z.string(), z.string()).default({}),
+        whatsapp: z.record(z.string(), z.string()).default({}),
+    }).default({ telegram: {}, whatsapp: {} }),
     enabledTools: z.record(z.string(), z.boolean()).default({}),
     tools: z.record(z.string(), z.any()).default({}),
     connections: z.object({
@@ -247,6 +251,7 @@ export function loadConfig(): Config {
             heartbeat: {
                 allowManualTrigger: false,
             },
+            channelBindings: { telegram: {}, whatsapp: {} },
             enabledTools: {},
             tools: {},
             connections: { git: [] },
